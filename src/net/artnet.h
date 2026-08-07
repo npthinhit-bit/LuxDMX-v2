@@ -1,0 +1,34 @@
+#pragma once
+#include <stdint.h>
+
+// Art-Net 4 RDM bridge constants — shared by basic receive and the RDM bridge.
+static constexpr uint16_t ARTNET_OP_POLL       = 0x2000;
+static constexpr uint16_t ARTNET_OP_POLLREPLY  = 0x2100;
+static constexpr uint16_t ARTNET_OP_DMX        = 0x5000;
+static constexpr uint16_t ARTNET_OP_TODREQUEST = 0x8000;
+static constexpr uint16_t ARTNET_OP_TODDATA    = 0x8100;
+static constexpr uint16_t ARTNET_OP_TODCONTROL = 0x8200;
+static constexpr uint16_t ARTNET_OP_RDM        = 0x8300;
+static constexpr uint16_t ARTNET_OP_ADDRESS    = 0x6000;
+static constexpr uint16_t ARTNET_OP_IPPROG     = 0xf800;
+static constexpr uint16_t ARTNET_OP_IPPROGREPLY= 0xf900;
+static constexpr int      ARTNET_PORT          = 6454;
+static const uint8_t      ARTNET_ID[8]         = {'A','r','t','-','N','e','t',0};
+
+static constexpr uint8_t  ATC_FLUSH = 0x01;
+
+// BackgroundQueuePolicy: severity for background status collection.
+// 4 = disabled (default); 0..3 = collect NONE/ADVISORY/WARNING/ERROR.
+extern uint8_t g_bqPolicy;
+extern volatile bool g_bqDirty;
+extern volatile bool g_artCfgDirty;
+static constexpr uint32_t BQ_POLL_MS = 5000;
+
+// Initialize the raw 6454 UDP socket + bridge state. Called from setup().
+void artRdmInit();
+
+// Drain the 6454 socket, parse Art-Net, dispatch. Bounded (64 packets/call).
+void artRdmPollRx();
+
+// Send queued ArtRdm/ArtTod replies the DMX task produced (core 0 only).
+void artRdmDrainResponses();

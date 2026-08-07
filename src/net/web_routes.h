@@ -1,0 +1,50 @@
+#pragma once
+#include <ESPAsyncWebServer.h>
+#include <Arduino.h>
+
+// Dynamic JSON / config / OTA / RDM / LED handlers.
+// These remain defined in the legacy main.cpp for now; forward declarations
+// live here so web_server.cpp can wire up every route. Each handler will be
+// migrated into src/net/ (web_routes.cpp) as the dynamic layer stabilizes.
+
+// JSON snapshots
+void handleDmxJson(AsyncWebServerRequest* req);
+void handleSendersJson(AsyncWebServerRequest* req);
+void handleLogJson(AsyncWebServerRequest* req);
+void handleInfoJson(AsyncWebServerRequest* req);
+void handleVersionJson(AsyncWebServerRequest* req);
+void handleRdmJson(AsyncWebServerRequest* req);
+
+// Config
+void handleConfigPost(AsyncWebServerRequest* req);
+void handleLabelsGet(AsyncWebServerRequest* req);
+void handleAutoUpdatePost(AsyncWebServerRequest* req);
+void handleLabelsBody(AsyncWebServerRequest* req, uint8_t* data, size_t len,
+                      size_t index, size_t total);
+
+// Setup portal
+void handleSetupScan(AsyncWebServerRequest* req);
+void handleSetupPost(AsyncWebServerRequest* req);
+
+// Reset / reboot
+void handleResetPost(AsyncWebServerRequest* req);
+void handleRebootPost(AsyncWebServerRequest* req);
+
+// OTA
+void handleOtaGithub(AsyncWebServerRequest* req);
+void handleOtaUrl(AsyncWebServerRequest* req);
+void handleOtaUploadDone(AsyncWebServerRequest* req);
+void handleOtaUploadChunk(AsyncWebServerRequest* req, const String& filename,
+                          size_t index, uint8_t* data, size_t len, bool final);
+
+// RDM control
+void handleRdmTrigger(AsyncWebServerRequest* req);
+
+// LED brightness
+void handleLedBright(AsyncWebServerRequest* req);
+
+// Helpers (used by config handler)
+void htmlEsc(const String& in, String& out);
+void jsonEsc(const String& in, String& out);
+bool argStr(AsyncWebServerRequest* req, const char* name, String& out);
+void sendJsonSafe(AsyncWebServerRequest* req, const String& j);

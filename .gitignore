@@ -1,0 +1,43 @@
+.pio/
+src/generated/
+docs/node_modules/
+docs/video-raw/
+docs/demo.mp4
+docs/test-results/
+docs/playwright-report/
+
+# local editor/agent config (never publish)
+.claude/
+CLAUDE.md
+.vscode/
+.kilo/
+.history/
+# stray SKiDL byproducts if luxdmx.py is run from repo root
+/luxdmx.erc
+/luxdmx.log
+/luxdmx*_sklib.py
+/luxdmx*.kicad_prl
+
+# pioarduino custom_sdkconfig from-source core build artifacts (generated from the
+# custom_sdkconfig option in platformio.ini — that file is the source of truth)
+/CMakeLists.txt
+/sdkconfig.defaults
+/sdkconfig.*
+/dependencies.lock
+/managed_components/
+/.dummy/
+/src/idf_component.yml
+/src/idf_component.yml.orig
+
+# Local-only private working assets — kept OUT of the public repo.
+# (UI simulator / video pipeline + promo plan; backed up privately in tombueng/LuxDMX-ops.)
+/sim/
+PROMO_PLAN.local.md
+
+# Private deploy secrets for luxdmx.org Strato hosting (SSH key + credentials/URLs)
+/.secrets/
+*.bak
+__pycache__/
+
+# native test build artifacts
+build/
