@@ -2,7 +2,7 @@
 #include "config_schema.h"
 #include "frame_router.h"
 #include "merge_engine.h"
-#include "network.h"
+#include "net_state.h"
 #include "ethernet.h"
 #include "rdm_engine.h"
 #include "output_init.h"

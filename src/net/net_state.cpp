@@ -1,4 +1,4 @@
-#include "network.h"
+#include "net_state.h"
 #include "config_schema.h"
 #include "config_core.h"
 #include "led_status.h"   // setLedColor, bootConnectingLed

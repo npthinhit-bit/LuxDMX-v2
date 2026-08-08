@@ -4,7 +4,7 @@
 #include "sender_tracker.h"
 #include "config_schema.h"
 #include "output_init.h"   // dmxIsDelta, TXSRC_ARTNET
-#include "network.h"       // g_apMode, g_useEth, WiFi
+#include "net_state.h"   // g_apMode, g_useEth, WiFi
 #include <Arduino.h>
 #include <ETH.h>
 

@@ -14,7 +14,7 @@
 #include "net/websocket.h"
 #include "net/ws_handler.h"
 #include "net/web_server.h"
-#include "net/network.h"
+#include "net/net_state.h"
 #include "net/ethernet.h"
 #include "stats.h"
 #include "sys_platform.h"

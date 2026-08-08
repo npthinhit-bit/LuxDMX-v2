@@ -21,6 +21,7 @@ CLAUDE.md
 # pioarduino custom_sdkconfig from-source core build artifacts (generated from the
 # custom_sdkconfig option in platformio.ini — that file is the source of truth)
 /CMakeLists.txt
+/partitions.csv
 /sdkconfig.defaults
 /sdkconfig.*
 /dependencies.lock

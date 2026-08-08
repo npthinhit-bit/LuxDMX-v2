@@ -4,7 +4,7 @@
 #include "frame_router.h"
 #include "firmware_version.h"
 #include "sys_platform.h"
-#include "network.h"
+#include "net_state.h"
 #include "dmx_buffer.h"
 #include "sender_tracker.h"
 #include "output_init.h"

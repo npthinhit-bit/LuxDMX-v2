@@ -3,6 +3,7 @@
 
 // RMII PHY family name table — index matches the RMII PHY enum in config_enums.h
 // (RMII_PHY_LAN8720 = 0 .. RMII_PHY_JL1101 = 5).
+#if defined(HAS_ETH_RMII)
 static const char* const RMII_PHY_NAMES[] = {
     "LAN8720", "IP101", "RTL8201", "DP83848", "KSZ8081", "JL1101"
 };
@@ -19,3 +20,4 @@ static inline eth_phy_type_t rmiiPhyType(int idx) {
         default: return ETH_PHY_LAN8720;
     }
 }
+#endif

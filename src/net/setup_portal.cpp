@@ -1,4 +1,4 @@
-#include "network.h"
+#include "net_state.h"
 #include "sys_platform.h"
 #include "config_schema.h"
 #include <WiFi.h>

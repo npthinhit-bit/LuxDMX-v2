@@ -15,7 +15,7 @@
 #include "rdm_engine.h"
 #include "rdm_disc.h"
 #include "ethernet.h"
-#include "network.h"
+#include "net_state.h"
 #include "led_status.h"
 #include "ota.h"
 #include <Arduino.h>
