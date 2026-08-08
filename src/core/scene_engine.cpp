@@ -14,8 +14,27 @@
 #include <Preferences.h>
 #include <string.h>
 
-Scene    g_scenes[MAX_SCENES];
-uint8_t  g_sceneHome = 0;  // index of the "home" scene
+#ifdef CONFIG_SPIRAM_SUPPORT
+#include <esp_heap_caps.h>
+#endif
+
+// Allocate scenes from PSRAM when available, internal heap otherwise.
+Scene* g_scenes = nullptr;
+uint8_t g_sceneHome = 0;
+
+static void allocScenes() {
+    if (g_scenes) return;
+#ifdef CONFIG_SPIRAM_SUPPORT
+    g_scenes = (Scene*)heap_caps_malloc(sizeof(Scene) * MAX_SCENES, MALLOC_CAP_SPIRAM);
+    if (!g_scenes) {
+        // Fallback to internal if PSRAM allocation fails
+        g_scenes = (Scene*)malloc(sizeof(Scene) * MAX_SCENES);
+    }
+#else
+    g_scenes = (Scene*)malloc(sizeof(Scene) * MAX_SCENES);
+#endif
+    if (g_scenes) memset(g_scenes, 0, sizeof(Scene) * MAX_SCENES);
+}
 
 // --- Fade state ---
 struct FadeState {
@@ -41,6 +60,7 @@ static String sceneMetaKey(int idx) {
 
 bool sceneSaveNvs(int idx) {
     if (idx < 0 || idx >= MAX_SCENES) return false;
+    if (!g_scenes) return false;
     Preferences p;
     if (!p.begin(SCENE_NS, false)) return false;
     char nameBuf[32];
@@ -56,6 +76,7 @@ bool sceneSaveNvs(int idx) {
 
 bool sceneLoadNvs(int idx) {
     if (idx < 0 || idx >= MAX_SCENES) return false;
+    if (!g_scenes) return false;
     Preferences p;
     if (!p.begin(SCENE_NS, true)) return false;
     if (!p.isKey(sceneMetaKey(idx).c_str())) { p.end(); return false; }
@@ -84,6 +105,7 @@ bool sceneEraseNvs(int idx) {
 }
 
 void sceneLoadAll() {
+    allocScenes();
     Preferences p;
     p.begin(SCENE_NS, true);
     for (int i = 0; i < MAX_SCENES; i++) {
@@ -112,6 +134,7 @@ void sceneSave(int idx) {
 
 // --- Fade engine ---
 void sceneRecall(int presetIdx, uint16_t fadeMs, int outIdx) {
+    if (!g_scenes) return;
     if (presetIdx < 0 || presetIdx >= MAX_SCENES) return;
     Scene& sc = g_scenes[presetIdx];
     if (outIdx < 0) {
@@ -179,6 +202,7 @@ bool sceneTriggerPlay(int idx, uint16_t fadeMs) {
 // Called when a new Art-Net TimeCode frame arrives.
 // Scene triggerMask bits: 0=timecode trigger enabled for this scene.
 void sceneCheckTimecodeTrigger() {
+    if (!g_scenes) return;
     // Placeholder: Phase 3 proper will implement per-scene timecode matching
     // (e.g. "play scene N at hh:mm:ss:frame"). For now, scenes with
     // triggerMask bit 0 set fire whenever any timecode arrives.

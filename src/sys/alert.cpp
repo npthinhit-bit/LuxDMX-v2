@@ -1,8 +1,10 @@
 // Webhook alert module — sends JSON POST on DMX source loss/restore events.
 #include "alert.h"
 #include "config_schema.h"
+#ifdef ESP32
 #include <HTTPClient.h>
 #include <WiFi.h>
+#endif
 
 static bool g_alertSent[MAX_OUTPUTS] = {false};
 
@@ -11,6 +13,7 @@ void alertSourceLost(int outIdx, const char* sourceIp) {
     if (g_alertSent[outIdx]) return;
     g_alertSent[outIdx] = true;
 
+#ifdef ESP32
     if (WiFi.status() != WL_CONNECTED) return;
 
     HTTPClient http;
@@ -28,6 +31,9 @@ void alertSourceLost(int outIdx, const char* sourceIp) {
     int code = http.POST(payload);
     Serial.printf("[ALERT] source lost on %c (HTTP %d)\n", char('A' + outIdx), code);
     http.end();
+#else
+    printf("[ALERT] source lost on %c (webhook disabled on host)\n", char('A' + outIdx));
+#endif
 }
 
 void alertSourceRestored(int outIdx) {
@@ -35,6 +41,7 @@ void alertSourceRestored(int outIdx) {
     if (!g_alertSent[outIdx]) return;
     g_alertSent[outIdx] = false;
 
+#ifdef ESP32
     if (WiFi.status() != WL_CONNECTED) return;
 
     HTTPClient http;
@@ -51,4 +58,7 @@ void alertSourceRestored(int outIdx) {
     int code = http.POST(payload);
     Serial.printf("[ALERT] source restored on %c (HTTP %d)\n", char('A' + outIdx), code);
     http.end();
+#else
+    printf("[ALERT] source restored on %c (webhook disabled on host)\n", char('A' + outIdx));
+#endif
 }

@@ -193,6 +193,7 @@ void handleWsText(const char* payload, size_t len) {
         if (idx < 0) return;
         int sceneIdx = msg.substring(idx + 5).toInt();
         if (sceneIdx < 0 || sceneIdx >= MAX_SCENES) return;
+        if (!g_scenes) return;
         const int mo = viewOutput();
         dmxBufSnapshot(mo, g_scenes[sceneIdx].data[mo]);
         const char* nameKey = "\"name\":\"";

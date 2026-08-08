@@ -3,7 +3,12 @@
 #include "rdm_types.h"
 #include "config_schema.h"
 
-#define MAX_SCENES 32
+// Scene count: 32 for PSRAM targets (S3), 8 for non-PSRAM targets (ESP32).
+#ifdef CONFIG_SPIRAM_SUPPORT
+  #define MAX_SCENES 32
+#else
+  #define MAX_SCENES 8
+#endif
 
 struct Scene {
     char     name[32];
@@ -14,7 +19,7 @@ struct Scene {
     bool     active;
 };
 
-extern Scene g_scenes[MAX_SCENES];
+extern Scene* g_scenes;
 extern uint8_t g_sceneHome;
 
 // Load/save a single scene to NVS.
