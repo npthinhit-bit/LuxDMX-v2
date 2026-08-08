@@ -7,6 +7,8 @@
 #include "config_serial.h"
 #include "nvs_migrate.h"
 #include "output_init.h"
+#include "input_router.h"
+#include "scene_engine.h"
 #include "rdm_engine.h"
 #include "net/sacn.h"
 #include "net/artnet.h"
@@ -24,6 +26,7 @@
 #include "firmware_version.h"
 #include "net/ota.h"
 #include "sys/soak_monitor.h"
+#include "sys/syslog.h"
 
 // Thin wiring entry point — setup() + loop() delegate to all modules.
 // See .kilo/plans/...modular-arch-plan.md for the dependency graph and
@@ -82,6 +85,8 @@ void setup() {
     dmxInitGuardBegin();
     outputInitAll();
     dmxInitGuardEnd();
+    sceneLoadAll();
+    syslogInit();
     initOTA();
     soakInit();
 
@@ -119,6 +124,9 @@ void loop() {
 
     // Process queued WebSocket RDM operations (runs on core 0, outside RMT use)
     rdmWsProcessQueued();
+
+    // DMX input polling (converter mode: DMX-in -> Art-Net/sACN retransmit)
+    inputRouterPoll();
 
     // WebSocket live push (~10 Hz) + meta (~2 Hz)
     uint32_t now = millis();

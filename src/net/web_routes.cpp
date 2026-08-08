@@ -158,6 +158,8 @@ void handleHealth(AsyncWebServerRequest* req) {
         j += ",\"fps\":" + String(outFpsLive(i), 1);
         j += ",\"source\":\"" + String(outSrcLost[i] ? "none" : "art-net") + "\"";
         j += ",\"signal\":" + String(outSrcLost[i] ? "false" : "true");
+        j += ",\"rx_frames\":" + String(rxFrameCount[i]);
+        j += ",\"rx_loss\":" + String(rxLossCount[i]);
         j += "}";
     }
     j += "]";
@@ -193,13 +195,18 @@ void handleConfigPost(AsyncWebServerRequest* req) {
     }
 
     bool changed = false;
+    bool needsReboot = false;
     for (size_t i = 0; i < CONFIG_FIELD_COUNT; i++) {
         const CfgField& f = CONFIG_FIELDS[i];
         if (!req->hasParam(f.key, true)) continue;
         String val = req->getParam(f.key, true)->value();
         String err;
-        if (cfgcore::setValue(f.key, val, err)) changed = true;
+        if (cfgcore::setValue(f.key, val, err)) {
+            changed = true;
+            if (f.flags & CFG_REBOOT) needsReboot = true;
+        }
     }
+    bool outputChangedLive = false;
     for (int o = 0; o < MAX_OUTPUTS; o++) {
         for (size_t i = 0; i < OUTPUT_FIELD_COUNT; i++) {
             const CfgOutputField& f = OUTPUT_FIELDS[i];
@@ -208,12 +215,22 @@ void handleConfigPost(AsyncWebServerRequest* req) {
             String val = req->getParam(key.c_str(), true)->value();
             String err;
             String fullKey = String(char('a' + o)) + "_" + f.suffix;
-            if (cfgcore::setValue(fullKey, val, err)) changed = true;
+            if (cfgcore::setValue(fullKey, val, err)) {
+                changed = true;
+                if (f.flags & CFG_REBOOT) needsReboot = true;
+                if (f.flags & CFG_LIVE) outputChangedLive = true;
+            }
         }
     }
     if (changed) {
         saveConfig();
-        req->send(200, "text/plain", "Saved. Reboot to apply.");
+        if (outputChangedLive) {
+            for (int o = 0; o < MAX_OUTPUTS; o++) updateOutputRuntime(o);
+        }
+        if (needsReboot)
+            req->send(200, "text/plain", "Saved. Reboot to apply.");
+        else
+            req->send(200, "text/plain", "Saved. Applied live.");
     } else {
         req->send(200, "text/plain", "No changes.");
     }

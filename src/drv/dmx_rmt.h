@@ -18,8 +18,12 @@
 
 #define RMT_DMX_RES_HZ   1000000u   // 1 tick = 1 us
 #define RMT_DMX_BIT      4          // 4 us per bit @250 kbaud
-#define RMT_DMX_BREAK    176        // break low, us
-#define RMT_DMX_MAB      12         // mark-after-break high, us
+// DMX break and MAB defaults (microseconds). Override per-output at runtime.
+#define RMT_DMX_BREAK_DEFAULT 176
+#define RMT_DMX_MAB_DEFAULT   12
+
+// DMX frame structure: break + MAB + start code + 512 slots.
+#define DMX_PACKET_SIZE (513)
 // Worst-case symbols: break/MAB (1 word) + 513 slots * up to 11 runs (alternating bits)
 // = ~5644 runs -> ~2822 words. Round up for safety.
 #define RMT_DMX_MAX_SYM  3000
@@ -31,6 +35,9 @@ struct RmtDmx {
     int                  nsym = 0;
     int                  channel = 0;     // RMT TX channel number (0-3)
     bool                 hasDma  = false; // whether this channel has DMA capability
+    uint16_t             breakTime = RMT_DMX_BREAK_DEFAULT;  // break duration (us)
+    uint16_t             mabTime   = RMT_DMX_MAB_DEFAULT;    // mark-after-break (us)
+    bool                 invert    = false;                   // invert DMX polarity
 };
 
 // --- per-byte symbol lookup table -----------------------------------------------------------
@@ -41,12 +48,11 @@ struct RmtDmx {
 #define RMT_MAX_WORDS_PER_BYTE 6
 static rmt_symbol_word_t g_byteLut[256][RMT_MAX_WORDS_PER_BYTE];
 static uint8_t           g_byteLutN[256];
-static rmt_symbol_word_t g_breakWord;   // break(0,176us) + MAB(1,12us) packed in one word
+static rmt_symbol_word_t g_byteLutInv[256][RMT_MAX_WORDS_PER_BYTE];
+static uint8_t           g_byteLutInvN[256];
 static bool              g_lutReady = false;
 
 static void rmtDmxBuildLut() {
-    g_breakWord.duration0 = RMT_DMX_BREAK; g_breakWord.level0 = 0;
-    g_breakWord.duration1 = RMT_DMX_MAB;   g_breakWord.level1 = 1;
     for (int v = 0; v < 256; v++) {
         uint8_t bits[11]; int nb = 0;
         bits[nb++] = 0;                                  // start bit
@@ -57,13 +63,18 @@ static void rmtDmxBuildLut() {
             if (nr && run[nr-1].lvl == bits[i]) run[nr-1].dur += RMT_DMX_BIT;
             else { run[nr].lvl = bits[i]; run[nr].dur = RMT_DMX_BIT; nr++; }
         }
+        // Normal LUT: level 0 = low (0V), level 1 = high (mark)
+        // Inverted LUT: swap levels (0 becomes high, 1 becomes low)
         int nw = 0;                                      // nr is even -> whole words
         for (int i = 0; i + 1 < nr; i += 2) {
             g_byteLut[v][nw].duration0 = run[i].dur;   g_byteLut[v][nw].level0 = run[i].lvl;
             g_byteLut[v][nw].duration1 = run[i+1].dur; g_byteLut[v][nw].level1 = run[i+1].lvl;
+            g_byteLutInv[v][nw].duration0 = run[i].dur;   g_byteLutInv[v][nw].level0 = 1 - run[i].lvl;
+            g_byteLutInv[v][nw].duration1 = run[i+1].dur; g_byteLutInv[v][nw].level1 = 1 - run[i+1].lvl;
             nw++;
         }
         g_byteLutN[v] = (uint8_t)nw;
+        g_byteLutInvN[v] = (uint8_t)nw;
     }
     g_lutReady = true;
 }
@@ -72,11 +83,24 @@ static void rmtDmxBuildLut() {
 static int rmtDmxEncode(RmtDmx* rd, const uint8_t* data, int nslots) {
     if (!g_lutReady) rmtDmxBuildLut();
     int wi = 0;
-    rd->sym[wi++] = g_breakWord;
+    // Build break word with per-channel break/MAB timing.
+    // Normal: break=low(176us) + MAB=high(12us). Inverted: break=high + MAB=low.
+    rmt_symbol_word_t bw;
+    if (rd->invert) {
+        bw.duration0 = rd->mabTime;  bw.level0 = 1;   // MAB inverted = low (was high)
+        bw.duration1 = rd->breakTime; bw.level1 = 0;  // break inverted = high (was low)
+    } else {
+        bw.duration0 = rd->breakTime; bw.level0 = 0;  // break = low
+        bw.duration1 = rd->mabTime;   bw.level1 = 1;  // MAB = high
+    }
+    rd->sym[wi++] = bw;
+
+    rmt_symbol_word_t (*lut)[RMT_MAX_WORDS_PER_BYTE] = rd->invert ? g_byteLutInv : g_byteLut;
+    uint8_t* lutN = rd->invert ? g_byteLutInvN : g_byteLutN;
     for (int s = 0; s < nslots; s++) {
-        uint8_t b = data[s]; uint8_t n = g_byteLutN[b];
+        uint8_t b = data[s]; uint8_t n = lutN[b];
         if (wi + n >= RMT_DMX_MAX_SYM) break;
-        for (uint8_t k = 0; k < n; k++) rd->sym[wi++] = g_byteLut[b][k];
+        for (uint8_t k = 0; k < n; k++) rd->sym[wi++] = lut[b][k];
     }
     rd->nsym = wi;
     return wi;

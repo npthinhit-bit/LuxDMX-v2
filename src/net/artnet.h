@@ -14,6 +14,8 @@ static constexpr uint16_t ARTNET_OP_RDM        = 0x8300;
 static constexpr uint16_t ARTNET_OP_ADDRESS    = 0x6000;
 static constexpr uint16_t ARTNET_OP_IPPROG     = 0xf800;
 static constexpr uint16_t ARTNET_OP_IPPROGREPLY= 0xf900;
+static constexpr uint16_t ARTNET_OP_TIMECODE   = 0x9700;
+static constexpr uint16_t ARTNET_OP_TRIGGER    = 0x9900;
 static constexpr int      ARTNET_PORT          = 6454;
 static const uint8_t      ARTNET_ID[8]         = {'A','r','t','-','N','e','t',0};
 
@@ -55,3 +57,21 @@ void commitArtSyncStaged();
 
 // ArtNet bridge dispatch: routes control opcodes (poll, sync, address, etc.)
 void artnetBridgeDispatch(uint16_t op, const uint8_t* p, int n, uint32_t ip);
+
+// --- Art-Net TimeCode (E1.31 Annex C) ---
+struct ArtTimeCode {
+    uint8_t  type;      // 0=Film(24), 1=EFG(25), 2=DF(29.97), 3=SMPTE(30)
+    uint8_t  hour;
+    uint8_t  minute;
+    uint8_t  second;
+    uint8_t  frame;
+};
+extern ArtTimeCode g_timecode;
+extern bool        g_timecodeValid;
+extern bool        g_timecodeSend;      // enable sending ArtTimeCode
+extern uint8_t     g_timecodeType;     // type to send
+extern uint8_t     g_timecodeFps;      // frames per second
+
+// Start TimeCode send task (core 0).
+void artnetTimecodeStart();
+void artnetTimecodeStop();

@@ -1,5 +1,6 @@
 #include "output_init.h"
 #include "dmx_rmt.h"
+#include "dmx_input.h"
 #include "config_enums.h"
 #include "driver/rmt_tx.h"
 #include <Arduino.h>
@@ -75,8 +76,22 @@ void outputInitAll() {
             g_outputs[i].dePin = cfg.outputs[i].rtsPin;
             g_outputs[i].rxPin = cfg.outputs[i].rxPin;
             g_outputs[i].uartPort = uart;
+            g_outputs[i].rmt.breakTime = (uint16_t)cfg.outputs[i].breakTime;
+            g_outputs[i].rmt.mabTime   = (uint16_t)cfg.outputs[i].mabTime;
+            g_outputs[i].rmt.invert    = cfg.outputs[i].invert != 0;
             outReady[i] = true; dmxReady = true;
             if (firstEnabled) { monitorOut = i; firstEnabled = false; }
+            // Initialize DMX input if mode requires it and RX pin is set
+            if (cfg.outputs[i].inputMode != DMX_IN_OFF && cfg.outputs[i].rxPin >= 0) {
+                if (dmxInInit(cfg.outputs[i].port, cfg.outputs[i].rxPin)) {
+                    Serial.printf("[DMX] out%d input mode %d on uart%d rx=%d\n",
+                                  i, cfg.outputs[i].inputMode, cfg.outputs[i].port,
+                                  cfg.outputs[i].rxPin);
+                } else {
+                    Serial.printf("[DMX] out%d input init failed (uart%d port=%d)\n",
+                                  i, cfg.outputs[i].port, cfg.outputs[i].port);
+                }
+            }
             if (mode == OUTPUT_MODE_RDM_FULL) {
                 int line = rdmRmtInit(&g_outputs[i].rmt, cfg.outputs[i].rtsPin,
                                       cfg.outputs[i].rxPin, uart);
@@ -97,4 +112,13 @@ void outputInitAll() {
 
 bool dmxIsDelta(int outIdx) {
     return cfg.outputs[outIdx].txStyle == TXSTYLE_DELTA;
+}
+
+void updateOutputRuntime(int outIdx) {
+    if (outIdx < 0 || outIdx >= MAX_OUTPUTS) return;
+    if (outReady[outIdx]) {
+        g_outputs[outIdx].rmt.breakTime = (uint16_t)cfg.outputs[outIdx].breakTime;
+        g_outputs[outIdx].rmt.mabTime   = (uint16_t)cfg.outputs[outIdx].mabTime;
+        g_outputs[outIdx].rmt.invert    = cfg.outputs[outIdx].invert != 0;
+    }
 }
