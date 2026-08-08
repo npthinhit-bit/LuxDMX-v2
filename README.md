@@ -564,26 +564,134 @@ The simpler **breadboard / module** build (ESP32 DevKit + isolated RS485 module)
 
 ## 🔄 Migration Guide: V1 &rarr; V2
 
-| V1 (monolith) | V2 (modular) |
-|---|---|
-| Everything in `main.cpp` | Split: `drv/` + `cfg/` + `core/` + `net/` + `app/sys/` |
-| esp_dmx UART driver | Custom RMT TX (`dmx_rmt.h`) + UART RX (`uart_rx.h`) |
-| 2 DMX outputs max | Up to 4 RMT-channel outputs (A/B RDM-capable, C/D DMX-only) |
-| 2 board templates | Schema-driven templates (`templates/*.ini`); 33 board catalog online |
-| `-D` macros for defaults | `templates/*.ini` selected by `-DDEFAULT_TEMPLATE=...` |
-| NVS keys: `o0_*`/`o1_*` | Migrated to `a_*`/`b_*` (auto-migration in `nvs_migrate.cpp`) |
-| NVS key: `apfb` (bool) | Migrated to `fbmode` (enum: 4 link-loss policies) |
+V2 is a ground-up **modular rewrite**. This section maps every V1 concept to its V2 equivalent so you can reason about the two side by side, and explains exactly what changes (and what stays the same) when you flash a V2 build onto a device running V1 firmware.
 
-**Upgrading from V1 firmware:** Your existing config migrates automatically on first boot. Output A maps to the new `a_*` keyspace; Output B to `b_*`. The `apFallback` boolean becomes `linkLossMode`. No data is lost.
+### Architecture: Monolith &rarr; 5-layer modular
 
-### Breaking Changes
+The original V1 firmware is a single ~5,000-line `main.cpp` that mixes pin definitions, config persistence, Art-Net/sACN parsing, DMX I/O, the web server, RDM, and the serial console — all in one translation unit. V2 splits this into a disciplined 5-layer architecture, each layer owning one concern and testable in isolation.
+
+| Layer | V1 (`main.cpp`) | V2 (modular) | Key files |
+|---|---|---|---|
+| **drv** (drivers) | UART TX via `esp_dmx` library | RMT hardware TX + RX-only UART + DE/RE GPIO | `src/drv/dmx_rmt.h`, `src/drv/uart_rx.h`, `src/drv/gpio_dir.h` |
+| **cfg** (config) | `#define DEF_*` macros for defaults; NVS read/write inline | Schema-driven table drives NVS load/save, serial console, web form | `src/cfg/config_schema.cpp`, `src/cfg/config_core.cpp`, `src/cfg/nvs_migrate.cpp` |
+| **core** (DMX/RDM protocol) | DMX buffer + merge inline in `main.cpp` | Seqlock-protected frame buffer, merge engine, sender tracking, frame router, RDM engine | `src/core/dmx_buffer.cpp`, `src/core/merge_engine.cpp`, `src/core/sender_tracker.cpp`, `src/core/rdm_engine.cpp`, `src/core/rdm_disc.cpp` |
+| **net** (network) | `ArtnetWifi` library + inline WiFi/Ethernet | Self-implemented Art-Net/sACN + native W5500/RMII + AsyncWebServer + WebSocket + OTA | `src/net/artnet.cpp`, `src/net/sacn.cpp`, `src/net/websocket.cpp`, `src/net/ota.cpp` |
+| **sys/app** (system) | Inline FreeRTOS tasks + inline LED/display | Pinned core-0/core-1 tasks, crash-guard, soak monitor, OTA rollback | `src/sys/tasks.cpp`, `src/sys/led_status.cpp`, `src/sys/soak_monitor.cpp` |
+
+**`main.cpp` (V2)** is a thin ~130-line wiring file: it calls `nvs_migrate::migrateNvsKeys()`, `cfgcore::load()`, `outputInitAll()`, `startSacn()`, `webRegisterRoutes()`, then `createTasks()`. All real logic lives in the layers.
+
+### DMX Transmission: UART &rarr; RMT
+
+| Aspect | V1 | V2 |
+|---|---|---|
+| **Peripheral** | UART + GPTimer ISR (via `esp_dmx` library) | **RMT peripheral** — hardware-clocked symbol stream, no CPU timing loop |
+| **Bug fixed** | Core-0 WiFi/lwIP DMA contention delayed the break/MAB timer ISR, producing malformed frames under heavy traffic (issue #64) | RMT clocks entirely in hardware; if the refill ISR is late the line just idles (a benign extra mark), never corrupts a break — see `src/drv/dmx_rmt.h:2-9` |
+| **Library dependency** | `someweisguy/esp_dmx` | None — first-party `dmx_rmt.h` |
+| **RDM transport** | Same UART, switched half-duplex (DE/RE GPIO toggled, direction reconfigured at runtime) | RMT-TX for requests + **separate RX-only UART** for responses (`src/drv/uart_rx.h`); never released mid-frame, DMX runs uninterrupted between RDM ops |
+
+### Outputs: 2 &rarr; 4 universes
+
+| Aspect | V1 | V2 |
+|---|---|---|
+| **Max outputs** | 2 (ESP32 has 3 UARTs; UART0 is the serial console) | 4 (RMT channels 0–3; ESP32-S3 `#error` at >4 — see `include/config_schema.h:69`) |
+| **RMT channels** | N/A (UART-based) | Ch 0–3; only ch 3 has DMA on the S3 — others use ISR refill (see `src/drv/dmx_rmt.h:101`) |
+| **Output A** | UART1, GPIO17/16, RDM if DE/RE pin set | RMT ch 0, UART1 RX for RDM, DE/RE GPIO configurable |
+| **Output B** | UART2, GPIO16/15, RDM if DE/RE pin set | RMT ch 1, UART2 RX for RDM, DE/RE GPIO configurable |
+| **Outputs C/D** | N/A | RMT ch 2 / ch 3 (DMA-capable on S3), DMX-only (no UART RX) |
+| **Per-output mode** | Implicit (auto-direction RS485 or RDM based on pin presence) | Explicit `output_mode_t` enum: DMX-only vs RDM-full (`include/output.h:11`); setting an RTS pin auto-enables RDM (`resolveOutputMode()` at `include/output.h:28`) |
+
+### Configuration: Macros &rarr; Schema-driven templates
+
+| Aspect | V1 | V2 |
+|---|---|---|
+| **Defaults source** | `-DDEF_*` macros in `platformio.ini` build flags | `templates/*.ini` files selected by `-DDEFAULT_TEMPLATE=...` (embedded into firmware by `extra_scripts.py`) |
+| **Resolution order** | Macro default, overridden by NVS | Neutral (from constraint) → active board template → saved NVS value |
+| **Field table** | Inline `Preferences` get/put scattered through `main.cpp` | Single table in `src/cfg/config_schema.cpp` (`CONFIG_FIELDS[]` + `OUTPUT_FIELDS[]`) drives NVS, serial console, web form, and native test |
+| **Per-output keys** | `o0_tx`, `o0_uni`, `o1_tx`, `o1_uni` (2 outputs) | `a_tx`, `a_uni`, `b_tx`, ... `d_tx` (4 outputs, letter prefixes) |
+| **NVS migration** | No migration — direct key access | `src/cfg/nvs_migrate.cpp:13` — one-shot pass: `o0_*`→`a_*`, `o1_*`→`b_*`, `apfb`→`fbmode` |
+| **Board templates** | Hardcoded `#ifdef` per environment | `templates/_base.ini` extended by per-board templates — 33 boards in the online catalog |
+| **Link-loss policy** | `apFallback` (bool: true = open WiFi AP) | `linkLossMode` (enum: 0=keep retrying, 1=open WPA2 AP, 2=reboot, 3=join WiFi) — never opens an unsecured AP |
+
+### Network Stack
+
+| Aspect | V1 | V2 |
+|---|---|---|
+| **Art-Net** | `rstephan/ArtnetWifi` library | Self-implemented; full opcode dispatch (ArtPoll, ArtPollReply, ArtAddress, ArtIpProg, ArtSync, ArtNzs, ArtTod\*, ArtRdm) in `src/net/artnet.cpp` + `src/net/artnet_bridge.cpp` |
+| **sACN** | `ArtnetWifi` library's sACN path | Self-implemented in `src/net/sacn.cpp` |
+| **Library deps** | ArtnetWifi, Adafruit NeoPixel, Adafruit GFX, Adafruit SSD1306, Adafruit SH110X, Adafruit SSD1351 | **Only** `ESP32Async/AsyncTCP` + `ESP32Async/ESPAsyncWebServer`; no Adafruit, no ArtnetWifi |
+| **AsyncTCP** | Default platform config (core 0 or 1, small queue) | Pinned to core 0 with 16 KB stack + 128 queue (`platformio.ini:43-47`) so it never preempts RDM on core 1 |
+| **W5500 Ethernet** | `ETH.h` W5500 support via `ETH_PHY_W5500` | Same — but the SPI module pins are fully runtime-configurable (previously build-time) |
+| **RMII Ethernet** | WT32-ETH01 only | W5500 SPI + LAN8720 RMII + IP101/RTL8201/DP83848/KSZ8081/JL1101 — selectable at runtime |
+
+### Task Scheduling & Core Affinity
+
+| Aspect | V1 | V2 |
+|---|---|---|
+| **DMX task** | `loop()`-driven, runs on core 0 (shared with WiFi/lwIP) | Dedicated `dmxTxTask` — **core 1, priority 19**, 1 ms tick via `vTaskDelayUntil` (`src/sys/tasks.cpp:82`) |
+| **Network task** | `ArtnetWifi` + AsyncTCP callbacks on core 0 | Dedicated `netRxTask` — **core 0, priority 5**, bounded to 64 packets/call (`tasks.cpp:144`) |
+| **RDM service** | Called from `loop()` | Serviced inside `dmxTxTask` on every 1 ms tick (not just per-DMX-frame) (`tasks.cpp:139`) — keeps discovery fast even on static looks |
+| **LED/display** | Inline in `loop()` | Dedicated `ledTask` / `displayTask` at low priority |
+
+### RDM
+
+| Aspect | V1 | V2 |
+|---|---|---|
+| **Controller PID set** | DISC_UNIQUE_BRANCH, DEVICE_INFO, DMX_START_ADDRESS, IDENTIFY_DEVICE | Plus: DEVICE_MODE, DEVICE_MODES, IDENTIFY_MODE, BURN_IN, DEVICE_HOURS, DEVICE_POWER, PERSONALITY_DESCRIPTION, SENSOR_DEFINITION/VALUE/RECORD, STATUS_MESSAGE (`src/core/rdm_typed.cpp:138-242`) |
+| **Sub-device enumeration** | Not implemented | `rdmSubDeviceCount()` queries DEVICE_INFO; opt-in cap via `rdmMaxDev` (default auto) |
+| **Transport** | UART half-duplex (DE/RE toggled) | RMT-TX + RX-only UART (no direction switching, DMX never interrupted) |
+| **Discovery scheduling** | One transaction per DMX frame | One transaction per DMX frame; discovery is a binary search (`DISC_UNIQUE_BRANCH`) with 8-second budget cap (`src/core/rdm_disc.cpp:66`) |
+
+### Transmit Style & Output Rate
+
+| Aspect | V1 | V2 |
+|---|---|---|
+| **Output rate** | Fixed 40 fps free-run on all outputs | Per-output configurable: 20 / 25 / 33.3 / 40 / 41.7 fps (`txRate` enum) |
+| **Frame style** | Free-run only (clock at the configured rate regardless of input) | **Continuous** (free-run) or **Delta** (one frame per received input packet, clamped to 22.76 ms wire minimum, auto-fallback to free-run after 800 ms idle) |
+| **Style source tracking** | N/A | `txStyleSrc`: tracks whether the style was set locally (web/serial) or by a controller (Art-Net `ArtAddress`) |
+| **Source merging** | HTP / LTP per output, `SOURCE_TIMEOUT_MS = 4000` | Same, but now in a dedicated `src/core/merge_engine.cpp` |
+
+### Web UI & Config Lifecycle
+
+| Aspect | V1 | V2 |
+|---|---|---|
+| **Web pages** | Inline `PROGMEM` HTML strings in `main.cpp` | `src/pages/*.html` converted to `PROGMEM` by `extra_scripts.py` → `src/generated/*.h` |
+| **Dynamic values** | `String::replace()` on `{{PLACEHOLDER}}` tokens | Same mechanism, but the `/config` form is **auto-generated from the schema table** |
+| **Config apply** | Reboot required for all changes | **Live** for: universe, merge mode, loss mode, TX rate, TX style, LED brightness, protocol, hostname; **Reboot** for: GPIO pins, LED/display type, UART port, network settings (driven by `CFG_LIVE` vs `CFG_REBOOT` flags in `config_schema.cpp`) |
+| **Config import/export** | `dump` serial command + NVS | `/config/export` (JSON, with `&include_credentials=1`), `/config/import` (POST JSON), serial `dump`/`save` |
+| **OTA** | ArduinoOTA + `httpUpdate` from luxdmx.org | ArduinoOTA + web upload + GitHub release + URL install + **Ed25519 signed** firmware (`src/net/ota_sign.cpp`, `OTA_SIGN_ENABLED` for production) |
+| **Soak test** | Not available | `LUXDMX_SOAK_TEST` build flag — 60-second heap watchdog on `esp32s3_n16r8_eth`, logs DRAM/PSRAM every minute, reboots if free DRAM < 30 KB (`/diag/soak-stats`) |
+
+### Crash Safety
+
+| Aspect | V1 | V2 |
+|---|---|---|
+| **Output init** | Inline in `setup()`, panics brick the device | Guarded init (`dmxInitGuardBegin()`/`dmxInitGuardEnd()`) with NVS-backed crash counting — progressively disables outputs if init panics (`src/sys/tasks.cpp:42`) |
+| **OTA rollback** | `otatries` counter, 3 boot attempts max | Same mechanism, but moved to `src/net/ota.cpp` with explicit `OTA_BOOT_TRIES = 3` and 60-second stable-uptime zeroing |
+
+### Breaking Changes (upgrade checklist)
 
 | Change | Impact |
 |---|---|
-| `esp_dmx` library removed | No compile-time dependency; DMX/RDM now first-party (`dmx_rmt.h`, `rdm_rmt.h`) |
-| PlatformIO platform pinned to `pioarduino` v55.03.39 | Required for arduino-esp32 v3 / W5500 ETH support |
-| ESP32-S3 builds run from-source | Brownout detector disabled (`CONFIG_ESP_BROWNOUT_DET=n`) to prevent boot-loop |
+| `esp_dmx` library removed | No compile-time dependency — DMX/RDM are now first-party (`src/drv/dmx_rmt.h`, `src/core/rdm_engine.h`); the old `someweisguy/esp_dmx` types were re-declared in `include/rdm_types.h` as a drop-in |
+| PlatformIO platform pinned to `pioarduino` v55.03.39 | Required for arduino-esp32 v3 / W5500 ETH support; the mainline `espressif32` platform is stuck at v2.x |
+| ESP32-S3 builds run from-source | `CONFIG_ESP_BROWNOUT_DET=n` via `custom_sdkconfig` — the IDF brownout detector fires before `setup()`, causing a boot-loop on real S3 hardware |
 | ENC28J60 not supported | Use W5500 for wired Ethernet (same SPI bus, full hardware TCP/IP stack) |
+| `ArtnetWifi` library removed | Art-Net/sACN protocol parsing is now self-implemented in `src/net/artnet.cpp` + `src/net/sacn.cpp` |
+| Adafruit libraries removed | Display/LED drivers are stubs (`src/sys/led_status.cpp`, `src/sys/display.cpp`); WS2812 and OLED support will return as optional modules |
+| `MAX_OUTPUTS` raised to 4 | Output C and D are DMX-only (no RDM); the old 2-output config migrates to A/B automatically |
+| `apFallback` (bool) &rarr; `linkLossMode` (enum) | 0 = keep retrying (was `false`); 1 = open WPA2 AP (was `true`). Values 2 (reboot) and 3 (join WiFi) are new. The AP **requires a password** — `linkLossMode=1` without `apPassword` falls back to retry |
+
+### Migration Path
+
+**Upgrading from V1 firmware:** Your existing config migrates automatically on first boot. `nvs_migrate::migrateNvsKeys()` (called at `src/main.cpp:41`) performs a one-shot pass:
+
+- Output A keys: `o0_*` &rarr; `a_*` (e.g. `o0_tx` &rarr; `a_tx`) — `nvs_migrate.cpp:10-11`
+- Output B keys: `o1_*` &rarr; `b_*` (e.g. `o1_uni` &rarr; `b_uni`)
+- `apfb` (bool) &rarr; `fbmode` (enum: `0` or `2` if `apfb=false`, `1` if `apfb=true`) — `nvs_migrate.cpp:42-47`
+
+The `cfgcore::load()` function also has an inline fallback for output-0 legacy keys (`config_core.cpp:179`), so even a partial NVS that skipped `migrateNvsKeys()` still resolves correctly. No data is lost; outputs C and D start disabled and can be enabled in `/config`.
+
+If a crash occurs during the first V2 boot, the crash-guard counter in NVS (`dmxgw` namespace, key `dmxcrash`) progressively disables outputs starting from the highest index. Clear it by power-cycling the device to a stable boot (60 s of uptime resets the counter via `dmxInitGuardEnd()`), or via the `/reset` page for a full factory wipe.
 
 ---
 
