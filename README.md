@@ -50,14 +50,23 @@ V2 is a ground-up **modular rewrite** of the original monolithic firmware. The c
 | V2 Feature | What changed |
 |---|---|
 | **Modular 5-layer architecture** | Firmware split into `drv` &rarr; `cfg` &rarr; `core` &rarr; `net` &rarr; `app/sys`, wired by a thin `main.cpp`. Each layer owns one concern and can be tested in isolation. |
-| **RMT-based DMX512 output** | DMX is clocked out of the **RMT peripheral** (`/issue #64`), not the UART. This is immune to core-0 network DMA contention — the same bug that corrupted breaks under heavy WiFi. |
-| **Up to 4 DMX outputs** | Expanded from 2 to **4 independent universes** (RMT channels 0–3). Outputs A & B are RDM-capable; C & D are DMX-only. |
+| **RMT-based DMX512 output** | DMX is clocked out of the **RMT peripheral** (issue #64), not the UART. This is immune to core-0 network DMA contention &mdash; the same bug that corrupted breaks under heavy WiFi. |
+| **Up to 4 DMX outputs** | Expanded from 2 to **4 independent universes** (RMT channels 0&ndash;3). Outputs A & B are RDM-capable; C & D are DMX-only. |
 | **PSRAM support** | An optional 8 MB octal PSRAM build (`esp32s3_psram`) moves WiFi/lwIP buffers and RDM tables to external RAM, freeing ~150 KB of internal DRAM. |
 | **4-universe board support** | Dedicated `esp32s3_n16r8_eth` environment for the **LuxDMX-4uni** board (ESP32-S3-WROOM-2 N16R8 + W5500). |
-| **Seqlock buffer** | A single-writer/single-reader seqlock (`include/seqlock.h`) protects the DMX frame buffer between the core-0 receive task and the core-1 transmit task — torn reads are detected and skipped, never transmitted. |
+| **Seqlock buffer** | A single-writer/single-reader seqlock (`include/seqlock.h`) protects the DMX frame buffer between the core-0 receive task and the core-1 transmit task &mdash; torn reads are detected and skipped, never transmitted. |
 | **Crash-safe output init** | A guarded init sequence with NVS-backed crash counting progressively disables outputs if init panics, so a bad pin can never brick the device. |
 | **Live config saves** | Most settings apply instantly without a reboot (universe, merge mode, TX rate, signal-loss policy, brightness). Only GPIO/driver-bound settings trigger a restart. |
 | **Schema-driven config** | Every persisted setting is described once in `src/cfg/config_schema.cpp`; that table drives NVS load/save, the `/config` web form, the serial console, and the migration engine. Defaults live in `templates/*.ini`, not in `-D` macros. |
+| **Delta transmit style** | Per-output TX style: **Continuous** (free-run at the configured frame rate) or **Delta** (one DMX frame per received input packet only). Both apply live via the web UI. |
+| **Configurable output mode** | Each output can be set to **DMX-only** (auto-direction RS485) or **RDM full** (DE/RE GPIO + UART RX). Setting an RTS pin automatically enables RDM mode. |
+| **Transmit style source** | Tracks whether the TX style was set locally (web UI / serial) or by a controller (Art-Net), so a console can push a style and see it reflected. |
+| **Extended RDM PIDs** | Full set of E1.20 typed PIDs: DEVICE_MODE, DEVICE_MODES, IDENTIFY_MODE, BURN_IN, DEVICE_HOURS, DEVICE_POWER, PERSONALITY_DESCRIPTION, SENSOR_DEFINITION/VALUE/RECORD, STATUS_MESSAGE. |
+| **Sub-device enumeration** | Queries sub-device count via DEVICE_INFO; opt-in RDM device cap (default 8) limits discovery. |
+| **sACN Universe Discovery + Stream Sync** | Consumes sACN Universe Discovery packets; honours per-output Stream Sync with a 500 ms commit grace &mdash; staged frames are forwarded only after the sync loss timeout. |
+| **Soak-test monitor** | `LUXDMX_SOAK_TEST` build flag enables a 60-second heap watchdog that logs DRAM/PSRAM every minute and reboots if free DRAM drops below 30 KB. Exposed via `/diag/soak-stats`. |
+| **Ed25519 signed OTA** | Release firmware images are Ed25519-signed; the build embeds a 32-byte public key and verifies the 64-byte signature suffix before committing an update (`OTA_SIGN_ENABLED` for production; dev builds skip verification). |
+| **Background queue policy** | Configurable ArtPoll status-collection severity (disabled / advisory / warning / error) via `artnetBridgeDispatch` &mdash; controls how often the node reports background status to controllers. |
 
 ---
 
@@ -76,12 +85,16 @@ V2 is a ground-up **modular rewrite** of the original monolithic firmware. The c
 | **Signal-loss policy** | Per-output: hold last frame (default), blackout, or stop sending. Continuous 40 Hz refresh bridges brief input gaps. |
 | **Output rate & transmit style** | Per-output rate (20 / 25 / 33.3 / 40 / 41.7 fps) and style (Continuous free-run / Delta follow-input). Both apply live. |
 | **Up to 4 DMX outputs** | Up to 4 independent universes; A+B are RDM-capable, C+D are DMX-only |
-| **RDM (E1.20)** | DISC_UNIQUE_BRANCH discovery, GET/SET DEVICE_INFO / start address / identify / sensors on an RDM-capable output (DE/RE pin required) |
-| **RDM over Art-Net** | Full Art-Net 4 RDM output gateway (ArtPoll / ArtTodRequest / ArtTodControl / ArtRdm). Discovery scheduled one transaction per DMX frame — RDM never stalls DMX output. |
+| **RDM (E1.20)** | DISC_UNIQUE_BRANCH discovery, GET/SET DEVICE_INFO / start address / identify / sensors / personality / status messages on an RDM-capable output (DE/RE pin required) |
+| **Extended RDM PIDs** | DEVICE_MODE, IDENTIFY_MODE, BURN_IN, DEVICE_HOURS, DEVICE_POWER, PERSONALITY_DESCRIPTION, SENSOR_RECORD &mdash; full console interoperability |
+| **Sub-device enumeration** | Queries sub-device count via DEVICE_INFO; opt-in RDM device cap (default 8) limits discovery per output |
+| **RDM over Art-Net** | Full Art-Net 4 RDM output gateway (ArtPoll / ArtTodRequest / ArtTodControl / ArtRdm). Discovery scheduled one transaction per DMX frame &mdash; RDM never stalls DMX output. |
 | **Manual DMX control** | Set any channel from the browser via slider |
 | **Blackout button** | Zero all channels instantly from browser |
 | **Art-Net / Manual toggle** | Switch between protocol passthrough and manual override |
 | **Remote IP config (ArtIpProg)** | A controller can read/set IP/mask/gateway or switch to DHCP over Art-Net `ArtIpProg`. Off by default (Art-Net has no auth). |
+| **Transmit style source** | Tracks whether the TX style was set locally (web UI / serial) or by a controller (Art-Net) &mdash; a console can push a style and see it reflected. |
+| **Configurable output mode** | Each output can be set to DMX-only (auto-direction) or RDM full (DE/RE GPIO + UART RX). Setting an RTS pin enables RDM automatically. |
 
 ### Network & Connectivity
 
@@ -101,8 +114,10 @@ V2 is a ground-up **modular rewrite** of the original monolithic firmware. The c
 | **Wired link-loss policy** | Keep retrying / open WPA2 AP / reboot / fall back to saved WiFi. Runtime watchdog applies mid-run. |
 | **mDNS + DHCP hostname** | Reachable as `dmx-gateway.local` via mDNS, and the device sends its hostname over DHCP (option 12) |
 | **REST API** | `GET /dmx.json`, `/senders.json`, `/log.json`, `/version.json`, `/labels.json`, `/info.json`, `/rdm.json` |
-| **Versioned OTA** | Pick & install any past release, or auto-update to latest |
+| **Versioned OTA** | Pick & install any past release, or auto-update to latest. GitHub release assets are **Ed25519-signed** &mdash; the device verifies the signature before committing. |
 | **OTA Updates** | ArduinoOTA (IDE/CLI) + manual `.bin` upload + one-click update from luxdmx.org |
+| **Background queue policy** | Configurable ArtPoll status-collection severity (disabled / advisory / warning / error) &mdash; controls how often the node reports background status to controllers |
+| **Soak-test monitor** | `LUXDMX_SOAK_TEST` build flag enables a 60-second heap watchdog that logs DRAM/PSRAM every minute and reboots if free DRAM drops below 30 KB. Exposed via `/diag/soak-stats`. |
 
 ### Hardware & I/O
 
@@ -138,7 +153,7 @@ V2 is a ground-up **modular rewrite** of the original monolithic firmware. The c
 | `esp32s3dev` | ESP32-S3 | From-source | WiFi | 2 | WS2812 LED on GPIO48; brownout detector disabled (source build) |
 | `wt32eth01` | ESP32 | Precompiled | RMII Ethernet | 2 | DMN on GPIO4/5; WiFi runtime-selectable |
 | `esp32s3_psram` | ESP32-S3 | From-source | WiFi | 2 | 8 MB octal PSRAM enabled; external RAM for lwIP/RDM tables |
-| `esp32s3_n16r8_eth` | ESP32-S3 | From-source | W5500 SPI | **4** | LuxDMX-4uni board: 4 universes, 8 MB PSRAM |
+| `esp32s3_n16r8_eth` | ESP32-S3 | From-source | W5500 SPI | **4** | LuxDMX-4uni board: 4 universes, 8 MB PSRAM, soak-test monitor |
 
 ---
 
@@ -298,6 +313,10 @@ The HTTP server and WebSocket are served by ESPAsyncWebServer (non-blocking), so
 | `/ota/url` | POST | Install a `.bin` from any URL (`url=http://host/firmware.bin`) |
 | `/ota/status` | GET | Live progress of in-flight install (`{phase,pct}`) |
 | `/autoupdate` | POST | Toggle auto-update (`enabled=0/1`) |
+| `/health` | GET | Health check with per-output status, network info, alerts |
+| `/diag/soak-stats` | GET | Soak-test monitor stats (DRAM/PSRAM free, uptime) &mdash; only with `LUXDMX_SOAK_TEST` build |
+| `/config/export` | GET | Export full config as JSON (`?include_credentials=1` to include passwords) |
+| `/config/import` | POST | Import config from JSON (`config=<json>`) |
 
 ### WebSocket (`ws://<device>/ws`)
 
@@ -322,6 +341,12 @@ Browser &rarr; ESP32 (JSON text commands):
 { "type": "mode",     "manual": true       }
 { "type": "blackout"                       }
 { "type": "identify", "ch": 5              }
+{ "type": "viewout",  "out": 1             }
+{ "type": "rdm",      "action": "discover" }
+{ "type": "rdm",      "action": "setaddr",  "uid": "4c5812345678", "addr": 1 }
+{ "type": "rdm",      "action": "identify", "uid": "4c5812345678", "on": true }
+{ "type": "rdm",      "action": "setpers",  "uid": "4c5812345678", "pers": 2 }
+{ "type": "rdm",      "action": "setlabel", "uid": "4c5812345678", "label": "My Fixture" }
 ```
 
 ---
@@ -384,7 +409,11 @@ A v6/4uni owner flashes the generic `esp32s3dev` / `esp32s3_n16r8_eth` build and
 | | lossMode | hold | Live |
 | | txRate | 40 fps | Live |
 | | txStyle | Continuous | Live |
+| | txStyleSrc | Local | Live |
 | | mode | DMX only | Reboot |
+| | net | 0 | Reboot |
+| | subnet | 0 | Reboot |
+| | sacnUniverse | 0 (auto) | Reboot |
 
 ---
 
@@ -413,6 +442,8 @@ LuxDMX V2 drives up to **4 independent DMX outputs** — each its own universe, 
 | Signal-loss | hold | hold | hold | hold / blackout / stop |
 | TX rate | 40 fps | 40 fps | 40 fps | 20 / 25 / 33.3 / 40 / 41.7 fps |
 | TX style | Continuous | Continuous | Continuous | Continuous (free-run) / Delta (follow input) |
+| Output mode | DMX only | DMX only | DMX only | DMX only / RDM full (DE/RE). Setting an RTS pin auto-enables RDM. |
+| Style source | Local | Local | Local | Local (web/serial) / Art-Net (controller push) |
 
 ### Safe GPIO Guide
 
