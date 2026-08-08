@@ -1,6 +1,7 @@
 #include "artnet.h"
 #include "config_schema.h"
 #include "frame_router.h"
+#include "merge_engine.h"
 #include "network.h"
 #include "ethernet.h"
 #include "rdm_engine.h"
@@ -77,8 +78,8 @@ static void artHandlePacket(const uint8_t* p, int n, uint32_t ip) {
     uint16_t op = p[8] | (p[9] << 8);
 
     if (op == ARTNET_OP_SYNC) {
-        artSyncMode = true;
-        artSyncLastMs = millis();
+        artSyncMode = false;   // SYNC commits the staged frames and returns to immediate mode
+        commitArtSyncStaged();
         artnetBridgeDispatch(op, p, n, ip);
         return;
     }
@@ -109,6 +110,7 @@ static void artHandlePacket(const uint8_t* p, int n, uint32_t ip) {
             for (int i = 0; i < MAX_OUTPUTS; i++) {
                 if (!cfg.outputs[i].enabled || portAddress(cfg.outputs[i]) != universe) continue;
                 memcpy(dmxStaged[i], p + 18, length);
+                dmxStagedLen[i] = length;
                 dmxStagedValid[i] = true;
             }
             updateSender(ip, 0, (int16_t)universe, priority, p + 18, length);
@@ -131,5 +133,18 @@ static void artHandlePacket(const uint8_t* p, int n, uint32_t ip) {
         memcpy(frame, p + 18, length);
         routeFrameNzs((int)universe, frame, length, startCode, ip, priority);
         return;
+    }
+}
+
+void commitArtSyncStaged() {
+    for (int i = 0; i < MAX_OUTPUTS; i++) {
+        if (!cfg.outputs[i].enabled || !dmxStagedValid[i]) continue;
+        dmxBufWriteBegin(i);
+        memcpy(&dmxBuffers[i].data[1], dmxStaged[i], dmxStagedLen[i]);
+        if (dmxStagedLen[i] < 512) memset(&dmxBuffers[i].data[1 + dmxStagedLen[i]], 0, 512 - dmxStagedLen[i]);
+        dmxBufWriteEnd(i);
+        updateSender(0, 0, (int16_t)portAddress(cfg.outputs[i]), DEFAULT_PRIORITY, dmxStaged[i], dmxStagedLen[i]);
+        dmxStagedValid[i] = false;
+        mergeOutput(i);
     }
 }

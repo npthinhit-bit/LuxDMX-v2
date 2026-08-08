@@ -112,18 +112,8 @@ static void flushArtSyncStaged() {
     if (now - artSyncLastMs > ARTSYNC_TIMEOUT_MS) {
         Serial.println("[ART] ArtSync timeout, falling back to immediate");
         artSyncMode = false;
-        return;
+        commitArtSyncStaged();
     }
-    for (int i = 0; i < MAX_OUTPUTS; i++) {
-        if (!cfg.outputs[i].enabled || !dmxStagedValid[i]) continue;
-        dmxBufWriteBegin(i);
-        memcpy(&dmxBuffers[i].data[1], dmxStaged[i], 512);
-        dmxBufWriteEnd(i);
-        dmxStagedValid[i] = false;
-        updateSender(0, 0, portAddress(cfg.outputs[i]), DEFAULT_PRIORITY, dmxStaged[i], 512);
-        mergeOutput(i);
-    }
-    artSyncMode = false;
 }
 
 static void dmxFrameTick() {

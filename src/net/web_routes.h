@@ -1,6 +1,7 @@
 #pragma once
 #include <ESPAsyncWebServer.h>
 #include <Arduino.h>
+#include "rdm_types.h"
 
 // Dynamic JSON / config / OTA / RDM / LED handlers.
 // These remain defined in the legacy main.cpp for now; forward declarations
@@ -39,12 +40,10 @@ void handleOtaUrl(AsyncWebServerRequest* req);
 
 // RDM control
 void handleRdmTrigger(AsyncWebServerRequest* req);
+void handleRdmTod(AsyncWebServerRequest* req);
 
 // LED brightness
 void handleLedBright(AsyncWebServerRequest* req);
 
-// Helpers (used by config handler)
-void htmlEsc(const String& in, String& out);
-void jsonEsc(const String& in, String& out);
-bool argStr(AsyncWebServerRequest* req, const char* name, String& out);
-void sendJsonSafe(AsyncWebServerRequest* req, const String& j);
+// Helpers (used by RDM handler)
+bool parseUidParam(AsyncWebServerRequest* req, const char* name, rdm_uid_t& uid);

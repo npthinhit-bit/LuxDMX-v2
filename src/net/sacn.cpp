@@ -21,11 +21,16 @@ uint8_t sacnBuf[638];
 static uint8_t sacnOwnCid[16] = {0};
 static uint32_t sacnDiscLastMs = 0;
 static uint32_t sacnSyncLossMs[MAX_OUTPUTS] = {0};
+static WiFiUDP sacnSyncUdp;
 
 static uint16_t sacnUniverseFor(int outIdx) {
     int su = cfg.outputs[outIdx].sacnUniverse;
     if (su <= 0) su = cfg.outputs[outIdx].universe + 1;
     return (uint16_t)su;
+}
+
+static uint16_t sacnSyncUniverseFor(int outIdx) {
+    return (uint16_t)cfg.outputs[outIdx].sacnSync;
 }
 
 static void initCid() {
@@ -59,6 +64,20 @@ void startSacn() {
         sacnUdp[i].beginMulticast(mcast, 5568);
         Serial.printf("[sACN] out%d universe %u  multicast 239.255.%u.%u:5568\n",
                       i, su, univHigh, univLow);
+
+        uint16_t ssu = sacnSyncUniverseFor(i);
+        if (ssu > 0) {
+            uint8_t sh = (ssu >> 8) & 0xFF, sl = ssu & 0xFF;
+            IPAddress smcast(239, 255, sh, sl);
+            if (!sacnSyncUdp.beginMulticast(smcast, 5568)) {
+                Serial.printf("[sACN] ERROR: failed to join sync universe %u multicast\n", ssu);
+            }
+            sacnSyncAddress[i] = ssu;
+            Serial.printf("[sACN] out%d sync universe %u  multicast 239.255.%u.%u:5568\n",
+                          i, ssu, sh, sl);
+        } else {
+            sacnSyncAddress[i] = 0;
+        }
     }
 }
 
@@ -86,10 +105,10 @@ void readSacnSocket(int outIdx) {
                           |  (uint32_t)sacnBuf[SACN_FRAME_VEC_OFF + 3];
 
         // Universe Discovery (receiver consumes/discards)
-        if (frameVec == 0x00000004u) continue;
+        if (frameVec == SACN_FRAME_VEC_DISCOVERY) continue;
 
         // Standard streaming data
-        if (frameVec != 0x00000002u) continue;
+        if (frameVec != SACN_FRAME_VEC_STREAM) continue;
 
         uint16_t universe = ((uint16_t)sacnBuf[SACN_UNIVERSE_OFF] << 8)
                            |  sacnBuf[SACN_UNIVERSE_OFF + 1];
@@ -102,7 +121,25 @@ void readSacnSocket(int outIdx) {
 
         // Convert sACN universe (1-based) back to the 15-bit Art-Net port address
         int artUniv = (int)universe - 1;
-        routeFrame(artUniv, sacnBuf + SACN_DATA_OFF, payloadLen, senderIp, 1, priority);
+
+        // If this output uses Stream Sync, stage the frame instead of routing it
+        // directly. The staged frame is committed by the sync-loss timeout path
+        // below (or immediately flushed on next sync packet).
+        bool staged = false;
+         for (int i = 0; i < MAX_OUTPUTS; i++) {
+             if (!cfg.outputs[i].enabled) continue;
+             if (sacnSyncAddress[i] != 0 && portAddress(cfg.outputs[i]) == (uint16_t)artUniv) {
+                 uint16_t copyLen = payloadLen > 512 ? 512 : payloadLen;
+                 memcpy(sacnStaged[i], sacnBuf + SACN_DATA_OFF, copyLen);
+                 sacnStagedLen[i] = copyLen;
+                 sacnStagedValid[i] = true;
+                 sacnSyncLossMs[i] = (uint32_t)millis();
+                 updateSender(senderIp, 1, (int16_t)artUniv, priority, sacnBuf + SACN_DATA_OFF, payloadLen);
+                 staged = true;
+             }
+         }
+        if (!staged)
+            routeFrame(artUniv, sacnBuf + SACN_DATA_OFF, payloadLen, senderIp, 1, priority);
     }
 }
 
@@ -121,10 +158,39 @@ void readSacn() {
             uint32_t syncMs = now - sacnSyncLossMs[i];
             if (syncMs < 500) continue;
             if (syncMs >= 2500) {
-                routeFrame((int)portAddress(cfg.outputs[i]), sacnStaged[i], 512, 0, 1, DEFAULT_PRIORITY);
+                routeFrame((int)portAddress(cfg.outputs[i]), sacnStaged[i], sacnStagedLen[i], 0, 1, DEFAULT_PRIORITY);
                 sacnStagedValid[i] = false;
                 sacnSyncAddress[i] = 0;
                 sacnSyncLossMs[i] = 0;
+            }
+        }
+    }
+
+    // Check for sACN sync packets (frame vector 0x00000003) on the sync socket.
+    // A sync packet on the sync universe commits all staged frames for outputs
+    // using that sync universe, with a 500ms commit grace (per roadmap). The
+    // sync-loss timeout above handles the case where sync stops arriving.
+    if (sacnSyncUdp.available()) {
+        int n = sacnSyncUdp.parsePacket();
+        if (n >= SACN_MIN_LEN) {
+            int r = sacnSyncUdp.read(sacnBuf, sizeof(sacnBuf));
+            if (r >= SACN_MIN_LEN &&
+                memcmp(sacnBuf + SACN_ACN_ID_OFF, ACN_PACKET_ID, 12) == 0) {
+                uint32_t fvec = ((uint32_t)sacnBuf[SACN_FRAME_VEC_OFF] << 24)
+                              | ((uint32_t)sacnBuf[SACN_FRAME_VEC_OFF + 1] << 16)
+                              | ((uint32_t)sacnBuf[SACN_FRAME_VEC_OFF + 2] << 8)
+                              |  (uint32_t)sacnBuf[SACN_FRAME_VEC_OFF + 3];
+                if (fvec == SACN_FRAME_VEC_SYNC) {
+                    uint16_t su = ((uint16_t)sacnBuf[SACN_UNIVERSE_OFF] << 8)
+                                | sacnBuf[SACN_UNIVERSE_OFF + 1];
+                    for (int i = 0; i < MAX_OUTPUTS; i++) {
+                        if (sacnSyncAddress[i] == su && sacnStagedValid[i]) {
+                            routeFrame((int)portAddress(cfg.outputs[i]), sacnStaged[i], sacnStagedLen[i], 0, 1, DEFAULT_PRIORITY);
+                            sacnStagedValid[i] = false;
+                            sacnSyncLossMs[i] = now;
+                        }
+                    }
+                }
             }
         }
     }

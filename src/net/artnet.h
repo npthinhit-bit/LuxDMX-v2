@@ -48,5 +48,10 @@ extern uint8_t  artSyncMode;
 extern uint32_t artSyncLastMs;
 static constexpr uint32_t ARTSYNC_TIMEOUT_MS = 1000;
 
+// Commit all staged ArtDMX frames to the live DMX buffers (called when ArtSync
+// arrives, or by the DMX task on ArtSync timeout fallback). This is the core-0
+// side of the ArtSync staging path — it writes dmxStaged[*] into dmxBuffers[*].
+void commitArtSyncStaged();
+
 // ArtNet bridge dispatch: routes control opcodes (poll, sync, address, etc.)
 void artnetBridgeDispatch(uint16_t op, const uint8_t* p, int n, uint32_t ip);

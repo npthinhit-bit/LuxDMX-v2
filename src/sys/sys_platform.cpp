@@ -12,7 +12,7 @@ String latestVersion   = "";
 
 #if defined(BOARD_LUXDMX_V6)
 const char BOARD_ID[] = "luxdmx_v6";
-#elif defined(USE_ETH_RMII) || defined(USE_ETHERNET)
+#elif defined(HAS_ETH_RMII) || defined(HAS_WIRED_ETH)
 const char BOARD_ID[] = "wt32eth01";
 #elif defined(CONFIG_IDF_TARGET_ESP32S3)
 const char BOARD_ID[] = "esp32s3-devkitc-1";

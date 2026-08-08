@@ -44,8 +44,9 @@ void webRegisterRoutes(AsyncWebServer& http) {
     http.on("/rdm/discover",      HTTP_GET,  handleRdmTrigger);
     http.on("/rdm/setaddr",       HTTP_GET,  handleRdmTrigger);
     http.on("/rdm/identify",      HTTP_GET,  handleRdmTrigger);
-    http.on("/rdm/bqp",           HTTP_GET,  handleRdmTrigger);
-    http.on("/rdm/merge",         HTTP_GET,  handleRdmTrigger);
+    http.on("/rdm/setpers",       HTTP_GET,  handleRdmTrigger);
+    http.on("/rdm/setlabel",      HTTP_GET,  handleRdmTrigger);
+    http.on("/rdm/tod",           HTTP_GET,  handleRdmTod);
     http.on("/led/bright",        HTTP_GET,  handleLedBright);
     http.on("/rdm",               HTTP_GET,  handleRdmPage);
     http.on("/labels.json",       HTTP_GET,  handleLabelsGet);

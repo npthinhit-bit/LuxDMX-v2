@@ -102,6 +102,9 @@ void rdmWsProcessQueued() {
             rdm_uid_t found[MAX_SENDERS];
             int count = rdmRmtDiscover(found, MAX_SENDERS);
             rdmCount = count;
+            for (int i = 0; i < count && i < RDM_TOD_MAX; i++) {
+                rdmTod[i] = found[i];
+            }
             for (int i = 0; i < count; i++) {
                 Serial.printf("[RDM] discovered " UIDSTR "\n", UID2STR(found[i]));
             }

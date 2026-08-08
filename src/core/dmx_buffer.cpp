@@ -6,9 +6,11 @@ uint32_t dmxTornSkips = 0;
 
 uint8_t dmxStaged[DMX_OUTPUT_COUNT][DMX_PACKET_SIZE] = {0};
 bool    dmxStagedValid[DMX_OUTPUT_COUNT] = {false};
+uint16_t dmxStagedLen[DMX_OUTPUT_COUNT] = {0};
 
-uint8_t sacnStaged[DMX_OUTPUT_COUNT][DMX_PACKET_SIZE] = {0};
-bool    sacnStagedValid[DMX_OUTPUT_COUNT] = {false};
+uint8_t  sacnStaged[DMX_OUTPUT_COUNT][DMX_PACKET_SIZE] = {0};
+bool     sacnStagedValid[DMX_OUTPUT_COUNT] = {false};
+uint16_t sacnStagedLen[DMX_OUTPUT_COUNT] = {0};
 uint16_t sacnSyncAddress[DMX_OUTPUT_COUNT] = {0};
 
 bool dmxBufSnapshot(int i, uint8_t* out) {

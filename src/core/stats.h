@@ -7,6 +7,8 @@ enum { SRC_NORMAL = 0, SRC_CONFLICT = 1, SRC_MERGING = 2 };
 // Declared here (extern), defined in stats.cpp. Firmware build only — host tests
 // don't use these.
 
+#include "rdm_types.h"
+
 extern uint32_t frameCount;
 extern uint32_t lastFrameMs;
 extern float    fps;
@@ -35,6 +37,10 @@ extern bool             manualMode;
 extern volatile uint32_t g_rdmSent;
 extern volatile uint32_t g_rdmRecv;
 extern int rdmCount;
+
+// Discovered RDM fixtures (TOD — Table of Devices). Populated by discovery sweep.
+#define RDM_TOD_MAX 64
+extern rdm_uid_t rdmTod[];
 
 float outFpsLive(int i);
 float inFpsLive(int i);

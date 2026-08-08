@@ -19,10 +19,12 @@ extern uint32_t  dmxTornSkips;
 // ArtSync staging: ArtDMX frames are staged here until ArtSync arrives.
 extern uint8_t  dmxStaged[DMX_OUTPUT_COUNT][DMX_PACKET_SIZE];
 extern bool     dmxStagedValid[DMX_OUTPUT_COUNT];
+extern uint16_t dmxStagedLen[DMX_OUTPUT_COUNT];
 
 // sACN Stream Sync staging: same pattern, per-output sync universe.
 extern uint8_t  sacnStaged[DMX_OUTPUT_COUNT][DMX_PACKET_SIZE];
 extern bool     sacnStagedValid[DMX_OUTPUT_COUNT];
+extern uint16_t sacnStagedLen[DMX_OUTPUT_COUNT];
 extern uint16_t  sacnSyncAddress[DMX_OUTPUT_COUNT];
 
 // Writer side: wrap a memcpy into dmxBuffers[i].data[1..512].

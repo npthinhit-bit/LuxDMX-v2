@@ -88,6 +88,29 @@ bool rdmOpGetStatus(const rdm_uid_t& uid, uint8_t statusType,
                     uint8_t* outType, uint16_t* outId, int16_t* outD1, int16_t* outD2,
                     int* outCount, rdm_ack_t* ack);
 
+// --- Extended PID wrappers (E1.20 section 3 / manufacturer PIDs) ---------------
+// GET DEVICE_MODE / SET DEVICE_MODE (0x1101)
+bool rdmOpGetMode(const rdm_uid_t& uid, uint8_t* mode, rdm_ack_t* ack);
+bool rdmOpSetMode(const rdm_uid_t& uid, uint8_t mode, rdm_ack_t* ack);
+// GET DEVICE_MODES (0x1100) — returns supported mode count + current
+bool rdmOpGetModes(const rdm_uid_t& uid, uint8_t* current, uint8_t* count, rdm_ack_t* ack);
+// GET IDENTIFY_MODE / SET IDENTIFY_MODE (0x1011)
+bool rdmOpGetIdentifyMode(const rdm_uid_t& uid, uint8_t* mode, rdm_ack_t* ack);
+bool rdmOpSetIdentifyMode(const rdm_uid_t& uid, uint8_t mode, rdm_ack_t* ack);
+// GET DEVICE_HOURS (0x1010)
+bool rdmOpGetDeviceHours(const rdm_uid_t& uid, uint32_t* hours, rdm_ack_t* ack);
+// GET DEVICE_POWER (0x1012) / SET DEVICE_POWER
+bool rdmOpGetDevicePower(const rdm_uid_t& uid, uint8_t* power, rdm_ack_t* ack);
+bool rdmOpSetDevicePower(const rdm_uid_t& uid, uint8_t power, rdm_ack_t* ack);
+// GET BURN_IN (0x1013) / SET BURN_IN
+bool rdmOpGetBurnIn(const rdm_uid_t& uid, uint8_t* minutes, rdm_ack_t* ack);
+bool rdmOpSetBurnIn(const rdm_uid_t& uid, uint8_t minutes, rdm_ack_t* ack);
+// GET PERSONALITY_DESCRIPTION (0x00e1) — textual description for a given personality
+bool rdmOpGetPersonalityDescription(const rdm_uid_t& uid, uint8_t pers,
+                                    uint16_t* footprint, char* desc, size_t descLen, rdm_ack_t* ack);
+// GET SENSOR_RECORD (0x0202) — reset/clear recorded sensor values
+bool rdmOpSensorRecord(const rdm_uid_t& uid, uint8_t sensorNum, rdm_ack_t* ack);
+
 extern bool rdmPollDirty;
 void rdmSavePoll();
 

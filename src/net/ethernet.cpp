@@ -1,4 +1,5 @@
 #include "ethernet.h"
+#include "eth_phy.h"
 #include "config_schema.h"
 #include "network.h"     // startWiFiAP, startWiFiStation, g_* flags
 #include "led_status.h"

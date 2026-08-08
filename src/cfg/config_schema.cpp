@@ -136,6 +136,7 @@ const CfgOutputField OUTPUT_FIELDS[] = {
     OINT_L("net",   "net",   net,       nullptr, 0, 127, "Art-Net net (0-127)"),
     OINT_L("sub",   "sub",   subnet,    nullptr, 0, 15, "Art-Net subnet (0-15)"),
     OINT_L("sacn",  "sacn",  sacnUniverse, nullptr, 0, 32767, "sACN universe (0=auto=universe+1)"),
+    OINT_L("sasync", "sacnSync", sacnSync, nullptr, 0, 32767, "sACN sync universe (0=none)"),
     OINT ("port",  "port",  port,      "dmxport",  0,  2,   "UART port"),
     OINT ("tx",    "tx",    txPin,     "dmxtx",   -1, 48,   "TX pin"),
     OINT ("rx",    "rx",    rxPin,     "dmxrx",   -1, 48,   "RX pin"),

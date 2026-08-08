@@ -9,8 +9,8 @@ void startWiredEth();
 bool startWiFiAP(bool requirePw);
 
 // Default SPI-Ethernet pin wiring (matches classic ESP32 / most W5500 modules).
-// A board template overrides via build_flags; USE_ETH_SPI never calls ETH.begin()
-// with these so they cost nothing on an RMII-only build.
+// A board template overrides via build_flags; HAS_ETH_SPI builds include the W5500
+// driver but never call ETH.begin() with these defaults on an RMII-only build.
 #ifndef ETH_W5500_SCK
 #define ETH_W5500_SCK 18
 #endif
@@ -32,7 +32,7 @@ bool startWiFiAP(bool requirePw);
 #ifndef ETH_W5500_SPI_FREQ_MHZ
 #define ETH_W5500_SPI_FREQ_MHZ 20
 #endif
-#ifdef USE_ETH_SPI
+#ifdef HAS_ETH_SPI
 #ifndef ETH_W5500_SPI_HOST
 #define ETH_W5500_SPI_HOST SPI3_HOST
 #endif

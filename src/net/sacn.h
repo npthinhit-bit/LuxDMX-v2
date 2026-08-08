@@ -12,6 +12,11 @@ static constexpr int SACN_STARTCODE_OFF = 125;
 static constexpr int SACN_DATA_OFF      = 126;
 static constexpr int SACN_MIN_LEN       = 638;
 
+// sACN frame vector constants (E1.31).
+static constexpr uint32_t SACN_FRAME_VEC_STREAM  = 0x00000002u;
+static constexpr uint32_t SACN_FRAME_VEC_DISCOVERY = 0x00000004u;
+static constexpr uint32_t SACN_FRAME_VEC_SYNC    = 0x00000003u;
+
 extern const uint8_t ACN_PACKET_ID[12];
 
 // One multicast socket per enabled output, joined to its sACN universe

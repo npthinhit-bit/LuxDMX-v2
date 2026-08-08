@@ -301,18 +301,97 @@ void handleOtaUrl(AsyncWebServerRequest* req) {
 }
 
 void handleRdmTrigger(AsyncWebServerRequest* req) {
-    if (req->hasParam("action", true)) {
-        String action = req->getParam("action", true)->value();
-        if (action == "discover") rdmPollDirty = true;
-        else if (action == "identify") {
-            if (req->hasParam("id", true)) {
-                // parse uid
-            }
-        }
-        req->send(200, "text/plain", "RDM: " + action);
-    } else {
+    if (!req->hasParam("action", true)) {
         req->send(400, "text/plain", "missing action");
+        return;
     }
+    String action = req->getParam("action", true)->value();
+    rdm_ack_t ack;
+
+    if (action == "discover") {
+        rdmPollDirty = true;
+        req->send(200, "text/plain", "RDM discovery started");
+        return;
+    }
+
+    if (action == "setaddr" || action == "identify" ||
+        action == "setpers" || action == "setlabel") {
+        rdm_uid_t uid;
+        if (!parseUidParam(req, "uid", uid)) {
+            req->send(400, "text/plain", "missing or invalid uid");
+            return;
+        }
+
+        if (action == "setaddr") {
+            if (!req->hasParam("addr", true)) {
+                req->send(400, "text/plain", "missing addr");
+                return;
+            }
+            uint16_t addr = (uint16_t)req->getParam("addr", true)->value().toInt();
+            rdmOutSelect(rdmOut);
+            bool ok = rdmOpSetAddr(uid, addr, &ack);
+            req->send(ok ? 200 : 500, "text/plain", ok ? "OK" : "RDM SET_ADDRESS failed");
+            return;
+        }
+
+        if (action == "identify") {
+            uint8_t on = 1;
+            if (req->hasParam("on", true))
+                on = req->getParam("on", true)->value().toInt() ? 1 : 0;
+            rdmOutSelect(rdmOut);
+            bool ok = rdmOpSetIdentify(uid, on != 0, &ack);
+            req->send(ok ? 200 : 500, "text/plain", ok ? "OK" : "RDM IDENTIFY failed");
+            return;
+        }
+
+        if (action == "setpers") {
+            if (!req->hasParam("pers", true)) {
+                req->send(400, "text/plain", "missing pers");
+                return;
+            }
+            uint8_t pers = (uint8_t)req->getParam("pers", true)->value().toInt();
+            rdmOutSelect(rdmOut);
+            bool ok = rdmOpSetPersonality(uid, pers, &ack);
+            req->send(ok ? 200 : 500, "text/plain", ok ? "OK" : "RDM SET_PERSONALITY failed");
+            return;
+        }
+
+        if (action == "setlabel") {
+            if (!req->hasParam("label", true)) {
+                req->send(400, "text/plain", "missing label");
+                return;
+            }
+            String label = req->getParam("label", true)->value();
+            rdmOutSelect(rdmOut);
+            bool ok = rdmOpSetString(uid, RDM_PID_DEVICE_LABEL, label.c_str(), &ack);
+            req->send(ok ? 200 : 500, "text/plain", ok ? "OK" : "RDM SET_LABEL failed");
+            return;
+        }
+    }
+
+    req->send(400, "text/plain", "unknown action");
+}
+
+void handleRdmTod(AsyncWebServerRequest* req) {
+    String j = "{\"count\":" + String(rdmCount) + ",\"devices\":[";
+    for (int i = 0; i < rdmCount && i < RDM_TOD_MAX; i++) {
+        if (i) j += ",";
+        j += "{\"uid\":\"" + String(rdmTod[i].man_id, HEX) + String(rdmTod[i].dev_id, HEX) + "\"}";
+    }
+    j += "]}";
+    sendJson(req, j);
+}
+
+bool parseUidParam(AsyncWebServerRequest* req, const char* name, rdm_uid_t& uid) {
+    if (!req->hasParam(name, true)) return false;
+    String hex = req->getParam(name, true)->value();
+    if (hex.length() < 12) return false;
+    uint32_t man = 0, dev = 0;
+    sscanf(hex.substring(0, 4).c_str(), "%04x", &man);
+    sscanf(hex.substring(4, 12).c_str(), "%08x", &dev);
+    uid.man_id = (uint16_t)man;
+    uid.dev_id = dev;
+    return true;
 }
 
 void handleLedBright(AsyncWebServerRequest* req) {

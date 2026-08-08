@@ -43,6 +43,7 @@ volatile uint8_t g_srcStatus = 0;
 volatile uint32_t g_rdmSent = 0;
 volatile uint32_t g_rdmRecv = 0;
 int rdmCount = 0;
+rdm_uid_t rdmTod[RDM_TOD_MAX] = {};
 
 float outFpsLive(int i) {
     if (!outTxFps[i] && !outFps[i]) return 0.0f;

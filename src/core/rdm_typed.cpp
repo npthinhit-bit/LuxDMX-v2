@@ -134,3 +134,109 @@ int rdmSubDeviceCount(const rdm_uid_t& uid) {
     if (!rdmOpDeviceInfo(uid, &info, &ack)) return -1;
     return (int)info.sub_device_count;
 }
+
+// --- Extended PID wrappers -----------------------------------------------------
+
+bool rdmOpGetMode(const rdm_uid_t& uid, uint8_t* mode, rdm_ack_t* ack) {
+    uint8_t pd[40]; int pdl = 0;
+    if (!rdmTransaction(uid, RDM_CC_GET_COMMAND, RDM_PID_DEVICE_MODE, nullptr, 0,
+                        pd, sizeof(pd), &pdl, ack)) return false;
+    if (ack->type != RDM_RESPONSE_TYPE_ACK || pdl < 1) return false;
+    *mode = pd[0];
+    return true;
+}
+
+bool rdmOpSetMode(const rdm_uid_t& uid, uint8_t mode, rdm_ack_t* ack) {
+    uint8_t pd[2]; int rpdl = 0;
+    if (!rdmTransaction(uid, RDM_CC_SET_COMMAND, RDM_PID_DEVICE_MODE, &mode, 1,
+                        pd, sizeof(pd), &rpdl, ack)) return false;
+    return ack->type == RDM_RESPONSE_TYPE_ACK;
+}
+
+bool rdmOpGetModes(const rdm_uid_t& uid, uint8_t* current, uint8_t* count, rdm_ack_t* ack) {
+    uint8_t pd[40]; int pdl = 0;
+    if (!rdmTransaction(uid, RDM_CC_GET_COMMAND, RDM_PID_DEVICE_MODES, nullptr, 0,
+                        pd, sizeof(pd), &pdl, ack)) return false;
+    if (ack->type != RDM_RESPONSE_TYPE_ACK || pdl < 1) return false;
+    *current = pd[0];
+    *count   = (pdl >= 2) ? pd[1] : 1;
+    return true;
+}
+
+bool rdmOpGetIdentifyMode(const rdm_uid_t& uid, uint8_t* mode, rdm_ack_t* ack) {
+    uint8_t pd[40]; int pdl = 0;
+    if (!rdmTransaction(uid, RDM_CC_GET_COMMAND, RDM_PID_IDENTIFY_MODE, nullptr, 0,
+                        pd, sizeof(pd), &pdl, ack)) return false;
+    if (ack->type != RDM_RESPONSE_TYPE_ACK || pdl < 1) return false;
+    *mode = pd[0];
+    return true;
+}
+
+bool rdmOpSetIdentifyMode(const rdm_uid_t& uid, uint8_t mode, rdm_ack_t* ack) {
+    uint8_t pd[2]; int rpdl = 0;
+    if (!rdmTransaction(uid, RDM_CC_SET_COMMAND, RDM_PID_IDENTIFY_MODE, &mode, 1,
+                        pd, sizeof(pd), &rpdl, ack)) return false;
+    return ack->type == RDM_RESPONSE_TYPE_ACK;
+}
+
+bool rdmOpGetDeviceHours(const rdm_uid_t& uid, uint32_t* hours, rdm_ack_t* ack) {
+    uint8_t pd[40]; int pdl = 0;
+    if (!rdmTransaction(uid, RDM_CC_GET_COMMAND, RDM_PID_DEVICE_HOURS, nullptr, 0,
+                        pd, sizeof(pd), &pdl, ack)) return false;
+    if (ack->type != RDM_RESPONSE_TYPE_ACK || pdl < 4) return false;
+    *hours = ((uint32_t)pd[0] << 24) | ((uint32_t)pd[1] << 16)
+           | ((uint32_t)pd[2] << 8)  |  (uint32_t)pd[3];
+    return true;
+}
+
+bool rdmOpGetDevicePower(const rdm_uid_t& uid, uint8_t* power, rdm_ack_t* ack) {
+    uint8_t pd[40]; int pdl = 0;
+    if (!rdmTransaction(uid, RDM_CC_GET_COMMAND, RDM_PID_DEVICE_POWER, nullptr, 0,
+                        pd, sizeof(pd), &pdl, ack)) return false;
+    if (ack->type != RDM_RESPONSE_TYPE_ACK || pdl < 1) return false;
+    *power = pd[0];
+    return true;
+}
+
+bool rdmOpSetDevicePower(const rdm_uid_t& uid, uint8_t power, rdm_ack_t* ack) {
+    uint8_t pd[2]; int rpdl = 0;
+    if (!rdmTransaction(uid, RDM_CC_SET_COMMAND, RDM_PID_DEVICE_POWER, &power, 1,
+                        pd, sizeof(pd), &rpdl, ack)) return false;
+    return ack->type == RDM_RESPONSE_TYPE_ACK;
+}
+
+bool rdmOpGetBurnIn(const rdm_uid_t& uid, uint8_t* minutes, rdm_ack_t* ack) {
+    uint8_t pd[40]; int pdl = 0;
+    if (!rdmTransaction(uid, RDM_CC_GET_COMMAND, RDM_PID_BURN_IN, nullptr, 0,
+                        pd, sizeof(pd), &pdl, ack)) return false;
+    if (ack->type != RDM_RESPONSE_TYPE_ACK || pdl < 1) return false;
+    *minutes = pd[0];
+    return true;
+}
+
+bool rdmOpSetBurnIn(const rdm_uid_t& uid, uint8_t minutes, rdm_ack_t* ack) {
+    uint8_t pd[2]; int rpdl = 0;
+    if (!rdmTransaction(uid, RDM_CC_SET_COMMAND, RDM_PID_BURN_IN, &minutes, 1,
+                        pd, sizeof(pd), &rpdl, ack)) return false;
+    return ack->type == RDM_RESPONSE_TYPE_ACK;
+}
+
+bool rdmOpGetPersonalityDescription(const rdm_uid_t& uid, uint8_t pers,
+                                    uint16_t* footprint, char* desc, size_t descLen, rdm_ack_t* ack) {
+    uint8_t pd[64]; int pdl = 0;
+    if (!rdmTransaction(uid, RDM_CC_GET_COMMAND, RDM_PID_DMX_PERSONALITY_DESCRIPTION, &pers, 1,
+                        pd, sizeof(pd), &pdl, ack)) return false;
+    if (ack->type != RDM_RESPONSE_TYPE_ACK || pdl < 3) return false;
+    *footprint = (pd[0] << 8) | pd[1];
+    int n = pdl - 2; if (n > (int)descLen - 1) n = (int)descLen - 1;
+    if (n < 0) n = 0;
+    memcpy(desc, pd + 2, n); desc[n] = 0;
+    return true;
+}
+
+bool rdmOpSensorRecord(const rdm_uid_t& uid, uint8_t sensorNum, rdm_ack_t* ack) {
+    uint8_t pd[2]; int rpdl = 0;
+    if (!rdmTransaction(uid, RDM_CC_SET_COMMAND, RDM_PID_SENSOR_RECORD, &sensorNum, 1,
+                        pd, sizeof(pd), &rpdl, ack)) return false;
+    return ack->type == RDM_RESPONSE_TYPE_ACK;
+}

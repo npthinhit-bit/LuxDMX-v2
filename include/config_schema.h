@@ -10,7 +10,8 @@ struct DmxOutput {
     int  universe;   // Art-Net universe (0-15), 15-bit with net/subnet (0-32767)
     int  net;        // Art-Net net switch (0-127)
     int  subnet;     // Art-Net subnet (0-15)
-    int  sacnUniverse; // sACN universe (0 = auto, derive from universe+1)
+    int  sacnUniverse; // sACN streaming universe (0 = auto, derive from universe+1)
+    int  sacnSync;   // sACN sync universe (0 = none, stream-sync staging active)
     int  port;       // UART number for RDM RX (1=UART1, 2=UART2); ignored for DMX-only outputs
     int  txPin;
     int  rxPin;      // -1 = output only (no RDM)

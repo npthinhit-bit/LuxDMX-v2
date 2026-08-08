@@ -41,3 +41,5 @@ __pycache__/
 
 # native test build artifacts
 build/
+*.obj
+*.elf
