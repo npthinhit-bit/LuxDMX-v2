@@ -9,17 +9,29 @@
 
 extern void maybeLog(int outIdx, const uint8_t* cur, uint16_t len, uint32_t ip, uint8_t proto);
 
-void routeFrame(int artUniverse, const uint8_t* data, uint16_t length,
-                uint32_t senderIp, uint8_t proto, uint8_t priority) {
-    updateSender(senderIp, proto, (int16_t)artUniverse, priority, data, length);
-
+static void routeFrameImpl(int universe, const uint8_t* data, uint16_t length,
+                           uint8_t startCode, uint32_t senderIp, uint8_t proto, uint8_t priority) {
+    updateSender(senderIp, proto, (int16_t)universe, priority, data, length);
     bool matched = false;
     for (int i = 0; i < MAX_OUTPUTS; i++) {
-        if (!cfg.outputs[i].enabled || cfg.outputs[i].universe != artUniverse) continue;
+        if (!cfg.outputs[i].enabled || portAddress(cfg.outputs[i]) != (uint16_t)universe) continue;
+        dmxBufWriteBegin(i);
+        dmxBuffers[i].data[0] = startCode;
+        memcpy(&dmxBuffers[i].data[1], data, length > 512 ? 512 : length);
+        dmxBufWriteEnd(i);
         mergeOutput(i);
         if (i == viewOutput()) maybeLog(i, &dmxBuffers[i].data[1], 512, senderIp, proto);
         matched = true;
     }
-    if (!matched) return;
-    g_srcStatus = sourceStatus();
+    if (matched) g_srcStatus = sourceStatus();
+}
+
+void routeFrame(int artUniverse, const uint8_t* data, uint16_t length,
+                uint32_t senderIp, uint8_t proto, uint8_t priority) {
+    routeFrameImpl(artUniverse, data, length, 0, senderIp, proto, priority);
+}
+
+void routeFrameNzs(int artUniverse, uint8_t* data, uint16_t length,
+                   uint8_t startCode, uint32_t senderIp, uint8_t priority) {
+    routeFrameImpl(artUniverse, data, length, startCode, senderIp, 0, priority);
 }

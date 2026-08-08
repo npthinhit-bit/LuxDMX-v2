@@ -12,5 +12,6 @@
 // STOP is enforced by the transmit task via outSrcLost[]).
 void mergeOutput(int outIdx);
 
-// True while manual mode owns the monitored output (UI writes mergeInput).
+void mergeOutputTimed();
+
 extern bool manualMode;

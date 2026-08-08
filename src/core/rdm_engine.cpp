@@ -2,7 +2,10 @@
 #include "driver/rmt_tx.h"
 #include "driver/uart.h"
 #include "driver/gpio.h"
-#include <esp_rom_sys.h>         // esp_rom_delay_us()
+#include "nvs_flash.h"
+#include "Preferences.h"
+#include "stats.h"
+#include <esp_rom_sys.h>
 #include <esp_mac.h>
 
 // --- module state -------------------------------------------------------------
@@ -12,7 +15,14 @@ bool rdmPollDirty = false;
 uint16_t identifyCh    = 0;
 uint32_t identifyUntil = 0;
 
-void rdmSavePoll() {}
+void rdmSavePoll() {
+    Preferences p;
+    p.begin("dmxgw", false);
+    p.putUChar("rdmcount", (uint8_t)rdmCount);
+    p.putULong("rdmsent", g_rdm.sent);
+    p.putULong("rdmrecv", g_rdm.recv);
+    p.end();
+}
 
 void rdmInitCtrlUid() {
     uint8_t mac[6] = {0};

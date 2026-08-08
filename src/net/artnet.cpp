@@ -3,28 +3,31 @@
 #include "frame_router.h"
 #include "network.h"
 #include "ethernet.h"
-#include "rdm_engine.h"   // rdmOut, rdmLineForOut
+#include "rdm_engine.h"
 #include "output_init.h"
 #include "sender_tracker.h"
+#include "dmx_buffer.h"
 #include <Arduino.h>
 #include <esp_wifi.h>
 #include <fcntl.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <lwip/sockets.h>
+#include <lwip/inet.h>
 
-// ---- module config ----
-static int      g_artSock       = -1;
-static bool     g_artRdmReady   = false;
-static uint32_t g_nodeIp        = 0;
-static uint8_t  g_nodeMac[6]    = {0};
-static bool     g_artRdmEnabled = true;
-static uint16_t g_artPolls      = 0;
-uint8_t                g_bqPolicy     = 4;   // 0..3 severity, 4 = disabled (default)
+int            g_artSock       = -1;
+bool           g_artRdmReady   = false;
+uint32_t       g_nodeIp        = 0;
+uint8_t        g_nodeMac[6]    = {0};
+bool           g_artRdmEnabled = true;
+uint16_t       g_artPolls      = 0;
+uint8_t         g_bqPolicy     = 4;
 volatile bool   g_bqDirty     = false;
 volatile bool   g_artCfgDirty = false;
 
-// Forward declarations (full implementations to be split into artnet_rdm module)
+uint8_t  artSyncMode = 0;
+uint32_t artSyncLastMs = 0;
+
 static void artHandlePacket(const uint8_t* p, int n, uint32_t ip);
 
 void artRdmInit() {
@@ -65,19 +68,68 @@ void artRdmPollRx() {
 }
 
 void artRdmDrainResponses() {
-    // Placeholder: full response queue drained in the artnet_rdm module.
+    // Response queue drained — placeholder for queued ArtRdm/ArtTod replies.
+    // In a full implementation, the DMX task would push responses to a queue
+    // and this function would send them over the Art-Net socket.
 }
 
 static void artHandlePacket(const uint8_t* p, int n, uint32_t ip) {
     uint16_t op = p[8] | (p[9] << 8);
+
+    if (op == ARTNET_OP_SYNC) {
+        artSyncMode = true;
+        artSyncLastMs = millis();
+        artnetBridgeDispatch(op, p, n, ip);
+        return;
+    }
+
+    if (artSyncMode) {
+        uint32_t now = millis();
+        if (now - artSyncLastMs > ARTSYNC_TIMEOUT_MS) {
+            Serial.println("[ART] ArtSync timeout, falling back to immediate");
+            artSyncMode = false;
+        }
+    }
+
+    if (op == ARTNET_OP_POLL || op == ARTNET_OP_ADDRESS || op == ARTNET_OP_IPPROG ||
+        op == ARTNET_OP_TODREQUEST || op == ARTNET_OP_RDM) {
+        artnetBridgeDispatch(op, p, n, ip);
+        return;
+    }
+
     if (op == ARTNET_OP_DMX) {
         if (n < 18 || cfg.protocol == 1) return;
         uint16_t universe = p[14] | (p[15] << 8);
         uint16_t length   = (p[16] << 8) | p[17];
         if (length > 512) length = 512;
         if (18 + length > n) length = n - 18;
-        routeFrame((int)universe, p + 18, length, ip, 0, DEFAULT_PRIORITY);
+        uint8_t priority = (n >= 60) ? p[59] : DEFAULT_PRIORITY;
+
+        if (artSyncMode) {
+            for (int i = 0; i < MAX_OUTPUTS; i++) {
+                if (!cfg.outputs[i].enabled || portAddress(cfg.outputs[i]) != universe) continue;
+                memcpy(dmxStaged[i], p + 18, length);
+                dmxStagedValid[i] = true;
+            }
+            updateSender(ip, 0, (int16_t)universe, priority, p + 18, length);
+            return;
+        }
+        routeFrame((int)universe, p + 18, length, ip, 0, priority);
         return;
     }
-    // RDM bridge opcodes (poll, address, tod, rdm) handled by artnet_rdm module.
+
+    if (op == ARTNET_OP_NZS) {
+        if (n < 19 || cfg.protocol == 1) return;
+        uint16_t universe = p[14] | (p[15] << 8);
+        uint16_t length   = (p[16] << 8) | p[17];
+        if (length > 512) length = 512;
+        if (18 + length > n) length = n - 18;
+        uint8_t startCode = p[18];
+        uint8_t priority  = (n >= 60) ? p[59] : DEFAULT_PRIORITY;
+
+        uint8_t frame[DMX_PACKET_SIZE];
+        memcpy(frame, p + 18, length);
+        routeFrameNzs((int)universe, frame, length, startCode, ip, priority);
+        return;
+    }
 }

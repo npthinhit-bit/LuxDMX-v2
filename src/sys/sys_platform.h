@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <stdbool.h>
+#include <Arduino.h>
 
 // NVS namespace and setup-portal constants.
 extern const char* PREF_NS;
@@ -29,3 +30,7 @@ extern bool     pendingWifiReset;
 extern volatile uint8_t otaProgPhase;     // 0 idle, 1 downloading+writing, 2 finalizing, 3 error
 extern volatile uint8_t otaProgPct;       // 0..100 over the streamed image
 extern bool     updateAvailable;          // a newer release is waiting (checked in setup)
+
+// Current OTA target and latest available version (from GitHub releases check).
+extern String otaTarget;
+extern String latestVersion;

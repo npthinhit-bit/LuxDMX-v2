@@ -2,6 +2,7 @@
 #include "web_pages.h"
 #include "web_routes.h"
 #include "config_schema.h"
+#include "sys/soak_monitor.h"
 #include <Arduino.h>
 
 AsyncWebServer http(80);
@@ -21,6 +22,12 @@ void webRegisterRoutes(AsyncWebServer& http) {
     http.on("/log.json",          HTTP_GET,  handleLogJson);
     http.on("/config",            HTTP_GET,  handleConfigGet);
     http.on("/config",            HTTP_POST, handleConfigPost);
+    http.on("/config/export",     HTTP_GET,  handleConfigExport);
+    http.on("/config/import",     HTTP_POST, handleConfigImport);
+    http.on("/health",            HTTP_GET,  handleHealth);
+    http.on("/diag/soak-stats",   HTTP_GET,  [](AsyncWebServerRequest* req) {
+        req->send(200, "application/json", soakStatsJson());
+    });
     http.on("/setup/scan",        HTTP_GET,  handleSetupScan);
     http.on("/setup",             HTTP_GET,  handleSetupGet);
     http.on("/setup",             HTTP_POST, handleSetupPost);
@@ -30,7 +37,7 @@ void webRegisterRoutes(AsyncWebServer& http) {
     http.on("/ota/github",        HTTP_POST, handleOtaGithub);
     http.on("/ota/url",           HTTP_POST, handleOtaUrl);
     http.on("/ota/status",        HTTP_GET,  handleOtaStatus);
-    http.on("/ota/upload",        HTTP_POST, handleOtaUploadDone, handleOtaUploadChunk);
+    http.on("/ota/upload",        HTTP_POST, NULL, otaUploadChunk);
     http.on("/version.json",      HTTP_GET,  handleVersionJson);
     http.on("/info.json",         HTTP_GET,  handleInfoJson);
     http.on("/rdm.json",          HTTP_GET,  handleRdmJson);
@@ -58,12 +65,4 @@ void webRegisterRoutes(AsyncWebServer& http) {
 
 void webRegisterRoutes() {
     webRegisterRoutes(http);
-}
-
-String sendersJson() {
-    return String("[]");
-}
-
-String logJson() {
-    return String("[]");
 }

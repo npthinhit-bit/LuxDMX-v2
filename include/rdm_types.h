@@ -95,10 +95,19 @@ enum {
     RDM_PID_DEVICE_LABEL             = 0x0082,
     RDM_PID_SOFTWARE_VERSION_LABEL   = 0x00c0,
     RDM_PID_DMX_PERSONALITY          = 0x00e0,
+    RDM_PID_DMX_PERSONALITY_DESCRIPTION = 0x00e1,
     RDM_PID_DMX_START_ADDRESS        = 0x00f0,
     RDM_PID_SENSOR_DEFINITION        = 0x0200,
     RDM_PID_SENSOR_VALUE             = 0x0201,
+    RDM_PID_SENSOR_RECORD            = 0x0202,
+    RDM_PID_IDENTIFY_MODE            = 0x1011,
+    RDM_PID_DEVICE_HOURS             = 0x1010,
+    RDM_PID_DEVICE_POWER             = 0x1012,
+    RDM_PID_BURN_IN                  = 0x1013,
     RDM_PID_IDENTIFY_DEVICE          = 0x1000,
+    RDM_PID_DEVICE_MODE              = 0x1101,
+    RDM_PID_DEVICE_MODES             = 0x1100,
+    RDM_PID_DEVICE_MODE_DESCRIPTION  = 0x1102,
 };
 
 /** @brief How a responder answered. INVALID and NONE are ours, not E1.20's:

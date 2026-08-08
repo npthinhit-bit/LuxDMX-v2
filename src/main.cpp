@@ -12,6 +12,7 @@
 #include "net/artnet.h"
 #include "net/ws_frame.h"
 #include "net/websocket.h"
+#include "net/ws_handler.h"
 #include "net/web_server.h"
 #include "net/network.h"
 #include "net/ethernet.h"
@@ -22,6 +23,7 @@
 #include "display.h"
 #include "firmware_version.h"
 #include "net/ota.h"
+#include "sys/soak_monitor.h"
 
 // Thin wiring entry point — setup() + loop() delegate to all modules.
 // See .kilo/plans/...modular-arch-plan.md for the dependency graph and
@@ -81,6 +83,7 @@ void setup() {
     outputInitAll();
     dmxInitGuardEnd();
     initOTA();
+    soakInit();
 
     // 7. Network protocol init
     if (cfg.protocol != 1) {
@@ -113,6 +116,9 @@ void loop() {
         Preferences p; p.begin(PREF_NS, false);
         p.putUChar("bqpolicy", g_bqPolicy); p.end();
     }
+
+    // Process queued WebSocket RDM operations (runs on core 0, outside RMT use)
+    rdmWsProcessQueued();
 
     // WebSocket live push (~10 Hz) + meta (~2 Hz)
     uint32_t now = millis();

@@ -1,5 +1,6 @@
 #include "sender_tracker.h"
 #include "stats.h"
+#include "frame_router.h"
 #include <Arduino.h>
 #include <string.h>
 
@@ -7,7 +8,7 @@ Sender senders[MAX_SENDERS] = {};
 
 bool universeMapped(int universe) {
     for (int o = 0; o < MAX_OUTPUTS; o++)
-        if (cfg.outputs[o].enabled && cfg.outputs[o].universe == universe) return true;
+        if (cfg.outputs[o].enabled && portAddress(cfg.outputs[o]) == (uint16_t)universe) return true;
     return false;
 }
 
@@ -44,7 +45,7 @@ void updateSender(uint32_t ip, uint8_t proto, int16_t universe,
     s.dataLen  = length < 512 ? length : 512;
     memcpy(s.data, data, s.dataLen);
     for (int o = 0; o < MAX_OUTPUTS; o++)
-        if (cfg.outputs[o].enabled && cfg.outputs[o].universe == universe) inFrameCnt[o]++;
+        if (cfg.outputs[o].enabled && portAddress(cfg.outputs[o]) == (uint16_t)senders[slot].universe) inFrameCnt[o]++;
     s.winCnt++;
     if (now - s.winMs >= 1000) {
         s.fps   = (float)s.winCnt * 1000.0f / (float)(now - s.winMs);
@@ -75,7 +76,7 @@ int sourcesOnUniverse(int universe, uint32_t windowMs) {
 bool hasConflict() {
     for (int o = 0; o < MAX_OUTPUTS; o++) {
         if (!cfg.outputs[o].enabled || cfg.outputs[o].mergeMode != MERGE_OFF) continue;
-        if (sourcesOnUniverse(cfg.outputs[o].universe, SOURCE_TIMEOUT_MS) > 1) return true;
+        if (sourcesOnUniverse((int)portAddress(cfg.outputs[o]), SOURCE_TIMEOUT_MS) > 1) return true;
     }
     return false;
 }
@@ -83,7 +84,7 @@ bool hasConflict() {
 bool isMerging() {
     for (int o = 0; o < MAX_OUTPUTS; o++) {
         if (!cfg.outputs[o].enabled || cfg.outputs[o].mergeMode == MERGE_OFF) continue;
-        if (sourcesOnUniverse(cfg.outputs[o].universe, SOURCE_TIMEOUT_MS) > 1) return true;
+        if (sourcesOnUniverse((int)portAddress(cfg.outputs[o]), SOURCE_TIMEOUT_MS) > 1) return true;
     }
     return false;
 }

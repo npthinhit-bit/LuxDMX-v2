@@ -127,3 +127,10 @@ bool rdmOpGetStatus(const rdm_uid_t& uid, uint8_t statusType,
     }
     return true;
 }
+
+int rdmSubDeviceCount(const rdm_uid_t& uid) {
+    rdm_device_info_t info;
+    rdm_ack_t ack;
+    if (!rdmOpDeviceInfo(uid, &info, &ack)) return -1;
+    return (int)info.sub_device_count;
+}

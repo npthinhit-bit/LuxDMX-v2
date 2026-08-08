@@ -39,3 +39,5 @@ extern int rdmCount;
 float outFpsLive(int i);
 float inFpsLive(int i);
 uint32_t uptimeSec();
+
+void maybeLog(int outIdx, const uint8_t* cur, uint16_t len, uint32_t ip, uint8_t proto);

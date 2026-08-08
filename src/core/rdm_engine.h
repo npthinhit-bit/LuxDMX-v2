@@ -90,3 +90,7 @@ bool rdmOpGetStatus(const rdm_uid_t& uid, uint8_t statusType,
 
 extern bool rdmPollDirty;
 void rdmSavePoll();
+
+// Sub-device enumeration: queries the sub-device count of a root device.
+// Returns the number of sub-devices found (0 = no subs), or -1 on error.
+int rdmSubDeviceCount(const rdm_uid_t& uid);

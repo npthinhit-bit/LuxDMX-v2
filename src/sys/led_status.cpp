@@ -13,8 +13,7 @@
 static uint8_t g_ledPin = LED_BUILTIN;
 static uint8_t g_ledCh  = 0;
 static bool    g_haveLed = false;
-static uint32_t g_curRgb  = 0;
-static bool    g_on      = false;
+LedState g_ledState;
 
 void initLed() {
     if (cfg.ledPin >= 0 && cfg.ledPin < 46) {
@@ -22,19 +21,19 @@ void initLed() {
     }
     ledcAttachChannel(g_ledPin, 1000, 8, g_ledCh);
     g_haveLed = true;
+    g_ledState.on = true;
 }
 
 void setLedColor(uint32_t rgb, bool on) {
-    g_on = on;
+    g_ledState.rgb = rgb;
+    g_ledState.on  = on;
     if (!on) {
         ledcWriteChannel(g_ledCh, 0);
         return;
     }
-    g_curRgb = rgb;
     uint8_t r = (rgb >> 16) & 0xFF;
     uint8_t g = (rgb >>  8) & 0xFF;
     uint8_t b =  rgb        & 0xFF;
-    // Simple average for single-channel PWM brightness.
     uint8_t v = (uint16_t(r) + g + b) / 3;
     ledcWriteChannel(g_ledCh, v);
 }

@@ -3,6 +3,7 @@
 #include "sender_tracker.h"
 #include "stats.h"
 #include "config_schema.h"
+#include "frame_router.h"
 #include <Arduino.h>
 #include <string.h>
 
@@ -14,7 +15,7 @@ void mergeOutput(int outIdx) {
     uint8_t topPrio = 0;
     for (int i = 0; i < MAX_SENDERS; i++) {
         const Sender& s = senders[i];
-        if (s.ip == 0 || s.universe != out.universe) continue;
+        if (s.ip == 0 || (uint16_t)s.universe != portAddress(out)) continue;
         if (now - s.lastMs >= SOURCE_TIMEOUT_MS) continue;
         contrib[nc++] = i;
         if (s.priority > topPrio) topPrio = s.priority;
@@ -56,5 +57,19 @@ void mergeOutput(int outIdx) {
         dmxBufWriteBegin(outIdx);
         memcpy(&dmxBuffers[outIdx].data[1], senders[newest].data, senders[newest].dataLen);
         dmxBufWriteEnd(outIdx);
+    }
+}
+
+void mergeOutputTimed() {
+    uint32_t now = millis();
+    for (int i = 0; i < MAX_OUTPUTS; i++) {
+        if (!cfg.outputs[i].enabled) continue;
+        for (int s = 0; s < MAX_SENDERS; s++) {
+            if (senders[s].ip == 0 || (uint16_t)senders[s].universe != portAddress(cfg.outputs[i])) continue;
+            if (now - senders[s].lastMs >= SOURCE_TIMEOUT_MS && !outSrcLost[i]) {
+                mergeOutput(i);
+                break;
+            }
+        }
     }
 }

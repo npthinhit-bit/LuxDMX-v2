@@ -16,6 +16,9 @@ void handleVersionJson(AsyncWebServerRequest* req);
 void handleRdmJson(AsyncWebServerRequest* req);
 
 // Config
+void handleConfigExport(AsyncWebServerRequest* req);
+void handleConfigImport(AsyncWebServerRequest* req);
+void handleHealth(AsyncWebServerRequest* req);
 void handleConfigPost(AsyncWebServerRequest* req);
 void handleLabelsGet(AsyncWebServerRequest* req);
 void handleAutoUpdatePost(AsyncWebServerRequest* req);
@@ -33,9 +36,6 @@ void handleRebootPost(AsyncWebServerRequest* req);
 // OTA
 void handleOtaGithub(AsyncWebServerRequest* req);
 void handleOtaUrl(AsyncWebServerRequest* req);
-void handleOtaUploadDone(AsyncWebServerRequest* req);
-void handleOtaUploadChunk(AsyncWebServerRequest* req, const String& filename,
-                          size_t index, uint8_t* data, size_t len, bool final);
 
 // RDM control
 void handleRdmTrigger(AsyncWebServerRequest* req);

@@ -2,10 +2,16 @@
 #include <stdint.h>
 #include <Arduino.h>
 
-// PWM LED channel (0-15) and GPIO pin assignments for status indicators.
+struct LedState {
+    uint32_t rgb = 0;
+    bool     on  = false;
+};
+
+extern LedState g_ledState;
+
 void initLed();
 void setLedColor(uint32_t rgb, bool on);
 void setLedColor(uint32_t rgb);
-void setLedBrightness(uint8_t pct);  // 0-100
-
+void setLedBrightness(uint8_t pct);
 void bootConnectingLed();
+

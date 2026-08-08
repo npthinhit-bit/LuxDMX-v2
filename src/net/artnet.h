@@ -5,6 +5,8 @@
 static constexpr uint16_t ARTNET_OP_POLL       = 0x2000;
 static constexpr uint16_t ARTNET_OP_POLLREPLY  = 0x2100;
 static constexpr uint16_t ARTNET_OP_DMX        = 0x5000;
+static constexpr uint16_t ARTNET_OP_NZS        = 0x5100;
+static constexpr uint16_t ARTNET_OP_SYNC       = 0x5200;
 static constexpr uint16_t ARTNET_OP_TODREQUEST = 0x8000;
 static constexpr uint16_t ARTNET_OP_TODDATA    = 0x8100;
 static constexpr uint16_t ARTNET_OP_TODCONTROL = 0x8200;
@@ -24,6 +26,14 @@ extern volatile bool g_bqDirty;
 extern volatile bool g_artCfgDirty;
 static constexpr uint32_t BQ_POLL_MS = 5000;
 
+// Internal Art-Net socket and node state (see artnet.cpp).
+extern int      g_artSock;
+extern bool     g_artRdmReady;
+extern uint32_t g_nodeIp;
+extern uint8_t  g_nodeMac[6];
+extern bool     g_artRdmEnabled;
+extern uint16_t g_artPolls;
+
 // Initialize the raw 6454 UDP socket + bridge state. Called from setup().
 void artRdmInit();
 
@@ -32,3 +42,11 @@ void artRdmPollRx();
 
 // Send queued ArtRdm/ArtTod replies the DMX task produced (core 0 only).
 void artRdmDrainResponses();
+
+// ArtSync state — staging mode and last sync timestamp.
+extern uint8_t  artSyncMode;
+extern uint32_t artSyncLastMs;
+static constexpr uint32_t ARTSYNC_TIMEOUT_MS = 1000;
+
+// ArtNet bridge dispatch: routes control opcodes (poll, sync, address, etc.)
+void artnetBridgeDispatch(uint16_t op, const uint8_t* p, int n, uint32_t ip);

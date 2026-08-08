@@ -14,6 +14,8 @@ bool applyTemplate(const String& name, String& err);
 bool applyTemplateText(const char* text, String& err, int depth = 0);
 void resetToTemplate();
 bool resetTo(const String& name, String& err);
+bool importJson(const String& json, String& err);
+void exportJson(String& out, bool maskSecrets = true);
 
 }; // namespace cfgcore
 

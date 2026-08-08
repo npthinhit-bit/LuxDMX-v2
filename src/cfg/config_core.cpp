@@ -243,4 +243,93 @@ void dump(String& out, bool maskSecrets) {
         }
 }
 
+void exportJson(String& out, bool maskSecrets) {
+    out = "{";
+    bool first = true;
+    for (size_t j = 0; j < CONFIG_FIELD_COUNT; j++) {
+        const CfgField& f = CONFIG_FIELDS[j];
+        if (!first) out += ",";
+        first = false;
+        String v; getValue(f.key, v);
+        if (maskSecrets && (f.flags & CFG_SECRET)) v = "***";
+        char buf[32];
+        out += "\"" + String(f.jsonKey) + "\":";
+        if (f.kind == CfgKind::Str) {
+            out += "\"" + v + "\"";
+        } else if (f.kind == CfgKind::Bool) {
+            out += v;
+        } else {
+            out += v;
+        }
+    }
+    out += ",\"outputs\":[";
+    for (int i = 0; i < MAX_OUTPUTS; i++) {
+        if (i) out += ",";
+        out += "{";
+        bool of = true;
+        for (size_t j = 0; j < OUTPUT_FIELD_COUNT; j++) {
+            const CfgOutputField& f = OUTPUT_FIELDS[j];
+            if (!of) out += ",";
+            of = false;
+            String key = outKey(i, f.suffix);
+            String v; getValue(key, v);
+            if (maskSecrets && (f.flags & CFG_SECRET)) v = "***";
+            out += "\"" + String(f.jsonKey) + "\":";
+            if (f.kind == CfgKind::Str) out += "\"" + v + "\"";
+            else if (f.kind == CfgKind::Bool) out += v;
+            else out += v;
+        }
+        out += "}";
+    }
+    out += "]}";
+}
+
+bool importJson(const String& json, String& err) {
+    // Simple line-based import: parse "key=value" pairs from JSON-like text.
+    // Full JSON parser is overkill for this embedded use case; we scan for
+    // "key":"value" or "key":value patterns.
+    const char* p = json.c_str();
+    int len = json.length();
+    int pos = 0;
+    bool ok = true;
+
+    while (pos < len) {
+        // Find key
+        int kq = json.indexOf('"', pos);
+        if (kq < 0) break;
+        int kq2 = json.indexOf('"', kq + 1);
+        if (kq2 < 0) break;
+        String key = json.substring(kq + 1, kq2);
+        pos = kq2 + 1;
+
+        // Find colon
+        int colon = json.indexOf(':', pos);
+        if (colon < 0) break;
+        pos = colon + 1;
+
+        // Find value
+        int vq = json.indexOf('"', pos);
+        if (vq >= 0 && vq < colon + 5) {
+            int vq2 = json.indexOf('"', vq + 1);
+            if (vq2 < 0) break;
+            String val = json.substring(vq + 1, vq2);
+            pos = vq2 + 1;
+            String e2;
+            if (!setValue(key, val, e2)) ok = false;
+        } else {
+            // Numeric or boolean value
+            int valEnd = pos;
+            while (valEnd < len && json[valEnd] != ',' && json[valEnd] != '}' && json[valEnd] != '\n')
+                valEnd++;
+            String val = json.substring(pos, valEnd);
+            val.trim();
+            pos = valEnd;
+            String e2;
+            if (!setValue(key, val, e2)) ok = false;
+        }
+    }
+    if (!ok) err = "some keys not recognized";
+    return ok;
+}
+
 } // namespace cfgcore
