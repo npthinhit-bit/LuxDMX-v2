@@ -5,6 +5,7 @@
 #include "config_schema.h"
 #include "frame_router.h"
 #include "scene_engine.h"
+#include "alert.h"
 #include <Arduino.h>
 #include <string.h>
 
@@ -29,6 +30,9 @@ void mergeOutput(int outIdx) {
     if (nc == 0) {
         if (!outSrcLost[outIdx]) rxLossCount[outIdx]++;
         outSrcLost[outIdx] = true;
+        // Webhook alert on source loss
+        const char* ip = (nc > 0 && contrib[0] < MAX_SENDERS) ? nullptr : nullptr;
+        alertSourceLost(outIdx, ip);
         switch (out.lossMode) {
             case LOSS_ZERO:
                 dmxBufWriteBegin(outIdx);
@@ -52,6 +56,7 @@ void mergeOutput(int outIdx) {
         return;
     }
     outSrcLost[outIdx] = false;
+    alertSourceRestored(outIdx);
 
     // MERGE_LTP_TAKEOVER: highest-priority source wins; if tie, newest wins
     if (out.mergeMode == MERGE_LTP_TAKEOVER && nc > 0) {

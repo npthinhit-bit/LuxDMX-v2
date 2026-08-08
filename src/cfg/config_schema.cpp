@@ -124,6 +124,8 @@ const CfgField CONFIG_FIELDS[] = {
     SFIELD("syslogip", "syslogServer", syslogServer, "Syslog server IP", "System", CFG_NONE),
     IFIELD("syslogport", "syslogPort", syslogPort, 1, 65535, "Syslog port (UDP)", "System"),
     IFIELD("syslogfac", "syslogFacility", syslogFacility, 0, 23, "Syslog facility code", "System"),
+    BFIELD_L("webhook", "webhookAlerts", webhookAlerts, "Enable webhook alerts on DMX source loss", "System", CFG_NONE),
+    SFIELD("webhookurl", "webhookUrl", webhookUrl, "Webhook URL (POST)", "System", CFG_SECRET),
     BFIELD_L("artrdm", "artnetRdm", artnetRdm, "RDM over Art-Net", "RDM", CFG_NONE),
     IFIELD("rdmmaxdev", "rdmMaxDev", rdmMaxDev, 0, 64, "RDM device limit (0 = auto)", "RDM"),
     BFIELD("autoupd", "autoUpdate", autoUpdate, "Auto-update firmware", "Updates", CFG_NOWEB),

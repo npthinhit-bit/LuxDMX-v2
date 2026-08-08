@@ -78,6 +78,8 @@ struct Config {
     String    syslogServer;
     int       syslogPort;
     int       syslogFacility;
+    bool      webhookAlerts;
+    String    webhookUrl;
     bool      autoUpdate;
     bool      artnetRdm;
     int       rdmMaxDev;
