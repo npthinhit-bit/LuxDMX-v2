@@ -9,6 +9,7 @@
 #include <Arduino.h>
 #include <Preferences.h>
 #include <string.h>
+#include <lwip/sockets.h>
 
 const uint8_t ACN_PACKET_ID[12] = {
     0x41, 0x53, 0x43, 0x2d, 0x45, 0x31, 0x2e, 0x31,
@@ -130,7 +131,7 @@ void startSacn() {
             if (!sacnSyncUdp.beginMulticast(smcast, 5568)) {
                 Serial.printf("[sACN] ERROR: failed to join sync universe %u multicast\n", ssu);
             }
-            sacnSyncAddress[i] = ssu;
+            sacnSyncAddress[i] = su;
             Serial.printf("[sACN] out%d sync universe %u  multicast 239.255.%u.%u:5568\n",
                           i, ssu, sh, sl);
         } else {

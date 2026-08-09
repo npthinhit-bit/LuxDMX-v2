@@ -7,7 +7,7 @@ static constexpr int MAX_OUTPUTS = 4;
 
 struct DmxOutput {
     bool enabled;
-    int  universe;   // Art-Net universe (0-15), 15-bit with net/subnet (0-32767)
+    int  universe;   // Art-Net universe (0-32767, 15-bit with net/subnet)
     int  net;        // Art-Net net switch (0-127)
     int  subnet;     // Art-Net subnet (0-15)
     int  sacnUniverse; // sACN streaming universe (0 = auto, derive from universe+1)

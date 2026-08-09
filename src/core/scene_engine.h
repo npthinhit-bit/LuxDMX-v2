@@ -42,3 +42,7 @@ void sceneFadeStep();
 bool sceneTriggerPlay(int idx, uint16_t fadeMs);
 void sceneSave(int idx);
 void sceneCheckTimecodeTrigger();
+
+// Returns the priority of the active scene on output outIdx, or 0 if no scene active.
+// A scene priority of 0 means "always yield to live network data".
+uint8_t sceneActivePriority(int outIdx);

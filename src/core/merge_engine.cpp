@@ -58,6 +58,14 @@ void mergeOutput(int outIdx) {
     outSrcLost[outIdx] = false;
     alertSourceRestored(outIdx);
 
+    // Scene priority override: if an active scene has higher priority than all
+    // live network sources, keep the scene's DMX data (already written to
+    // dmxBuffers by the scene engine) and skip the network merge for this tick.
+    uint8_t scenePrio = sceneActivePriority(outIdx);
+    if (scenePrio > topPrio && scenePrio > 0) {
+        return;
+    }
+
     // MERGE_LTP_TAKEOVER: highest-priority source wins; if tie, newest wins
     if (out.mergeMode == MERGE_LTP_TAKEOVER && nc > 0) {
         int best = -1;

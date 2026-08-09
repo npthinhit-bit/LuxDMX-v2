@@ -21,6 +21,7 @@
 // Allocate scenes from PSRAM when available, internal heap otherwise.
 Scene* g_scenes = nullptr;
 uint8_t g_sceneHome = 0;
+static int g_activeScene[MAX_OUTPUTS] = {-1, -1, -1, -1};  // active scene index per output, -1 = none
 
 static void allocScenes() {
     if (g_scenes) return;
@@ -158,6 +159,7 @@ void sceneRecall(int presetIdx, uint16_t fadeMs, int outIdx) {
     memcpy(fs.to, sc.data[outIdx], DMX_PACKET_SIZE);
     fs.outIdx = outIdx;
     g_scenes[presetIdx].active = true;
+    g_activeScene[outIdx] = presetIdx;
 }
 
 void sceneRecallHome(int outIdx) {
@@ -177,6 +179,8 @@ void sceneFadeStep() {
             memcpy(&dmxBuffers[o].data[1], fs.to + 1, 512);
             dmxBufWriteEnd(o);
             fs.active = false;
+            // Scene remains "active" (priority still applies) — clear after fade
+            // only if the scene is not being recalled again
         } else if (fs.durationMs > 0) {
             // Linear interpolate
             float frac = (float)elapsed / (float)fs.durationMs;
@@ -212,4 +216,12 @@ void sceneCheckTimecodeTrigger() {
             sceneTriggerPlay(i, g_scenes[i].fadeTimeMs);
         }
     }
+}
+
+uint8_t sceneActivePriority(int outIdx) {
+    if (outIdx < 0 || outIdx >= MAX_OUTPUTS) return 0;
+    int idx = g_activeScene[outIdx];
+    if (idx < 0 || idx >= MAX_SCENES) return 0;
+    if (!g_scenes) return 0;
+    return g_scenes[idx].active ? g_scenes[idx].priority : 0;
 }

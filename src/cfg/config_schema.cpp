@@ -16,8 +16,10 @@ static const char* const ENUM_ETHSPIPHY[] = {"W5500", "DM9051"};
 static const char* const ENUM_WIFIMODE[] = {"STA (client)", "AP (standalone)"};
 static const char* const ENUM_FBMODE[]   = {"keep retrying", "open WPA2 AP", "reboot", "join WiFi"};
 static const char* const ENUM_BTNROLE[]  = {"off", "Enter / Select", "Back", "Next (+)", "Prev (-)"};
-static const char* const ENUM_TXRATE[]  = {"40 fps (25 ms)", "41.7 fps (24 ms)", "33.3 fps (30 ms)",
-                                            "25 fps (40 ms)", "20 fps (50 ms)"};
+static const char* const ENUM_TXRATE[]  = {"1 fps (1000 ms)", "2 fps (500 ms)", "4 fps (250 ms)", "5 fps (200 ms)",
+                                             "8 fps (125 ms)", "10 fps (100 ms)", "20 fps (50 ms)", "25 fps (40 ms)",
+                                             "33.3 fps (30 ms)", "40 fps (25 ms)", "41.7 fps (24 ms)", "43.5 fps (23 ms)",
+                                             "58.8 fps (17 ms)"};
 static const char* const ENUM_TXSTYLE[] = {"Continuous (free-run)", "Delta (follow the input)"};
 static const char* const ENUM_TXSRC[]   = {"set here", "set over Art-Net"};
 static const char* const ENUM_OUTPUT_MODE[] = {"DMX only", "RDM full (DE/RE)"};

@@ -27,8 +27,9 @@ const char MCU_ID[] = "esp32";
 #endif
 
 // Reboot / OTA scheduling state
-bool     pendingWifiReset = false;
-uint32_t pendingRebootAt  = 0;
+bool     pendingWifiReset   = false;
+bool     pendingFactoryReset = false;
+uint32_t pendingRebootAt    = 0;
 volatile uint8_t otaProgPhase = 0;
 volatile uint8_t otaProgPct   = 0;
 bool     updateAvailable = false;

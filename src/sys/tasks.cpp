@@ -22,7 +22,7 @@
 TaskHandle_t g_dmxTask = nullptr;
 TickType_t xLastWakeTime = 0;
 
-static const uint8_t DMX_RATE_MS[] = { 25, 24, 30, 40, 50 };
+static const uint16_t DMX_RATE_MS[] = { 1000, 500, 250, 200, 125, 100, 50, 40, 30, 25, 24, 23, 17 };
 static const int DMX_RATE_COUNT = (int)(sizeof(DMX_RATE_MS) / sizeof(DMX_RATE_MS[0]));
 
 uint32_t dmxPeriodMs(int out) {

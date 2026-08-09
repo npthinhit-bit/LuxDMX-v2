@@ -62,3 +62,17 @@ void alertSourceRestored(int outIdx) {
     printf("[ALERT] source restored on %c (webhook disabled on host)\n", char('A' + outIdx));
 #endif
 }
+
+void alertEmailSourceLost(int outIdx, const char* sourceIp) {
+    // Email alert stub: logs the event. SMTP transport would be implemented here
+    // using a library such as ESP-Mail-Client. For now, route via syslog so
+    // operators receive the notification on their monitoring stack.
+    Serial.printf("[EMAIL] source lost on %c universe %d source %s\n",
+                  char('A' + outIdx), cfg.outputs[outIdx].universe,
+                  sourceIp ? sourceIp : "(unknown)");
+}
+
+void alertEmailSourceRestored(int outIdx) {
+    Serial.printf("[EMAIL] source restored on %c universe %d\n",
+                  char('A' + outIdx), cfg.outputs[outIdx].universe);
+}

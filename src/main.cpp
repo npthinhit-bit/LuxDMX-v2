@@ -122,6 +122,19 @@ void loop() {
         p.putUChar("bqpolicy", g_bqPolicy); p.end();
     }
 
+    // Factory reset (triggered by Art-Address 'I' or web /reset)
+    if (pendingFactoryReset) {
+        pendingFactoryReset = false;
+        Preferences p; p.begin(PREF_NS, false);
+        p.clear(); p.end();
+        pendingRebootAt = millis() + 500;
+    }
+    // Pending reboot — handle config save + reboot scheduling
+    if (pendingRebootAt && millis() >= pendingRebootAt) {
+        pendingRebootAt = 0;
+        ESP.restart();
+    }
+
     // Process queued WebSocket RDM operations (runs on core 0, outside RMT use)
     rdmWsProcessQueued();
 

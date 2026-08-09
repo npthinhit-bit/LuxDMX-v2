@@ -8,6 +8,7 @@
 #include "sys_platform.h"
 #include "stats.h"
 #include "sender_tracker.h"
+#include "frame_router.h"
 #include "artnet.h"
 #include "sacn.h"
 #include "dmx_buffer.h"
@@ -43,6 +44,22 @@ void handleDmxJson(AsyncWebServerRequest* req) {
         j += ",\"fps\":" + String(outFpsLive(i), 1);
         j += ",\"srcLost\":" + String(outSrcLost[i] ? "true" : "false");
         j += ",\"txFrames\":" + String(txFrames[i]);
+        // Find the active source IP for this output's universe
+        uint16_t u16 = portAddress(cfg.outputs[i]);
+        IPAddress srcIp(0, 0, 0, 0);
+        uint32_t now = millis();
+        uint32_t fto = cfg.outputs[i].failsafeTimeout > 0
+                           ? (uint32_t)cfg.outputs[i].failsafeTimeout * 1000
+                           : 2500;
+        for (int s = 0; s < MAX_SENDERS; s++) {
+            if (senders[s].ip != 0 &&
+                (uint16_t)senders[s].universe == u16 &&
+                now - senders[s].lastMs < fto) {
+                srcIp = IPAddress(senders[s].ip);
+                break;
+            }
+        }
+        j += ",\"srcIp\":\"" + srcIp.toString() + "\"";
         j += ",\"data\":\"";
         for (int c = 0; c < 512; c++) {
             char buf[4];
@@ -281,11 +298,10 @@ void handleSetupPost(AsyncWebServerRequest* req) {
 
 void handleResetPost(AsyncWebServerRequest* req) {
     if (req->hasParam("confirm", true) && req->getParam("confirm", true)->value() == "1") {
-        Preferences p; p.begin("dmxgw", false);
-        p.clear(); p.end();
+        pendingFactoryReset = true;
+        pendingRebootAt = millis() + 500;
         req->send(200, "text/plain", "Factory reset done. Rebooting...");
-        delay(100);
-        ESP.restart();
+        return;
     } else {
         req->send(400, "text/plain", "missing confirm=1");
     }

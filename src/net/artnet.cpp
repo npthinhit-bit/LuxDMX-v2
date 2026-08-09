@@ -125,8 +125,16 @@ static void artHandlePacket(const uint8_t* p, int n, uint32_t ip) {
     uint16_t op = p[8] | (p[9] << 8);
 
     if (op == ARTNET_OP_SYNC) {
-        artSyncMode = false;   // SYNC commits the staged frames and returns to immediate mode
-        commitArtSyncStaged();
+        uint32_t now = millis();
+        if (!artSyncMode) {
+            // First sync: enter staging mode, commit any previously staged frames
+            artSyncMode = true;
+            commitArtSyncStaged();
+        } else {
+            // Subsequent syncs: commit staged frames and refresh the watchdog window
+            commitArtSyncStaged();
+        }
+        artSyncLastMs = now;
         artnetBridgeDispatch(op, p, n, ip);
         return;
     }

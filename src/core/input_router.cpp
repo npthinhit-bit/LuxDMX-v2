@@ -22,10 +22,12 @@ void inputRouterPoll() {
             // DMX-in frame ready: retransmit to network
             if (out.inputMode == DMX_IN_TO_NET) {
                 int portAddr = (int)portAddress(out);
-                // Route the received DMX frame into the network pipeline
-                // with default priority 100, protocol Art-Net
+                uint8_t startCode = (g_dmxInFrame.len > 0) ? g_dmxInFrame.data[0] : 0;
+                // Route the received DMX frame into the network pipeline with
+                // default priority 100, protocol Art-Net. Use routeFrameNzs to
+                // preserve the start code (MIDI, text, etc.) for passthrough.
                 updateSender(0, 0, portAddr, 100, g_dmxInFrame.data, g_dmxInFrame.len);
-                routeFrame(portAddr, g_dmxInFrame.data, g_dmxInFrame.len, 0, 0, 100);
+                routeFrameNzs(portAddr, g_dmxInFrame.data, g_dmxInFrame.len, startCode, 0, 100);
             }
             // DMX_IN_MONITOR: frame is already in dmxInFrame, web UI can read it
         }

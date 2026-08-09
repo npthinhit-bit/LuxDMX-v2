@@ -24,6 +24,8 @@ static const uint32_t DMX_LIVE_MS = 1500;
 extern uint32_t pendingRebootAt;
 // Clear WiFi creds before the next reboot (reset flow).
 extern bool     pendingWifiReset;
+// Factory reset pending (set by Art-Address 'I' command or web /reset handler).
+extern bool     pendingFactoryReset;
 
 // Live OTA progress, polled by the update page via /ota/status. Written from
 // the HTTP OTA callbacks, read from the web handler; plain aligned bytes.
