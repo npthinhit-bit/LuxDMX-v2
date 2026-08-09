@@ -52,6 +52,64 @@ static void initCid() {
     p.end();
 }
 
+// --- sACN Universe Discovery (E1.31) transmit ---------------------------------
+// Discovery packet (E1.31 6.2.6 / 6.3.3): root vec 0x00000004, framing vec 0x00000007,
+// data = page count, page number, then universe IDs (1 byte each; extended 2-byte form exists).
+#define SACN_DISC_ROOT_VEC   0x00000004u
+#define SACN_DISC_FRAME_VEC  0x00000007u
+#define SACN_DISC_MAX_UNIV   509u
+#define SACN_DISC_INTERVAL_MS 10000u
+
+static WiFiUDP sacnDiscUdp;
+
+static void sendSacnDiscovery() {
+    uint16_t univs[MAX_OUTPUTS];
+    int nuniv = 0;
+    for (int i = 0; i < MAX_OUTPUTS; i++) {
+        if (cfg.outputs[i].enabled) univs[nuniv++] = sacnUniverseFor(i);
+    }
+    if (nuniv == 0) return;
+
+    uint8_t pkt[638];
+    memset(pkt, 0, sizeof(pkt));
+
+    memcpy(pkt + SACN_ACN_ID_OFF, ACN_PACKET_ID, 12);
+    pkt[SACN_ROOT_VEC_OFF    ] = (SACN_DISC_ROOT_VEC >> 24) & 0xFF;
+    pkt[SACN_ROOT_VEC_OFF + 1] = (SACN_DISC_ROOT_VEC >> 16) & 0xFF;
+    pkt[SACN_ROOT_VEC_OFF + 2] = (SACN_DISC_ROOT_VEC >> 8) & 0xFF;
+    pkt[SACN_ROOT_VEC_OFF + 3] = SACN_DISC_ROOT_VEC & 0xFF;
+    uint16_t rootLen = (uint16_t)(sizeof(pkt) - 20);
+    pkt[SACN_ROOT_VEC_OFF - 2] = (rootLen >> 8) & 0xFF;
+    pkt[SACN_ROOT_VEC_OFF - 1] = rootLen & 0xFF;
+
+    uint32_t frameVec = SACN_DISC_FRAME_VEC;
+    pkt[SACN_FRAME_VEC_OFF    ] = (frameVec >> 24) & 0xFF;
+    pkt[SACN_FRAME_VEC_OFF + 1] = (frameVec >> 16) & 0xFF;
+    pkt[SACN_FRAME_VEC_OFF + 2] = (frameVec >> 8) & 0xFF;
+    pkt[SACN_FRAME_VEC_OFF + 3] = frameVec & 0xFF;
+    memcpy(pkt + SACN_FRAME_VEC_OFF + 4, sacnOwnCid, 16);
+
+    int dataOff = SACN_FRAME_VEC_OFF + 4 + 16 + 4; // frame_vec + cid + reserved + universe
+    int pages = (nuniv + SACN_DISC_MAX_UNIV - 1) / SACN_DISC_MAX_UNIV;
+    if (pages > 255) pages = 255;
+    for (int page = 0; page < pages; page++) {
+        pkt[dataOff]     = (uint8_t)pages;
+        pkt[dataOff + 1] = (uint8_t)page;
+        int start = page * SACN_DISC_MAX_UNIV;
+        int count = nuniv - start;
+        if (count > (int)SACN_DISC_MAX_UNIV) count = (int)SACN_DISC_MAX_UNIV;
+        for (int j = 0; j < count; j++)
+            pkt[dataOff + 2 + j] = (uint8_t)(univs[start + j] & 0xFF);
+        IPAddress mcast(239, 255, 255, 222);
+        sacnDiscUdp.beginPacket(mcast, 5568);
+        sacnDiscUdp.write(pkt, SACN_DATA_OFF);
+        sacnDiscUdp.endPacket();
+        sacnDiscUdp.stop();
+        delay(1);
+    }
+    Serial.printf("[sACN] sent Universe Discovery (%d pages, %d universes)\n", pages, nuniv);
+}
+
 void startSacn() {
     initCid();
     for (int i = 0; i < MAX_OUTPUTS; i++) {
@@ -146,9 +204,10 @@ void readSacnSocket(int outIdx) {
 void readSacn() {
     uint32_t now = millis();
 
-    // Periodic Universe Discovery response (receiver-only: no transmission)
-    if (now - sacnDiscLastMs >= 10000) {
+    // Periodic Universe Discovery announcement (E1.31 section 6.3)
+    if (now - sacnDiscLastMs >= SACN_DISC_INTERVAL_MS) {
         sacnDiscLastMs = now;
+        sendSacnDiscovery();
     }
 
     // Process sync staging on outputs with sync address set

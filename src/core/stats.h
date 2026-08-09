@@ -24,6 +24,8 @@ extern float    outFps[];
 extern volatile uint32_t txFrames[];
 extern float    outTxFps[];
 extern bool     outSrcLost[];
+extern uint32_t rxFrameCount[];   // packets received per output
+extern uint32_t rxLossCount[];    // packets lost per output (timeout-based)
 
 extern float    jitterMs;
 extern uint32_t prevFrameMs;

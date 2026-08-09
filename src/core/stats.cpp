@@ -30,6 +30,8 @@ float    outFps[MAX_OUTPUTS]         = {0.0f};
 volatile uint32_t txFrames[MAX_OUTPUTS] = {0};
 float    outTxFps[MAX_OUTPUTS]       = {0.0f};
 bool outSrcLost[MAX_OUTPUTS]     = {true, true, true, true};
+uint32_t rxFrameCount[MAX_OUTPUTS] = {0};
+uint32_t rxLossCount[MAX_OUTPUTS]  = {0};
 bool manualMode = false;
 
 float    jitterMs     = 0.0f;

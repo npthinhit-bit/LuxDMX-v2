@@ -332,4 +332,63 @@ bool importJson(const String& json, String& err) {
     return ok;
 }
 
+void exportXml(String& out, bool maskSecrets) {
+    out = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<config>\n";
+    out += "  <global>\n";
+    for (size_t j = 0; j < CONFIG_FIELD_COUNT; j++) {
+        const CfgField& f = CONFIG_FIELDS[j];
+        String v; getValue(f.key, v);
+        if (maskSecrets && (f.flags & CFG_SECRET)) v = "***";
+        out += "    <" + String(f.jsonKey) + ">";
+        out += (f.kind == CfgKind::Str) ? v : v;
+        out += "</" + String(f.jsonKey) + ">\n";
+    }
+    out += "  </global>\n";
+    out += "  <outputs>\n";
+    for (int i = 0; i < MAX_OUTPUTS; i++) {
+        out += "    <output index=\"" + String(i) + "\">\n";
+        for (size_t j = 0; j < OUTPUT_FIELD_COUNT; j++) {
+            const CfgOutputField& f = OUTPUT_FIELDS[j];
+            String key = outKey(i, f.suffix);
+            String v; getValue(key, v);
+            out += "      <" + String(f.jsonKey) + ">";
+            out += (f.kind == CfgKind::Str) ? v : v;
+            out += "</" + String(f.jsonKey) + ">\n";
+        }
+        out += "    </output>\n";
+    }
+    out += "  </outputs>\n";
+    out += "</config>\n";
+}
+
+bool importXml(const String& xml, String& err) {
+    bool ok = true;
+    int pos = 0;
+    int len = xml.length();
+    while (pos < len) {
+        int tagStart = xml.indexOf('<', pos);
+        if (tagStart < 0) break;
+        int tagEnd = xml.indexOf('>', tagStart);
+        if (tagEnd < 0) break;
+        String tag = xml.substring(tagStart + 1, tagEnd);
+        if (tag.startsWith("/") || tag.startsWith("?") || tag.startsWith("config") ||
+            tag.startsWith("global") || tag.startsWith("outputs") ||
+            tag.startsWith("output ")) {
+            pos = tagEnd + 1;
+            continue;
+        }
+        char closeBuf[64];
+        snprintf(closeBuf, sizeof(closeBuf), "</%s>", tag.c_str());
+        int closeTag = xml.indexOf(closeBuf, tagEnd);
+        if (closeTag < 0) { pos = tagEnd + 1; continue; }
+        String val = xml.substring(tagEnd + 1, closeTag);
+        val.trim();
+        String e2;
+        if (!setValue(tag, val, e2)) ok = false;
+        pos = closeTag + tag.length() + 3;
+    }
+    if (!ok) err = "some XML keys not recognized";
+    return ok;
+}
+
 } // namespace cfgcore

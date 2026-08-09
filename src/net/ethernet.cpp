@@ -101,6 +101,13 @@ static void startEthRmii() {
 #endif
 
 void startWiredEth() {
+#if defined(HAS_WIRED_ETH)
+    if (cfg.vlanEnabled) {
+        Serial.printf("[ETH] VLAN tagging requested (ID %d) — NOT SUPPORTED by Arduino W5500 driver; "
+                      "using untagged frames. Use ESP-IDF native build for 802.1Q support.\n",
+                      cfg.vlanId);
+    }
+#endif
 #if defined(HAS_ETH_SPI) && defined(HAS_ETH_RMII)
     if (cfg.wiredPhy == WIRED_PHY_RMII) startEthRmii();
     else                                startEthSpi();

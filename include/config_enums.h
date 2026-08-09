@@ -2,8 +2,9 @@
 // Structural constants the schema references. These are NOT board defaults — they
 // describe what the compiled code supports (how many merge modes / fallback modes
 // / RMII PHY families exist). They mirror the values in main.cpp.
-enum { MERGE_OFF = 0, MERGE_HTP = 1, MERGE_LTP = 2 };
-enum { LOSS_HOLD = 0, LOSS_ZERO = 1, LOSS_STOP = 2 };
+enum { MERGE_OFF = 0, MERGE_HTP = 1, MERGE_LTP = 2, MERGE_LTP_TAKEOVER = 3, MERGE_PRIORITY = 4 };
+enum { LOSS_HOLD = 0, LOSS_ZERO = 1, LOSS_STOP = 2, LOSS_PRESET = 3, LOSS_HOME = 4 };
+enum { DMX_IN_OFF = 0, DMX_IN_TO_NET = 1, DMX_IN_MONITOR = 2 };
 enum { NET_WIFI_STA = 0, NET_WIFI_AP = 1 };
 enum { WIRED_FB_RETRY = 0, WIRED_FB_AP = 1, WIRED_FB_REBOOT = 2, WIRED_FB_WIFI = 3 };
 

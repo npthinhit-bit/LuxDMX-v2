@@ -16,3 +16,4 @@ bool dmxIsDelta(int outIdx);
 void sanitizeOutputs();
 void outputInitAll();
 void rdmOutSelect(int outIdx);
+void updateOutputRuntime(int outIdx);
