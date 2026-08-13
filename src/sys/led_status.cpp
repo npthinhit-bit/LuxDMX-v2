@@ -16,17 +16,23 @@ static bool    g_haveLed = false;
 LedState g_ledState;
 
 void initLed() {
-    if (cfg.ledPin >= 0 && cfg.ledPin < 46) {
-        g_ledPin = cfg.ledPin;
+    if (cfg.ledPin > 0 && cfg.ledPin <= 48) {
+        g_ledPin = (uint8_t)cfg.ledPin;
     }
-    ledcAttachChannel(g_ledPin, 1000, 8, g_ledCh);
-    g_haveLed = true;
+    g_haveLed = ledcAttachChannel(g_ledPin, 1000, 8, g_ledCh);
+    if (g_haveLed) {
+        Serial.printf("[LED] LEDC channel %u attached to pin %u\n", g_ledCh, g_ledPin);
+    } else {
+        Serial.printf("[LED] ledcAttachChannel failed for pin %u (channel %u) — LED disabled\n",
+                      g_ledPin, g_ledCh);
+    }
     g_ledState.on = true;
 }
 
 void setLedColor(uint32_t rgb, bool on) {
     g_ledState.rgb = rgb;
     g_ledState.on  = on;
+    if (!g_haveLed) return;
     if (!on) {
         ledcWriteChannel(g_ledCh, 0);
         return;
@@ -47,6 +53,7 @@ void setLedBrightness(uint8_t pct) {
 }
 
 void bootConnectingLed() {
+    if (!g_haveLed) return;
     static uint32_t startMs = millis();
     uint32_t phase = (millis() - startMs) % 400;
     uint8_t v = (phase < 200)

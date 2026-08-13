@@ -122,6 +122,38 @@ void startWiFiStation() {
           delay(200);
       } }
     if (WiFi.status() != WL_CONNECTED) {
+        if (cfg.autoIpFallback) {
+            // Assign a 169.254.x.x link-local address (RFC 3927).
+            // Use a simple deterministic selection based on MAC to minimize collisions.
+            uint8_t mac[6];
+            WiFi.macAddress(mac);
+            uint16_t lastTwo = (mac[4] << 8) | mac[5];
+            uint8_t third = (lastTwo >> 8) & 0xFF;  // 169.254.<third>.<fourth>
+            uint8_t fourth = lastTwo & 0xFF;        // avoid 0 and 255 boundaries
+            if (third == 0) third = 1;
+            if (fourth == 0) fourth = 1;
+            IPAddress ip(169, 254, third, fourth);
+            IPAddress gw(169, 254, third, 1);
+            IPAddress sn(255, 255, 0, 0);
+            WiFi.config(ip, gw, sn);
+            Serial.printf("[WiFi] DHCP failed, AutoIP %s\n", ip.toString().c_str());
+            delay(100);
+            // Re-attempt connection after static config (forces DHCP retry)
+            WiFi.begin(cfg.wifiSsid.c_str(), cfg.wifiPsk.c_str());
+            { uint32_t t = millis();
+              while (WiFi.status() != WL_CONNECTED && millis() - t < 10000)
+                  delay(200); }
+            if (WiFi.status() == WL_CONNECTED) {
+                Serial.printf("[WiFi] DHCP recovered after AutoIP probe: %s\n",
+                              WiFi.localIP().toString().c_str());
+                connectStrongestAP();
+                WiFi.setSleep(WIFI_PS_NONE);
+                return;
+            }
+            // Still not connected — fall back to setup portal (AP mode) so creds can be reconfigured
+            delay(100);
+            // Fall through to setup portal below
+        }
         Serial.println("[WiFi] could not join stored network — opening setup portal");
         startSetupPortal();
         return;
