@@ -17,10 +17,14 @@ static const char* const ENUM_WIFIMODE[] = {"STA (client)", "AP (standalone)"};
 static const char* const ENUM_FBMODE[]   = {"keep retrying", "open WPA2 AP", "reboot", "join WiFi"};
 static const char* const ENUM_BTNROLE[]  = {"off", "Enter / Select", "Back", "Next (+)", "Prev (-)"};
 static const char* const ENUM_TXRATE[]  = {"40 fps (25 ms)", "41.7 fps (24 ms)", "33.3 fps (30 ms)",
-                                           "25 fps (40 ms)", "20 fps (50 ms)"};
+                                            "25 fps (40 ms)", "20 fps (50 ms)"};
 static const char* const ENUM_TXSTYLE[] = {"Continuous (free-run)", "Delta (follow the input)"};
 static const char* const ENUM_TXSRC[]   = {"set here", "set over Art-Net"};
 static const char* const ENUM_OUTPUT_MODE[] = {"DMX only", "RDM full (DE/RE)"};
+static const char* const ENUM_MERGE[]   = {"off (last wins)", "HTP", "LTP", "LTP-Takeover", "priority-based"};
+static const char* const ENUM_LOSS[]    = {"hold last", "go dark (zero)", "stop sending", "go to preset", "go to home"};
+static const char* const ENUM_DMXIN[]  = {"off", "receiving (retransmit to network)", "monitor/loopback"};
+static const char* const ENUM_TCTYPE[] = {"Film 24", "EGB 25", "DF 29.97", "SMPTE 30"};
 
 #define IFIELD(key, json, member, mn, mx, label, group) \
     { key, json, CfgKind::Int,  offsetof(Config, member), mn, mx, label, group, CFG_REBOOT, nullptr, 0 }
@@ -108,6 +112,20 @@ const CfgField CONFIG_FIELDS[] = {
     SFIELD("subnet",   "subnet",       subnet,       "Subnet mask",        "Network", CFG_NONE),
     SFIELD("dns",      "dns",          dns,          "DNS server",         "Network", CFG_NONE),
     BFIELD_L("ipprog", "ipProg",       ipProg,       "Art-Net remote IP config (ArtIpProg)", "Network", CFG_NONE),
+    BFIELD_L("autoip", "autoIpFallback", autoIpFallback, "AutoIP (169.254.x.x) fallback when DHCP fails", "Network", CFG_NONE),
+    BFIELD_L("dscp",  "dscpEnabled", dscpEnabled, "Enable QoS/DSCP marking", "Network", CFG_NONE),
+    IFIELD_L("dscpdmx", "dscpDmx", dscpDmx, 0, 63, "DSCP value for DMX (Art-Net/sACN) traffic", "Network"),
+    BFIELD("vlan", "vlanEnabled", vlanEnabled, "Enable VLAN tagging (802.1Q)", "Network", CFG_REBOOT),
+    IFIELD("vlanid", "vlanId", vlanId, 1, 4094, "VLAN ID (1-4094)", "Network"),
+    BFIELD_L("tcSend", "timecodeSend", timecodeSend, "Send Art-Net TimeCode", "TimeCode", CFG_NONE),
+    EFIELD("tcType", "timecodeType", timecodeType, "TimeCode type", "TimeCode", ENUM_TCTYPE),
+    IFIELD_L("tcFps", "timecodeFps", timecodeFps, 1, 60, "TimeCode FPS (for sending)", "TimeCode"),
+    BFIELD_L("syslog", "syslogEnabled", syslogEnabled, "Enable remote syslog", "System", CFG_NONE),
+    SFIELD("syslogip", "syslogServer", syslogServer, "Syslog server IP", "System", CFG_NONE),
+    IFIELD("syslogport", "syslogPort", syslogPort, 1, 65535, "Syslog port (UDP)", "System"),
+    IFIELD("syslogfac", "syslogFacility", syslogFacility, 0, 23, "Syslog facility code", "System"),
+    BFIELD_L("webhook", "webhookAlerts", webhookAlerts, "Enable webhook alerts on DMX source loss", "System", CFG_NONE),
+    SFIELD("webhookurl", "webhookUrl", webhookUrl, "Webhook URL (POST)", "System", CFG_SECRET),
     BFIELD_L("artrdm", "artnetRdm", artnetRdm, "RDM over Art-Net", "RDM", CFG_NONE),
     IFIELD("rdmmaxdev", "rdmMaxDev", rdmMaxDev, 0, 64, "RDM device limit (0 = auto)", "RDM"),
     BFIELD("autoupd", "autoUpdate", autoUpdate, "Auto-update firmware", "Updates", CFG_NOWEB),
@@ -120,6 +138,8 @@ const size_t CONFIG_FIELD_COUNT = ARRSZ(CONFIG_FIELDS);
     { suffix, json, CfgKind::Int,  offsetof(DmxOutput, member), legacy, mn, mx, label, CFG_LIVE, nullptr, 0 }
 #define OBOOL(suffix, json, member, legacy, label) \
     { suffix, json, CfgKind::Bool, offsetof(DmxOutput, member), legacy, 0, 1, label, CFG_REBOOT, nullptr, 0 }
+#define OBOOL_L(suffix, json, member, legacy, label) \
+    { suffix, json, CfgKind::Bool, offsetof(DmxOutput, member), legacy, 0, 1, label, CFG_LIVE, nullptr, 0 }
 #define OENUM(suffix, json, member, label, labels) \
     { suffix, json, CfgKind::Enum, offsetof(DmxOutput, member), nullptr, 0, (int32_t)ARRSZ(labels) - 1, \
       label, CFG_LIVE, labels, (uint8_t)ARRSZ(labels) }
@@ -141,11 +161,19 @@ const CfgOutputField OUTPUT_FIELDS[] = {
     OINT ("tx",    "tx",    txPin,     "dmxtx",   -1, 48,   "TX pin"),
     OINT ("rx",    "rx",    rxPin,     "dmxrx",   -1, 48,   "RX pin"),
     OINT ("rts",   "rts",   rtsPin,    "dmxrts",  -1, 48,   "RTS / DE-RE pin"),
-    OINT_L("merge", "merge", mergeMode, nullptr, MERGE_OFF, MERGE_LTP, "Merge mode"),
-    OINT_L("loss",  "loss",  lossMode,  nullptr, LOSS_HOLD, LOSS_STOP, "Signal-loss policy"),
+    OENUM("merge", "merge", mergeMode, "Merge mode", ENUM_MERGE),
+    OENUM("loss",  "loss",  lossMode,  "Signal-loss policy", ENUM_LOSS),
+    OINT_L("lossp", "lossPreset", lossPreset, nullptr, 0, 31, "Loss preset index"),
+    OINT_L("failst","failsafeTimeout", failsafeTimeout, nullptr, 0, 600, "Failsafe timeout (s, 0=auto)"),
     OENUM("rate",  "rate",  txRate,     "DMX output rate",  ENUM_TXRATE),
     OENUM("style", "style", txStyle,    "Transmit style",   ENUM_TXSTYLE),
     OENUM_RO("stylesrc", "styleSrc", txStyleSrc, "Transmit style set by", ENUM_TXSRC),
     OENUM_R("mode", "mode", mode, "Output mode", ENUM_OUTPUT_MODE),
+    OINT_L("brk",   "brk",   breakTime, nullptr, 0, 100000, "Break time (us)"),
+    OINT_L("mab",   "mab",   mabTime,   nullptr, 0, 100000, "MAB time (us)"),
+    OBOOL_L("inv",    "inv",   invert,              "Invert DMX polarity", ""),
+    OENUM("inmode", "inputMode", inputMode, "DMX input mode", ENUM_DMXIN),
+    OINT_L("split", "splitMask", splitMask, nullptr, 0, 15, "Outputs to mirror to (bitmask, 0=A 1=B ...)"),
+    OINT_L("loop",  "loopback", loopback, nullptr, 0, 32767, "Loopback universe (0=none)"),
 };
 const size_t OUTPUT_FIELD_COUNT = ARRSZ(OUTPUT_FIELDS);

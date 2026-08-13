@@ -7,6 +7,7 @@
 #include "rdm_disc.h"
 #include "config_schema.h"
 #include "sender_tracker.h"
+#include "scene_engine.h"
 #include "sys_platform.h"
 #include <Arduino.h>
 
@@ -174,6 +175,46 @@ void handleWsText(const char* payload, size_t len) {
         const int mo = viewOutput();
         dmxBufWriteBegin(mo);
         dmxBufWriteEndSet(mo, ch, (uint8_t)constrain(val, 0, 255));
+        return;
+    }
+    if (msg.indexOf("\"scene\"") >= 0) {
+        int idx = msg.indexOf("\"play\":");
+        if (idx < 0) return;
+        int sceneIdx = msg.substring(idx + 6).toInt();
+        int fadeIdx = msg.indexOf("\"fade\":");
+        uint16_t fadeMs = 0;
+        if (fadeIdx >= 0) fadeMs = (uint16_t)msg.substring(fadeIdx + 6).toInt();
+        sceneTriggerPlay(sceneIdx, fadeMs);
+        Serial.printf("[SCENE] triggered scene %d fade=%dms\n", sceneIdx, fadeMs);
+        return;
+    }
+    if (msg.indexOf("\"saveScene\"") >= 0) {
+        int idx = msg.indexOf("\"idx\":");
+        if (idx < 0) return;
+        int sceneIdx = msg.substring(idx + 5).toInt();
+        if (sceneIdx < 0 || sceneIdx >= MAX_SCENES) return;
+        if (!g_scenes) return;
+        const int mo = viewOutput();
+        dmxBufSnapshot(mo, g_scenes[sceneIdx].data[mo]);
+        const char* nameKey = "\"name\":\"";
+        int nk = msg.indexOf(nameKey);
+        if (nk >= 0) {
+            nk += 8;
+            int ne = msg.indexOf('"', nk);
+            if (ne > nk) {
+                int n = ne - nk; if (n > 31) n = 31;
+                msg.substring(nk, ne).toCharArray(g_scenes[sceneIdx].name, n + 1);
+            }
+        }
+        sceneSaveNvs(sceneIdx);
+        Serial.printf("[SCENE] saved scene %d\n", sceneIdx);
+        return;
+    }
+    if (msg.indexOf("\"clearScene\"") >= 0) {
+        int idx = msg.indexOf("\"idx\":");
+        if (idx < 0) return;
+        int sceneIdx = msg.substring(idx + 5).toInt();
+        sceneEraseNvs(sceneIdx);
         return;
     }
     handleWsTextRdm(msg);

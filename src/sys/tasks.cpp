@@ -11,6 +11,7 @@
 #include "rdm_engine.h"
 #include "frame_router.h"
 #include "merge_engine.h"
+#include "scene_engine.h"
 #include "stats.h"
 #include "sender_tracker.h"
 #include "net/artnet.h"
@@ -121,6 +122,7 @@ static void dmxFrameTick() {
     bool anyDelta = false;
 
     flushArtSyncStaged();
+    sceneFadeStep();
 
     for (int i = 0; i < MAX_OUTPUTS; i++) {
         if (cfg.outputs[i].enabled && outReady[i]) {

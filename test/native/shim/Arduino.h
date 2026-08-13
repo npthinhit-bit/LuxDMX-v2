@@ -40,13 +40,16 @@ public:
     // --- the subset of Arduino String's API the config serial console uses ---
     int indexOf(char c) const { auto p = s.find(c); return p == std::string::npos ? -1 : (int)p; }
     int indexOf(char c, int from) const { auto p = s.find(c, from < 0 ? 0 : from); return p == std::string::npos ? -1 : (int)p; }
+    int indexOf(const char* sub) const { auto p = s.find(sub); return p == std::string::npos ? -1 : (int)p; }
+    int indexOf(const char* sub, int from) const { auto p = s.find(sub, from < 0 ? 0 : from); return p == std::string::npos ? -1 : (int)p; }
+    int indexOf(const String& sub) const { auto p = s.find(sub.s); return p == std::string::npos ? -1 : (int)p; }
+    int indexOf(const String& sub, int from) const { auto p = s.find(sub.s, from < 0 ? 0 : from); return p == std::string::npos ? -1 : (int)p; }
     String substring(int from) const { return from >= 0 && from <= (int)s.size() ? String(s.substr(from)) : String(); }
     String substring(int from, int to) const {
         if (from < 0) from = 0; if (to > (int)s.size()) to = (int)s.size();
         return to > from ? String(s.substr(from, to - from)) : String();
     }
     bool startsWith(const char* p) const { return p && s.rfind(p, 0) == 0; }
-    int indexOf(const char* sub) const { auto p = s.find(sub); return p == std::string::npos ? -1 : (int)p; }
     void trim() {
         size_t a = 0, b = s.size();
         while (a < b && (unsigned char)s[a] <= ' ') a++;
