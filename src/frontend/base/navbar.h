@@ -1,21 +1,60 @@
 #pragma once
 #include <Arduino.h>
 
+<<<<<<< ours
+<<<<<<< ours
 static const char NAVBAR_CSS[] PROGMEM = R"=====(.site-nav { display:flex; align-items:center; gap:1rem; padding:.6rem 1rem; background:#161b22;
             border-bottom:1px solid #30363d; flex-wrap:wrap; view-transition-name:site-nav;
             position:sticky; top:0; z-index:30; }
+=======
+=======
+>>>>>>> theirs
+static const char NAVBAR_CSS[] PROGMEM = R"=====(
+html { scrollbar-gutter: stable; }
+.site-nav { display:flex; align-items:center; gap:1rem; padding:.6rem 1rem; background:#161b22;
+            border-bottom:1px solid #30363d; flex-wrap:wrap; view-transition-name:site-nav;
+            position:sticky; top:0; z-index:30; }   /* stays pinned at the top, doesn't scroll away */
+<<<<<<< ours
+>>>>>>> theirs
+=======
+>>>>>>> theirs
 .site-nav .brand { display:flex; align-items:center; gap:.75rem; text-decoration:none; }
 .site-nav .brand img { height:64px; border-radius:14px; }
 .site-nav .brand-text .name { font-size:1.4rem; font-weight:700; color:#fff; line-height:1; }
 .site-nav .brand-text .sub  { font-size:.68rem; color:#8b949e; margin-top:2px; }
+<<<<<<< ours
+<<<<<<< ours
+=======
+/* fixed-width columns so a changing value never reflows / jumps the whole bar */
+>>>>>>> theirs
+=======
+/* fixed-width columns so a changing value never reflows / jumps the whole bar */
+>>>>>>> theirs
 .site-nav .nav-stats { margin-left:auto; display:flex; gap:.85rem; align-items:center; flex-wrap:wrap; }
 .site-nav .nav-stat  { display:flex; flex-direction:column; line-height:1.05; align-items:flex-start; }
 .site-nav .nav-stat .ns-label { font-size:.55rem; text-transform:uppercase; letter-spacing:.07em; color:#8b949e; white-space:nowrap; }
 .site-nav .nav-stat .ns-val   { font-size:.95rem; font-weight:700; color:#fff; font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; }
 .site-nav .nav-links { display:flex; gap:.4rem; }
+<<<<<<< ours
+<<<<<<< ours
 )=====";
 
 static const char NAVBAR_HTML[] PROGMEM = R"=====(<nav class="site-nav">
+=======
+=======
+>>>>>>> theirs
+/* smooth cross-page navigation: keep the bar steady, quick crossfade of the body */
+@view-transition { navigation: auto; }
+::view-transition-group(site-nav) { animation-duration:.18s; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration:.18s; }
+)=====";
+
+static const char NAVBAR_HTML[] PROGMEM = R"=====(
+<nav class="site-nav">
+<<<<<<< ours
+>>>>>>> theirs
+=======
+>>>>>>> theirs
   <a class="brand" href="/">
     <img src="/logo.webp?v=__FWVER__" alt="LuxDMX">
     <div class="brand-text"><div class="name">LuxDMX</div><div class="sub" id="nav-sub">&nbsp;</div></div>
@@ -40,10 +79,24 @@ static const char NAVBAR_HTML[] PROGMEM = R"=====(<nav class="site-nav">
 </nav>
 )=====";
 
+<<<<<<< ours
+<<<<<<< ours
 static const char NAVBAR_JS[] PROGMEM = R"=====(<script>
 window.LuxNav = (function(){
   var NAVIDS=['fps','infps','txstyle','rssi','net-label','heap','uptime','jitter','nav-sub','nfix','rdm-tx','rdm-rx'];
   var NAV_TAIL=10;
+=======
+=======
+>>>>>>> theirs
+static const char NAVBAR_JS[] PROGMEM = R"=====(
+window.LuxNav = (function(){
+  var NAVIDS=['fps','infps','txstyle','rssi','net-label','heap','uptime','jitter','nav-sub','nfix','rdm-tx','rdm-rx'];
+  var NAV_TAIL=10;   // fixed tail on the /ws frame: fixtures(2) rdmTx(4) rdmRx(4). Before it sit the
+                     // per-output blocks: output fps(2), input fps(2), transmit style(1) = 5 bytes.
+<<<<<<< ours
+>>>>>>> theirs
+=======
+>>>>>>> theirs
   var PER_OUT=5, CHANS_PER_OUT=512;
   function fmtK(n){ return n>=1e6 ? (n/1e6).toFixed(1)+'M' : n>=1e4 ? (n/1e3).toFixed(0)+'k' : String(n); }
   function saveNav(){ try{ var o={}; NAVIDS.forEach(function(id){ var e=document.getElementById(id); if(e) o[id]=[e.innerHTML,e.style.color||'']; }); sessionStorage.setItem('luxnav',JSON.stringify(o)); }catch(_){} }
@@ -51,6 +104,14 @@ window.LuxNav = (function(){
   function stats(buf){
     if(!(buf instanceof ArrayBuffer) || buf.byteLength<16) return;
     var v=new DataView(buf);
+<<<<<<< ours
+<<<<<<< ours
+=======
+    // Frame: 16-byte header, then DMX(CHANS_PER_OUT * nOut), then per-output stats(5 * nOut), then 10-byte tail.
+>>>>>>> theirs
+=======
+    // Frame: 16-byte header, then DMX(CHANS_PER_OUT * nOut), then per-output stats(5 * nOut), then 10-byte tail.
+>>>>>>> theirs
     var nOut=Math.max(0,Math.floor((buf.byteLength-16-NAV_TAIL)/(CHANS_PER_OUT+PER_OUT)));
     var statsOff=16+nOut*CHANS_PER_OUT, out=[], inp=[], sty=[];
     for(var oi=0;oi<nOut;oi++){
@@ -60,6 +121,18 @@ window.LuxNav = (function(){
     }
     document.getElementById('fps').textContent   = out.length ? out.join(' · ') : (v.getUint16(0)/10).toFixed(1);
     document.getElementById('infps').textContent = inp.length ? inp.join(' · ') : '0.0';
+<<<<<<< ours
+<<<<<<< ours
+=======
+    // Transmit style per output: D = delta (following the console), C = continuous (free-running).
+    // A dot marks a style a controller pushed over Art-Net, so a mode you did not pick is visible
+    // at a glance instead of looking like your own setting.
+>>>>>>> theirs
+=======
+    // Transmit style per output: D = delta (following the console), C = continuous (free-running).
+    // A dot marks a style a controller pushed over Art-Net, so a mode you did not pick is visible
+    // at a glance instead of looking like your own setting.
+>>>>>>> theirs
     var se=document.getElementById('txstyle');
     if(se){
       if(sty.length){
@@ -72,29 +145,71 @@ window.LuxNav = (function(){
     }
     var rssi=v.getInt16(2), heap=v.getUint32(4), upS=v.getUint32(8);
     var re=document.getElementById('rssi'), nl=document.getElementById('net-label');
+<<<<<<< ours
+<<<<<<< ours
     if(rssi>=10){ nl.textContent='LAN'; re.textContent=rssi+'M'; re.style.color='#45d85c'; }
     else if(rssi>=1){ nl.textContent='AP'; re.textContent='active'; re.style.color='#f33abc'; }
+=======
+    if(rssi>=10){ nl.textContent='LAN'; re.textContent=rssi+'M'; re.style.color='#45d85c'; }        // wired
+    else if(rssi>=1){ nl.textContent='AP'; re.textContent='active'; re.style.color='#f33abc'; }      // AP fallback
+>>>>>>> theirs
+=======
+    if(rssi>=10){ nl.textContent='LAN'; re.textContent=rssi+'M'; re.style.color='#45d85c'; }        // wired
+    else if(rssi>=1){ nl.textContent='AP'; re.textContent='active'; re.style.color='#f33abc'; }      // AP fallback
+>>>>>>> theirs
     else { nl.textContent='WiFi'; re.textContent=rssi+' dBm'; re.style.color=rssi>-65?'#45d85c':rssi>-80?'#ffaa1c':'#f33abc'; }
     document.getElementById('heap').textContent=(heap/1024).toFixed(0)+' KB';
     var h=Math.floor(upS/3600), m=Math.floor((upS%3600)/60), s=upS%60;
     document.getElementById('uptime').textContent=(h?h+'h ':'')+(m?m+'m ':'')+s+'s';
     document.getElementById('jitter').textContent=(v.getUint16(14)/10).toFixed(1)+' ms';
+<<<<<<< ours
+<<<<<<< ours
     var t=buf.byteLength-NAV_TAIL;
     document.getElementById('nfix').textContent=v.getUint16(t);
+=======
+    var t=buf.byteLength-NAV_TAIL;   // fixtures / RDM tx / RDM rx (same on every tab)
+    document.getElementById('nfix').textContent=fmtK(v.getUint16(t));
+>>>>>>> theirs
+=======
+    var t=buf.byteLength-NAV_TAIL;   // fixtures / RDM tx / RDM rx (same on every tab)
+    document.getElementById('nfix').textContent=fmtK(v.getUint16(t));
+>>>>>>> theirs
     document.getElementById('rdm-tx').textContent=fmtK(v.getUint32(t+2));
     document.getElementById('rdm-rx').textContent=fmtK(v.getUint32(t+6));
     saveNav();
   }
+<<<<<<< ours
+<<<<<<< ours
+=======
+  // highlight the active tab from the URL, so the markup is identical on every page
+>>>>>>> theirs
+=======
+  // highlight the active tab from the URL, so the markup is identical on every page
+>>>>>>> theirs
   var path=(location.pathname.replace(/\/+$/,'')||'/');
   var links=document.querySelectorAll('.site-nav .nav-links a');
   for(var i=0;i<links.length;i++){ var on=links[i].getAttribute('data-tab')===path;
     links[i].classList.toggle('btn-primary',on); links[i].classList.toggle('btn-outline-secondary',!on); }
+<<<<<<< ours
+<<<<<<< ours
   paintNav();
+=======
+  paintNav();   // paint the last-known values instantly so a tab switch never flashes empty
+>>>>>>> theirs
+=======
+  paintNav();   // paint the last-known values instantly so a tab switch never flashes empty
+>>>>>>> theirs
   fetch('/info.json').then(function(r){return r.json();}).then(function(d){
     document.getElementById('nav-sub').innerHTML=(d.hostname||'')+'.local &nbsp;&middot;&nbsp; '+(d.ip||'')+' &nbsp;&middot;&nbsp; v'+(d.version||'');
     saveNav();
   }).catch(function(){});
   return { stats:stats };
 })();
+<<<<<<< ours
+<<<<<<< ours
 </script>
+=======
+>>>>>>> theirs
+=======
+>>>>>>> theirs
 )=====";

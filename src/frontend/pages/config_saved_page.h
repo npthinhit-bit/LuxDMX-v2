@@ -1,0 +1,29 @@
+#pragma once
+#include <Arduino.h>
+
+static const char CONFIG_SAVED_PAGE[] PROGMEM = R"=====(
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LuxDMX Saved</title>
+<link rel="icon" type="image/png" href="/favicon.png?v=__FWVER__">
+<link rel="stylesheet" href="/bootstrap.min.css?v=__FWVER__">
+<style>
+[data-bs-theme="dark"]{--bs-success:#45d85c;--bs-success-rgb:69,216,92;--bs-danger:#f33abc;--bs-danger-rgb:243,58,188;--bs-warning:#ffaa1c;--bs-warning-rgb:255,170,28;}
+body { background: #0d1117; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+.box { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 2.5rem; text-align: center; width: min(360px, 90vw); }
+</style>
+</head>
+<body>
+<div class="box">
+  <div style="font-size:2.5rem;margin-bottom:1rem">&#10003;</div>
+  <div class="fw-bold fs-5 mb-2 text-success">Settings saved</div>
+  <div class="text-secondary small">Restarting device&hellip;</div>
+</div>
+<script>setTimeout(() => location.href = '/', 3500)</script>
+</body>
+</html>
+
+)=====";

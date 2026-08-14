@@ -20,10 +20,28 @@ def extract_css(html):
     m = re.search(r'<style>(.*?)</style>', html, re.DOTALL)
     return m.group(1).strip() if m else ''
 
+<<<<<<< ours
+<<<<<<< ours
 # Extract body content between <!--NAVBAR--> and </body>
 def extract_body(html):
     m = re.search(r'<!--NAVBAR-->(.*)</body>', html, re.DOTALL)
     return m.group(1).strip() if m else ''
+=======
+=======
+>>>>>>> theirs
+# Extract body content between <!--NAVBAR--> and the first <script> or footer
+def extract_body(html):
+    m = re.search(r'<!--NAVBAR-->(.*?)(?:<footer|</div>\s*</div>\s*<script|$)', html, re.DOTALL)
+    if m:
+        body = m.group(1).strip()
+        # Remove trailing closing divs if any
+        body = re.sub(r'\s*</div>\s*$', '', body)
+        return body.strip()
+    return ''
+<<<<<<< ours
+>>>>>>> theirs
+=======
+>>>>>>> theirs
 
 # Extract all <script>...</script> blocks
 def extract_scripts(html):

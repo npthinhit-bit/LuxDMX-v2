@@ -1,5 +1,6 @@
 #include "web_server.h"
 #include "web_pages.h"
+#include "frontend/web_frontend.h"
 #include "web_routes.h"
 #include "config_schema.h"
 #include "sys/soak_monitor.h"
