@@ -38,3 +38,19 @@ function showModal(opts) {
 }
 </script>
 )=====";
+
+static const char APP_MODAL_HTML[] PROGMEM = R"=====(
+<!-- Confirm modal (shared: firmware update, pin conflicts, etc.) -->
+<div class="app-modal" id="app-modal">
+  <div class="card shadow">
+    <div class="card-header" id="app-modal-title">Confirm</div>
+    <div class="card-body">
+      <p class="mb-3" id="app-modal-body"></p>
+      <div class="d-flex justify-content-end gap-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="app-modal-cancel">Cancel</button>
+        <button type="button" class="btn btn-primary btn-sm" id="app-modal-ok">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
+)=====";

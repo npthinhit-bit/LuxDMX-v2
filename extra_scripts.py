@@ -7,6 +7,7 @@
    into src/generated/*.h at build time.
 """
 import os
+import sys
 import gzip
 
 # ---------------------------------------------------------------------------
