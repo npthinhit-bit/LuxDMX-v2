@@ -1,43 +1,17 @@
 #pragma once
 #include <Arduino.h>
 
-<<<<<<< ours
-<<<<<<< ours
 static const char FRONTEND_STYLES[] PROGMEM = R"=====(:root {
-=======
-static const char FRONTEND_STYLES[] PROGMEM = R"=====(
-:root {
->>>>>>> theirs
-=======
-static const char FRONTEND_STYLES[] PROGMEM = R"=====(
-:root {
->>>>>>> theirs
   --gh-bg:      #0d1117;
   --gh-surface: #161b22;
   --gh-border:  #30363d;
   --gh-text:    #c9d1d9;
   --gh-muted:   #8b949e;
-<<<<<<< ours
-<<<<<<< ours
-=======
-  /* LuxDMX brand palette: cyan / magenta / amber / green */
->>>>>>> theirs
-=======
-  /* LuxDMX brand palette: cyan / magenta / amber / green */
->>>>>>> theirs
   --lux-cyan:    #23e6f7;
   --lux-magenta: #f33abc;
   --lux-amber:   #ffaa1c;
   --lux-green:   #45d85c;
-<<<<<<< ours
-<<<<<<< ours
   --lux-ink:     #06141a;
-=======
-  --lux-ink:     #06141a;   /* dark text for legibility on the bright fills */
->>>>>>> theirs
-=======
-  --lux-ink:     #06141a;   /* dark text for legibility on the bright fills */
->>>>>>> theirs
   --gh-accent:  var(--lux-cyan);
 }
 [data-bs-theme="dark"] {
@@ -53,16 +27,6 @@ static const char FRONTEND_STYLES[] PROGMEM = R"=====(
   --bs-danger:  #f33abc; --bs-danger-rgb:  243,58,188;
   --bs-link-color: #23e6f7; --bs-link-color-rgb: 35,230,247; --bs-link-hover-color: #5cedfb;
 }
-<<<<<<< ours
-<<<<<<< ours
-=======
-/* Contextual buttons recoloured to the brand palette. The fills are bright, so the
-   label ink goes dark (var(--lux-ink)) for contrast instead of Bootstrap's white. */
->>>>>>> theirs
-=======
-/* Contextual buttons recoloured to the brand palette. The fills are bright, so the
-   label ink goes dark (var(--lux-ink)) for contrast instead of Bootstrap's white. */
->>>>>>> theirs
 .btn-primary{--bs-btn-bg:#23e6f7;--bs-btn-border-color:#23e6f7;--bs-btn-color:#06141a;--bs-btn-hover-bg:#5cedfb;--bs-btn-hover-border-color:#5cedfb;--bs-btn-hover-color:#06141a;--bs-btn-active-bg:#15bccc;--bs-btn-active-border-color:#15bccc;--bs-btn-active-color:#06141a;--bs-btn-disabled-bg:#23e6f7;--bs-btn-disabled-border-color:#23e6f7;--bs-btn-disabled-color:#06141a;}
 .btn-success{--bs-btn-bg:#45d85c;--bs-btn-border-color:#45d85c;--bs-btn-color:#06141a;--bs-btn-hover-bg:#6ee27f;--bs-btn-hover-border-color:#6ee27f;--bs-btn-hover-color:#06141a;--bs-btn-active-bg:#2fb846;--bs-btn-active-border-color:#2fb846;--bs-btn-active-color:#06141a;}
 .btn-warning{--bs-btn-bg:#ffaa1c;--bs-btn-border-color:#ffaa1c;--bs-btn-color:#06141a;--bs-btn-hover-bg:#ffbe4d;--bs-btn-hover-border-color:#ffbe4d;--bs-btn-hover-color:#06141a;--bs-btn-active-bg:#e08e00;--bs-btn-active-border-color:#e08e00;--bs-btn-active-color:#06141a;}
@@ -75,8 +39,6 @@ static const char FRONTEND_STYLES[] PROGMEM = R"=====(
 .form-control:focus,.form-select:focus{border-color:#23e6f7;box-shadow:0 0 0 .25rem rgba(35,230,247,.25);}
 .form-range::-webkit-slider-thumb{background:#23e6f7;}
 .form-range::-moz-range-thumb{background:#23e6f7;}
-<<<<<<< ours
-<<<<<<< ours
 html { background: var(--gh-bg); scrollbar-gutter: stable; }
 body { background: var(--gh-bg); animation:lxfade .16s ease-out; }
 @keyframes lxfade { from { opacity:0 } to { opacity:1 } }
@@ -264,23 +226,4 @@ body { padding-bottom:5rem; }
 @view-transition { navigation: auto; }
 ::view-transition-group(site-nav) { animation-duration:.18s; }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration:.18s; }
-=======
-=======
->>>>>>> theirs
-html { background: var(--gh-bg); }   /* dark from first paint: no white flash on tab switch */
-body { background: var(--gh-bg); animation:lxfade .16s ease-out; }
-@keyframes lxfade { from { opacity:0 } to { opacity:1 } }
-
-/* the navbar (markup + its CSS + behaviour) is the shared src/pages/_nav.html fragment */
-.card { background: var(--gh-surface); border-color: var(--gh-border); }
-.card-header { background: #1c2128; border-color: var(--gh-border); font-size: 0.85rem; }
-
-#ws-badge { font-size: 0.72rem; }
-footer { border-color: var(--gh-border) !important; color: var(--gh-muted); font-size: 0.77rem; }
-footer a { color: var(--gh-muted); text-decoration: none; }
-footer a:hover { color: var(--gh-text); }
-<<<<<<< ours
->>>>>>> theirs
-=======
->>>>>>> theirs
 )=====";
