@@ -10,6 +10,7 @@
 #include "input_router.h"
 #include "scene_engine.h"
 #include "rdm_engine.h"
+#include "rdm_task.h"
 #include "net/sacn.h"
 #include "net/artnet.h"
 #include "net/ws_frame.h"
@@ -89,6 +90,9 @@ void setup() {
     syslogInit();
     initOTA();
     soakInit();
+
+    // 6b. Initialize RDM task (runs on core 1, priority 18)
+    rdmTaskInit();
 
     // 7. Network protocol init
     if (cfg.protocol != 1) {

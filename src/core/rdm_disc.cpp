@@ -1,5 +1,6 @@
 #include "rdm_disc.h"
 #include "rdm_engine.h"
+#include "rdm_task.h"
 #include "config_schema.h"
 #include "driver/rmt_tx.h"
 #include <esp_rom_sys.h>
@@ -94,8 +95,6 @@ void rdmDiscRange(uint64_t lo0, uint64_t hi0, rdm_uid_t* out, int max, int* coun
 int rdmRmtDiscover(rdm_uid_t* out, int max) {
     int limit = max;
     if (cfg.rdmMaxDev > 0 && cfg.rdmMaxDev < limit) limit = cfg.rdmMaxDev;
-    rdmUnMuteAll();
-    int count = 0;
-    rdmDiscRange(0, uidPack(RDM_UID_MAX), out, limit, &count);
-    return count;
+    // Offload to RDM task to avoid blocking DMX TX
+    return rdmRmtDiscover(out, limit);
 }

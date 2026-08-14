@@ -1,4 +1,5 @@
 #include "rdm_engine.h"
+#include "rdm_task.h"
 #include "driver/rmt_tx.h"
 #include "driver/uart.h"
 #include "driver/gpio.h"
@@ -173,50 +174,6 @@ bool rdmReadResp(const rdm_uid_t& expectFrom, uint8_t* pd, int pdMax, int* pdl,
     return true;
 }
 
-bool rdmTransaction(const rdm_uid_t& dest, uint8_t cc, uint16_t pid,
-                    const uint8_t* reqPd, uint8_t reqPdl,
-                    uint8_t* respPd, int respMax, int* respPdl, rdm_ack_t* ack) {
-    uint8_t pkt[64];
-    for (int attempt = 0; attempt < 3; attempt++) {
-        int len = rdmBuild(pkt, dest, cc, pid, reqPd, reqPdl);
-        rdmTx(pkt, len);
-        if (rdmReadResp(dest, respPd, respMax, respPdl, ack)) return true;
-        esp_rom_delay_us(1000);
-    }
-    return false;
-}
-
-int rdmRmtRawRelay(const uint8_t* reqNoSC, int reqLen, uint8_t* respNoSC, int respMax) {
-    RmtDmx* rd = g_rdm.rmt;
-    if (!rd || !rd->chan || reqLen < RDM_HDR_LEN - 1 || reqLen > 260) return -1;
-    static uint8_t pkt[264];
-    pkt[0] = RDM_SC;
-    memcpy(pkt + 1, reqNoSC, reqLen);
-    uint16_t destMan = ((uint16_t)reqNoSC[2] << 8) | reqNoSC[3];
-    bool bcast = (destMan == 0xFFFF);
-    for (int attempt = 0; attempt < (bcast ? 1 : 3); attempt++) {
-        rdmTx(pkt, reqLen + 1);
-        if (bcast) return 0;
-        uint8_t rx[96];
-        int n = rdmReadFrame(rx, sizeof(rx));
-        gpioDeSet(g_rdm.de, 1);
-        if (n < 26) { esp_rom_delay_us(1000); continue; }
-        int s = -1;
-        for (int i = 0; i < n - 1; i++)
-            if (rx[i] == RDM_SC && rx[i + 1] == RDM_SC_SUB) { s = i; break; }
-        if (s < 0) { esp_rom_delay_us(1000); continue; }
-        uint8_t* m = rx + s;
-        int avail = n - s;
-        int msgLen = m[2];
-        if (msgLen + 2 > avail || msgLen < RDM_HDR_LEN) { esp_rom_delay_us(1000); continue; }
-        uint16_t ck = 0; for (int i = 0; i < msgLen; i++) ck += m[i];
-        if (ck != (uint16_t)((m[msgLen] << 8) | m[msgLen + 1])) { esp_rom_delay_us(1000); continue; }
-        g_rdm.recv++;
-        g_rdm.recvMs = millis();
-        int outLen = msgLen + 2 - 1;
-        if (outLen > respMax) outLen = respMax;
-        memcpy(respNoSC, m + 1, outLen);
-        return outLen;
-    }
-    return -1;
-}
+// rdmTransaction() and rdmRmtRawRelay() moved to rdm_task.cpp
+// These now execute on the dedicated RDM task (core 1, priority 18)
+// to avoid blocking the DMX TX task.
