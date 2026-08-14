@@ -79,8 +79,12 @@ void handleLogJson(AsyncWebServerRequest* req) {
 }
 
 void handleInfoJson(AsyncWebServerRequest* req) {
-    String j = "{";
-    j += "\"hostname\":\"" + cfg.hostname + "\"";
+    String j;
+    cfgcore::exportJson(j, true);
+    int len = j.length();
+    if (len > 0 && j.charAt(len - 1) == '}') {
+        j.remove(len - 1);
+    }
     j += ",\"version\":\"" + String(FIRMWARE_VERSION) + "\"";
     j += ",\"build\":\"" + String(FIRMWARE_BUILD) + "\"";
     j += ",\"variant\":\"" + String(FIRMWARE_VARIANT) + "\"";
@@ -92,10 +96,9 @@ void handleInfoJson(AsyncWebServerRequest* req) {
         j += ",\"eth_ip\":\"" + ETH.localIP().toString() + "\"";
         j += ",\"eth_speed\":" + String(ETH.linkSpeed());
     }
-    j += ",\"protocol\":" + String(cfg.protocol);
+    j += ",\"http_reqs\":" + String(httpReqCount);
     j += ",\"board\":\"" + String(BOARD_ID) + "\"";
     j += ",\"mcu\":\"" + String(MCU_ID) + "\"";
-    j += ",\"http_reqs\":" + String(httpReqCount);
     j += "}";
     sendJson(req, j);
 }
@@ -113,11 +116,49 @@ void handleVersionJson(AsyncWebServerRequest* req) {
 }
 
 void handleRdmJson(AsyncWebServerRequest* req) {
-    String j = "{\"rdmEnabled\":" + String(cfg.artnetRdm ? "true" : "false");
+    String j = "{";
+    j += "\"rdmEnabled\":" + String(cfg.artnetRdm ? "true" : "false");
     j += ",\"lineCount\":" + String(rdmLineCount());
     j += ",\"sent\":" + String(rdmSent());
     j += ",\"recv\":" + String(rdmRecv());
     j += ",\"fixturesA\":" + String(rdmCount);
+    j += ",\"outputs\":[";
+    for (int i = 0; i < MAX_OUTPUTS; i++) {
+        if (i) j += ",";
+        j += "{\"i\":" + String(i);
+        j += ",\"uni\":" + String(cfg.outputs[i].universe);
+        j += ",\"merge\":" + String(cfg.outputs[i].mergeMode);
+        j += "}";
+    }
+    j += "]";
+    j += ",\"rdmLines\":[";
+    for (int i = 0; i < rdmLineCount(); i++) {
+        if (i) j += ",";
+        int outIdx = -1;
+        for (int o = 0; o < MAX_OUTPUTS; o++) {
+            if (rdmLineForOut[o] == i) { outIdx = o; break; }
+        }
+        j += "{\"line\":" + String(i);
+        j += ",\"uni\":" + String(outIdx >= 0 ? String(cfg.outputs[outIdx].universe) : "0");
+        j += "}";
+    }
+    j += "]";
+    j += ",\"devices\":[]";
+    j += ",\"available\":" + String(rdmLineCount() > 0 ? "true" : "false");
+    j += ",\"scanned\":" + String(rdmCount > 0 ? "true" : "false");
+    j += ",\"sensorPoll\":false";
+    j += ",\"bqPolicy\":" + String(g_bqPolicy);
+    j += ",\"discStage\":0";
+    j += ",\"discFound\":0";
+    j += ",\"discCur\":0";
+    j += ",\"discSub\":0";
+    j += ",\"discovering\":false";
+    j += ",\"busy\":false";
+    j += ",\"artPort\":" + String(rdmLineCount() > 0 ? String(cfg.outputs[rdmOutForLine[0]].universe) : "0");
+    j += ",\"artPolls\":" + String(g_artPolls);
+    j += ",\"artTodReqs\":0";
+    j += ",\"artRdmReqs\":0";
+    j += ",\"artFlushes\":0";
     j += "}";
     sendJson(req, j);
 }
@@ -186,9 +227,9 @@ void handleConfigPost(AsyncWebServerRequest* req) {
             String err;
             if (cfgcore::importJson(body, err)) {
                 saveConfig();
-                req->send(200, "text/plain", "Config imported. Reboot to apply.");
+                req->send(200, "application/json", "{\"reboot\":true,\"fields\":\"config import\"}");
             } else {
-                req->send(400, "text/plain", "Import failed: " + err);
+                req->send(400, "application/json", "{\"reboot\":false,\"error\":\"" + err + "\"}");
             }
             return;
         }
@@ -196,6 +237,7 @@ void handleConfigPost(AsyncWebServerRequest* req) {
 
     bool changed = false;
     bool needsReboot = false;
+    String rebootFields;
     for (size_t i = 0; i < CONFIG_FIELD_COUNT; i++) {
         const CfgField& f = CONFIG_FIELDS[i];
         if (!req->hasParam(f.key, true)) continue;
@@ -203,7 +245,11 @@ void handleConfigPost(AsyncWebServerRequest* req) {
         String err;
         if (cfgcore::setValue(f.key, val, err)) {
             changed = true;
-            if (f.flags & CFG_REBOOT) needsReboot = true;
+            if (f.flags & CFG_REBOOT) {
+                needsReboot = true;
+                if (rebootFields.length() > 0) rebootFields += ", ";
+                rebootFields += f.label;
+            }
         }
     }
     bool outputChangedLive = false;
@@ -217,7 +263,11 @@ void handleConfigPost(AsyncWebServerRequest* req) {
             String fullKey = String(char('a' + o)) + "_" + f.suffix;
             if (cfgcore::setValue(fullKey, val, err)) {
                 changed = true;
-                if (f.flags & CFG_REBOOT) needsReboot = true;
+                if (f.flags & CFG_REBOOT) {
+                    needsReboot = true;
+                    if (rebootFields.length() > 0) rebootFields += ", ";
+                    rebootFields += f.label;
+                }
                 if (f.flags & CFG_LIVE) outputChangedLive = true;
             }
         }
@@ -227,12 +277,14 @@ void handleConfigPost(AsyncWebServerRequest* req) {
         if (outputChangedLive) {
             for (int o = 0; o < MAX_OUTPUTS; o++) updateOutputRuntime(o);
         }
-        if (needsReboot)
-            req->send(200, "text/plain", "Saved. Reboot to apply.");
-        else
-            req->send(200, "text/plain", "Saved. Applied live.");
+        String j = "{\"reboot\":" + String(needsReboot ? "true" : "false");
+        if (needsReboot) {
+            j += ",\"fields\":\"" + rebootFields + "\"";
+        }
+        j += "}";
+        req->send(200, "application/json", j);
     } else {
-        req->send(200, "text/plain", "No changes.");
+        req->send(200, "application/json", "{\"reboot\":false}");
     }
 }
 
@@ -397,6 +449,37 @@ void handleRdmTod(AsyncWebServerRequest* req) {
     }
     j += "]}";
     sendJson(req, j);
+}
+
+void handleRdmBqp(AsyncWebServerRequest* req) {
+    if (!req->hasParam("p", true)) {
+        req->send(400, "text/plain", "missing p");
+        return;
+    }
+    int p = req->getParam("p", true)->value().toInt();
+    if (p < 0 || p > 4) {
+        req->send(400, "text/plain", "p must be 0-4");
+        return;
+    }
+    g_bqPolicy = (uint8_t)p;
+    g_bqDirty = true;
+    req->send(200, "text/plain", "OK");
+}
+
+void handleRdmMerge(AsyncWebServerRequest* req) {
+    if (!req->hasParam("out", true) || !req->hasParam("mode", true)) {
+        req->send(400, "text/plain", "missing out or mode");
+        return;
+    }
+    int out = req->getParam("out", true)->value().toInt();
+    int mode = req->getParam("mode", true)->value().toInt();
+    if (out < 0 || out >= MAX_OUTPUTS || mode < 0 || mode > 4) {
+        req->send(400, "text/plain", "out must be 0-3, mode 0-4");
+        return;
+    }
+    cfg.outputs[out].mergeMode = mode;
+    saveConfig();
+    req->send(200, "text/plain", "OK");
 }
 
 bool parseUidParam(AsyncWebServerRequest* req, const char* name, rdm_uid_t& uid) {

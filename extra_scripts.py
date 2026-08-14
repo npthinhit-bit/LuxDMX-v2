@@ -127,6 +127,12 @@ def _generate_headers(project_dir):
         if os.path.isfile(src):
             _gen_bin(src, os.path.join(gen, sym.lower() + ".h"), sym, gz)
 
+    # Generate config templates header
+    tpl_script = os.path.join(project_dir, "tools", "gen_config_templates.py")
+    if os.path.isfile(tpl_script):
+        os.system('"{python}" "{script}" "{project}"'.format(
+            python=sys.executable, script=tpl_script, project=project_dir))
+
     print("  [extra_scripts] generated PROGMEM headers in src/generated/")
 
 

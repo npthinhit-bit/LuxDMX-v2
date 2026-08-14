@@ -41,6 +41,8 @@ void handleOtaUrl(AsyncWebServerRequest* req);
 // RDM control
 void handleRdmTrigger(AsyncWebServerRequest* req);
 void handleRdmTod(AsyncWebServerRequest* req);
+void handleRdmBqp(AsyncWebServerRequest* req);
+void handleRdmMerge(AsyncWebServerRequest* req);
 
 // LED brightness
 void handleLedBright(AsyncWebServerRequest* req);

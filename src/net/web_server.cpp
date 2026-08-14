@@ -49,6 +49,8 @@ void webRegisterRoutes(AsyncWebServer& http) {
     http.on("/rdm/tod",           HTTP_GET,  handleRdmTod);
     http.on("/led/bright",        HTTP_GET,  handleLedBright);
     http.on("/rdm",               HTTP_GET,  handleRdmPage);
+    http.on("/rdm/bqp",           HTTP_GET,  handleRdmBqp);
+    http.on("/rdm/merge",         HTTP_GET,  handleRdmMerge);
     http.on("/labels.json",       HTTP_GET,  handleLabelsGet);
     http.on("/labels",            HTTP_POST, [](AsyncWebServerRequest*){}, NULL, handleLabelsBody);
     http.on("/autoupdate",        HTTP_POST, handleAutoUpdatePost);
