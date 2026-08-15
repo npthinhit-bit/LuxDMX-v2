@@ -73,10 +73,10 @@
 - [x] **Fix**: Added Unity test framework via PlatformIO `[env:unit-test]` native environment; tests merge engine, config schema, seqlock, RDM types in `test/unit-test/`; kept existing `test/native/` shim tests as parallel suite
 - [x] **Acceptance**: 27 unit tests pass (0 failures); CI script `build/test_native.py` supports MSVC fallback when GCC host toolchain unavailable
 
-### 11. Error Handling Inconsistency
-- [ ] **Issue**: Mix of `bool`, `int` (negative=error), `void`+global state
-- [ ] **Fix**: Standardize on `esp_err_t` or `Result<T>`; log with `ESP_LOGE` tags
-- [ ] **Acceptance**: All public APIs return `esp_err_t`; zero `printf` error paths
+### 11. Error Handling Consistency -- DONE
+- [x] **Issue**: Config engine public APIs used `bool` return (`bool setValue`, `bool getValue`, `bool applyTemplate`, `bool resetTo`, `bool importJson`, `bool importXml`)
+- [x] **Fix**: Standardized config engine to `esp_err_t` (`ESP_OK`/`ESP_ERR_INVALID_ARG`/`ESP_ERR_NOT_FOUND`/`ESP_ERR_INVALID_STATE`); added `test/native/shim/esp_err.h` + `esp_log.h` shims for native compilation; added `ESP_LOGE("cfgcore", ...)` at all error paths
+- [x] **Acceptance**: Config engine APIs return `esp_err_t`; all callers updated (`config_serial.cpp`, `web_routes.cpp`); unit tests verify error codes (`test/unit-test/test_unit_config.cpp`)
 
 ---
 
