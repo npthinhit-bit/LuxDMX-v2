@@ -51,11 +51,11 @@ static FadeState g_fade[MAX_OUTPUTS];
 static const char* SCENE_NS = "scenes";
 
 static String sceneKey(int idx, int chunk) {
-    return "s" + String(idx) + "c" + String(chunk);
+    return "scn_s" + String(idx) + "c" + String(chunk);
 }
 
 static String sceneMetaKey(int idx) {
-    return "s" + String(idx) + "m";
+    return "scn_s" + String(idx) + "m";
 }
 
 bool sceneSaveNvs(int idx) {

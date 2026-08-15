@@ -1,4 +1,5 @@
 #include "sacn.h"
+#include "sacn_pkt_queue.h"
 #include "config_schema.h"
 #include "merge_engine.h"
 #include "frame_router.h"
@@ -111,6 +112,7 @@ static void sendSacnDiscovery() {
 }
 
 void startSacn() {
+    sacnPktQueueInit();
     initCid();
     for (int i = 0; i < MAX_OUTPUTS; i++) {
         sacnUdp[i].stop();
@@ -139,65 +141,74 @@ void startSacn() {
     }
 }
 
+static void handleSacnPacket(int outIdx, uint32_t senderIp, const uint8_t* p, int n) {
+    (void)outIdx;
+    if (n < SACN_MIN_LEN) return;
+    if (memcmp(p + SACN_ACN_ID_OFF, ACN_PACKET_ID, 12) != 0) return;
+
+    uint32_t rootVec = ((uint32_t)p[SACN_ROOT_VEC_OFF    ] << 24)
+                     | ((uint32_t)p[SACN_ROOT_VEC_OFF + 1] << 16)
+                     | ((uint32_t)p[SACN_ROOT_VEC_OFF + 2] <<  8)
+                     |  (uint32_t)p[SACN_ROOT_VEC_OFF + 3];
+    if (rootVec != 0x00000004u) return;
+
+    uint32_t frameVec = ((uint32_t)p[SACN_FRAME_VEC_OFF    ] << 24)
+                      | ((uint32_t)p[SACN_FRAME_VEC_OFF + 1] << 16)
+                      | ((uint32_t)p[SACN_FRAME_VEC_OFF + 2] <<  8)
+                      |  (uint32_t)p[SACN_FRAME_VEC_OFF + 3];
+
+    // Universe Discovery (receiver consumes/discards)
+    if (frameVec == SACN_FRAME_VEC_DISCOVERY) return;
+
+    // Standard streaming data
+    if (frameVec != SACN_FRAME_VEC_STREAM) return;
+
+    uint16_t universe = ((uint16_t)p[SACN_UNIVERSE_OFF] << 8)
+                       |  p[SACN_UNIVERSE_OFF + 1];
+
+    if (p[SACN_STARTCODE_OFF] != 0x00) return;
+
+    uint8_t priority = p[SACN_PRIORITY_OFF];
+    uint16_t payloadLen = (uint16_t)(n - SACN_DATA_OFF);
+    if (payloadLen > 512) payloadLen = 512;
+
+    // Convert sACN universe (1-based) back to the 15-bit Art-Net port address
+    int artUniv = (int)universe - 1;
+
+    // If this output uses Stream Sync, stage the frame instead of routing it
+    // directly. The staged frame is committed by the sync-loss timeout path
+    // below (or immediately flushed on next sync packet).
+    bool staged = false;
+    for (int i = 0; i < MAX_OUTPUTS; i++) {
+        if (!cfg.outputs[i].enabled) continue;
+        if (sacnSyncAddress[i] != 0 && portAddress(cfg.outputs[i]) == (uint16_t)artUniv) {
+            uint16_t copyLen = payloadLen > 512 ? 512 : payloadLen;
+            memcpy(sacnStaged[i], p + SACN_DATA_OFF, copyLen);
+            sacnStagedLen[i] = copyLen;
+            sacnStagedValid[i] = true;
+            sacnSyncLossMs[i] = (uint32_t)millis();
+            updateSender(senderIp, 1, (int16_t)artUniv, priority, p + SACN_DATA_OFF, payloadLen);
+            staged = true;
+        }
+    }
+    if (!staged)
+        routeFrame(artUniv, p + SACN_DATA_OFF, payloadLen, senderIp, 1, priority);
+}
+
 void readSacnSocket(int outIdx) {
     WiFiUDP& udp = sacnUdp[outIdx];
-    for (int guard = 0; guard < 16; guard++) {
+    // Producer: recv at most 4 packets/socket per tick (was 16) and enqueue raw
+    // packets; readSacn() drains + dispatches them. Back-pressure drops on full queue.
+    for (int guard = 0; guard < 4; guard++) {
         int pktLen = udp.parsePacket();
         if (pktLen <= 0) return;
-        if (pktLen < SACN_MIN_LEN) { static uint8_t junk[638]; udp.read(junk, sizeof(junk)); continue; }
-
         uint32_t senderIp = (uint32_t)udp.remoteIP();
-        int n = udp.read(sacnBuf, sizeof(sacnBuf));
-        if (n < SACN_MIN_LEN) continue;
-        if (memcmp(sacnBuf + SACN_ACN_ID_OFF, ACN_PACKET_ID, 12) != 0) continue;
-
-        uint32_t rootVec = ((uint32_t)sacnBuf[SACN_ROOT_VEC_OFF    ] << 24)
-                         | ((uint32_t)sacnBuf[SACN_ROOT_VEC_OFF + 1] << 16)
-                         | ((uint32_t)sacnBuf[SACN_ROOT_VEC_OFF + 2] <<  8)
-                         |  (uint32_t)sacnBuf[SACN_ROOT_VEC_OFF + 3];
-        if (rootVec != 0x00000004u) continue;
-
-        uint32_t frameVec = ((uint32_t)sacnBuf[SACN_FRAME_VEC_OFF    ] << 24)
-                          | ((uint32_t)sacnBuf[SACN_FRAME_VEC_OFF + 1] << 16)
-                          | ((uint32_t)sacnBuf[SACN_FRAME_VEC_OFF + 2] <<  8)
-                          |  (uint32_t)sacnBuf[SACN_FRAME_VEC_OFF + 3];
-
-        // Universe Discovery (receiver consumes/discards)
-        if (frameVec == SACN_FRAME_VEC_DISCOVERY) continue;
-
-        // Standard streaming data
-        if (frameVec != SACN_FRAME_VEC_STREAM) continue;
-
-        uint16_t universe = ((uint16_t)sacnBuf[SACN_UNIVERSE_OFF] << 8)
-                           |  sacnBuf[SACN_UNIVERSE_OFF + 1];
-
-        if (sacnBuf[SACN_STARTCODE_OFF] != 0x00) continue;
-
-        uint8_t priority = sacnBuf[SACN_PRIORITY_OFF];
-        uint16_t payloadLen = (uint16_t)(n - SACN_DATA_OFF);
-        if (payloadLen > 512) payloadLen = 512;
-
-        // Convert sACN universe (1-based) back to the 15-bit Art-Net port address
-        int artUniv = (int)universe - 1;
-
-        // If this output uses Stream Sync, stage the frame instead of routing it
-        // directly. The staged frame is committed by the sync-loss timeout path
-        // below (or immediately flushed on next sync packet).
-        bool staged = false;
-         for (int i = 0; i < MAX_OUTPUTS; i++) {
-             if (!cfg.outputs[i].enabled) continue;
-             if (sacnSyncAddress[i] != 0 && portAddress(cfg.outputs[i]) == (uint16_t)artUniv) {
-                 uint16_t copyLen = payloadLen > 512 ? 512 : payloadLen;
-                 memcpy(sacnStaged[i], sacnBuf + SACN_DATA_OFF, copyLen);
-                 sacnStagedLen[i] = copyLen;
-                 sacnStagedValid[i] = true;
-                 sacnSyncLossMs[i] = (uint32_t)millis();
-                 updateSender(senderIp, 1, (int16_t)artUniv, priority, sacnBuf + SACN_DATA_OFF, payloadLen);
-                 staged = true;
-             }
-         }
-        if (!staged)
-            routeFrame(artUniv, sacnBuf + SACN_DATA_OFF, payloadLen, senderIp, 1, priority);
+        uint8_t frame[SACN_PKT_MAX];
+        int cap = (pktLen < (int)SACN_PKT_MAX) ? pktLen : (int)SACN_PKT_MAX;
+        int n = udp.read(frame, cap);
+        if (n <= 0) continue;
+        if (n < SACN_MIN_LEN) continue;          // too short to be a valid sACN frame
+        sacnPktPush((uint16_t)outIdx, senderIp, frame, (uint16_t)n);
     }
 }
 
@@ -254,6 +265,11 @@ void readSacn() {
         }
     }
 
+    // Producer: recv <= 4 packets/socket into the ring (per output).
     for (int i = 0; i < MAX_OUTPUTS; i++)
         if (cfg.outputs[i].enabled) readSacnSocket(i);
+    // Consumer: drain the sACN ring and dispatch (parse + stage/route) each packet.
+    SacnPkt sp;
+    while (sacnPktPop(sp))
+        handleSacnPacket(sp.outIdx, sp.srcIp, sp.data, sp.len);
 }

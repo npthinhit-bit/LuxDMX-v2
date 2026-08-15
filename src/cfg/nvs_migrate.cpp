@@ -2,6 +2,7 @@
 #include "config_schema.h"
 #include "config_types.h"
 #include "config_enums.h"
+#include "scene_engine.h"
 #include <Preferences.h>
 #include <string.h>
 
@@ -47,6 +48,49 @@ int migrateNvsKeys(const char* ns) {
     }
 
     prefs.end();
+
+    // Scene key namespacing: prefix old "s{idx}c{chunk}" / "s{idx}m" keys with
+    // "scn_" to avoid colliding with future NVS keys. Scenes are stored in the
+    // "scenes" namespace (see scene_engine.cpp SCENE_NS), separate from `ns` above,
+    // so migrate them with their own Preferences handle. Safe to call repeatably:
+    // it skips keys already migrated and drops any stale old key left behind.
+    Preferences sprefs;
+    if (sprefs.begin("scenes", false)) {
+        for (int idx = 0; idx < MAX_SCENES; idx++) {
+            // Meta key: "s{idx}m" -> "scn_s{idx}m" (32-byte name+home blob)
+            char oldMeta[16], newMeta[24];
+            snprintf(oldMeta, sizeof(oldMeta), "s%dm", idx);
+            snprintf(newMeta, sizeof(newMeta), "scn_s%dm", idx);
+            if (sprefs.isKey(newMeta)) {
+                if (sprefs.isKey(oldMeta)) sprefs.remove(oldMeta);
+            } else if (sprefs.isKey(oldMeta)) {
+                uint8_t buf[32];
+                sprefs.getBytes(oldMeta, buf, sizeof(buf));
+                sprefs.putBytes(newMeta, buf, sizeof(buf));
+                sprefs.remove(oldMeta);
+                migrated++;
+            }
+            // Chunk keys: "s{idx}c{chunk}" -> "scn_s{idx}c{chunk}" (per-output frame)
+            for (int o = 0; o < MAX_OUTPUTS; o++) {
+                char oldKey[16], newKey[24];
+                snprintf(oldKey, sizeof(oldKey), "s%dc%d", idx, o);
+                snprintf(newKey, sizeof(newKey), "scn_s%dc%d", idx, o);
+                if (sprefs.isKey(newKey)) {
+                    if (sprefs.isKey(oldKey)) sprefs.remove(oldKey);
+                    continue;
+                }
+                if (sprefs.isKey(oldKey)) {
+                    uint8_t frame[DMX_PACKET_SIZE];
+                    sprefs.getBytes(oldKey, frame, sizeof(frame));
+                    sprefs.putBytes(newKey, frame, sizeof(frame));
+                    sprefs.remove(oldKey);
+                    migrated++;
+                }
+            }
+        }
+        sprefs.end();
+    }
+
     return migrated;
 }
 

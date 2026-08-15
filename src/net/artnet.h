@@ -39,8 +39,11 @@ extern uint16_t g_artPolls;
 // Initialize the raw 6454 UDP socket + bridge state. Called from setup().
 void artRdmInit();
 
-// Drain the 6454 socket, parse Art-Net, dispatch. Bounded (64 packets/call).
+// Drain the 6454 socket, parse Art-Net, dispatch. Bounded (8 packets/call -> ring).
 void artRdmPollRx();
+
+// Dispatch all enqueued Art-Net packets from the ring buffer (core 0, netRxTask).
+void artPktDispatchAll();
 
 // Send queued ArtRdm/ArtTod replies the DMX task produced (core 0 only).
 void artRdmDrainResponses();

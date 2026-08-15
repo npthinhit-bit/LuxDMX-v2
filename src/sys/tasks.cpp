@@ -146,8 +146,9 @@ static void dmxFrameTick() {
 [[noreturn]] void netRxTask(void* /*arg*/) {
     Serial.println("[NET] rx task running on core 0");
     for (;;) {
-        artRdmPollRx();
-        readSacn();
+        artRdmPollRx();          // producer: recv <= 8 Art-Net packets -> ring
+        artPktDispatchAll();     // consumer: dispatch enqueued Art-Net packets
+        readSacn();              // producer+consumer: recv <= 4/socket -> dispatch
         artRdmDrainResponses();
         vTaskDelay(pdMS_TO_TICKS(2));
     }

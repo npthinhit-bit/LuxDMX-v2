@@ -1,4 +1,5 @@
 #include "artnet.h"
+#include "art_pkt_queue.h"
 #include "config_schema.h"
 #include "frame_router.h"
 #include "merge_engine.h"
@@ -42,6 +43,7 @@ static void artHandlePacket(const uint8_t* p, int n, uint32_t ip);
 static void sendTimecode();
 
 void artRdmInit() {
+    artPktQueueInit();
     g_nodeIp = (uint32_t)netLocalIP();
     uint8_t m[6];
     esp_wifi_get_mac(WIFI_IF_STA, m);
@@ -77,15 +79,32 @@ void artRdmInit() {
 void artRdmPollRx() {
     if (!g_artRdmReady || g_artSock < 0) return;
     static uint8_t buf[640];
-    for (int k = 0; k < 64; k++) {
+    // Producer: recv at most 8 packets/tick (was 64) and enqueue parsed Art-Net.
+    for (int k = 0; k < 8; k++) {
         struct sockaddr_in src; socklen_t sl = sizeof(src);
         int n = lwip_recvfrom(g_artSock, buf, sizeof(buf), 0, (struct sockaddr*)&src, &sl);
         if (n <= 0) return;
-        if (n >= 12 && memcmp(buf, ARTNET_ID, 8) == 0)
-            artHandlePacket(buf, n, (uint32_t)src.sin_addr.s_addr);
+        if (n >= 12 && memcmp(buf, ARTNET_ID, 8) == 0) {
+            ArtPkt p;
+            memset(&p, 0, sizeof(p));
+            if (n > (int)ART_PKT_MAX) n = (int)ART_PKT_MAX;
+            memcpy(p.data, buf, n);
+            p.len   = (uint16_t)n;
+            p.srcIp = (uint32_t)src.sin_addr.s_addr;
+            artPktPush(p);          // drop on full (back-pressure under burst)
+        }
     }
     // Send TimeCode if enabled
     sendTimecode();
+}
+
+// Consumer: dispatch all enqueued Art-Net packets. Called from netRxTask (core 0)
+// right after artRdmPollRx(). Same task as the producer, so no cross-core locks.
+void artPktDispatchAll() {
+    ArtPkt p;
+    while (artPktPop(p)) {
+        artHandlePacket(p.data, p.len, p.srcIp);
+    }
 }
 
 void artRdmDrainResponses() {

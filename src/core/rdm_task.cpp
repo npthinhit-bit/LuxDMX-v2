@@ -44,9 +44,9 @@ static void rdmTaskLoop(void* /*arg*/) {
                 }
 
                 case RDM_CMD_MUTE: {
-                    uint8_t resp[8]; int rpdl = 0; rdm_ack_t ack;
-                    success = rdmTransaction(cmd.muteUid, RDM_CC_DISC_COMMAND, RDM_PID_DISC_MUTE,
-                                            nullptr, 0, resp, sizeof(resp), &rpdl, &ack);
+                    // rdmMute() is the low-level DISC_MUTE primitive (rdm_disc.cpp),
+                    // safe to call directly — we are already on the RDM task thread.
+                    success = rdmMute(cmd.muteUid);
                     break;
                 }
 
@@ -287,11 +287,15 @@ bool rdmTransaction(const rdm_uid_t& dest, uint8_t cc, uint16_t pid,
 }
 
 int rdmRmtDiscover(rdm_uid_t* out, int max) {
+    // Clamp to the configured responder ceiling (preserves pre-migration behaviour).
+    int limit = max;
+    if (cfg.rdmMaxDev > 0 && cfg.rdmMaxDev < limit) limit = cfg.rdmMaxDev;
+
     SemaphoreHandle_t done = xSemaphoreCreateBinary();
     int count = 0;
     bool result = false;
 
-    if (!rdmDiscoverAsync(out, max, &count, done, &result)) {
+    if (!rdmDiscoverAsync(out, limit, &count, done, &result)) {
         vSemaphoreDelete(done);
         return 0;
     }
@@ -299,40 +303,6 @@ int rdmRmtDiscover(rdm_uid_t* out, int max) {
     waitForDone(done, pdMS_TO_TICKS(30000)); // 30s budget for full discovery
     vSemaphoreDelete(done);
     return result ? count : 0;
-}
-
-bool rdmMute(const rdm_uid_t& uid) {
-    SemaphoreHandle_t done = xSemaphoreCreateBinary();
-    bool result = false;
-
-    if (!rdmMuteAsync(uid, done, &result)) {
-        vSemaphoreDelete(done);
-        return false;
-    }
-
-    waitForDone(done, pdMS_TO_TICKS(5000));
-    vSemaphoreDelete(done);
-    return result;
-}
-
-void rdmUnMuteAll() {
-    SemaphoreHandle_t done = xSemaphoreCreateBinary();
-    bool result = false;
-
-    if (rdmUnMuteAllAsync(done, &result)) {
-        waitForDone(done, pdMS_TO_TICKS(5000));
-    }
-    vSemaphoreDelete(done);
-}
-
-void rdmRmtSelect(int line) {
-    SemaphoreHandle_t done = xSemaphoreCreateBinary();
-    bool result = false;
-
-    if (rdmSelectLineAsync(line, done, &result)) {
-        waitForDone(done, pdMS_TO_TICKS(5000));
-    }
-    vSemaphoreDelete(done);
 }
 
 int rdmRmtRawRelay(const uint8_t* reqNoSC, int reqLen, uint8_t* respNoSC, int respMax) {

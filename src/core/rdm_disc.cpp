@@ -51,8 +51,14 @@ int rdmDiscBranch(uint64_t lower, uint64_t upper, rdm_uid_t* found) {
 
 bool rdmMute(const rdm_uid_t& uid) {
     uint8_t resp[8]; int rpdl = 0; rdm_ack_t ack;
-    return rdmTransaction(uid, RDM_CC_DISC_COMMAND, RDM_PID_DISC_MUTE, nullptr, 0,
-                          resp, sizeof(resp), &rpdl, &ack);
+    for (int attempt = 0; attempt < 3; attempt++) {
+        uint8_t pkt[64];
+        int len = rdmBuild(pkt, uid, RDM_CC_DISC_COMMAND, RDM_PID_DISC_MUTE, nullptr, 0);
+        rdmTx(pkt, len);
+        if (rdmReadResp(uid, resp, sizeof(resp), &rpdl, &ack)) return true;
+        esp_rom_delay_us(1000);
+    }
+    return false;
 }
 
 void rdmUnMuteAll() {
@@ -92,9 +98,7 @@ void rdmDiscRange(uint64_t lo0, uint64_t hi0, rdm_uid_t* out, int max, int* coun
     }
 }
 
-int rdmRmtDiscover(rdm_uid_t* out, int max) {
-    int limit = max;
-    if (cfg.rdmMaxDev > 0 && cfg.rdmMaxDev < limit) limit = cfg.rdmMaxDev;
-    // Offload to RDM task to avoid blocking DMX TX
-    return rdmRmtDiscover(out, limit);
-}
+// rdmRmtDiscover() now lives in rdm_task.cpp — it dispatches a discovery job to the
+// dedicated RDM task (core 1, priority 18) so the DMX TX task is never blocked.
+// rdm_disc.cpp retains only the low-level primitives (rdmDiscBranch, rdmDiscRange,
+// rdmMute, rdmUnMuteAll) that the task handler invokes directly on core 1.
