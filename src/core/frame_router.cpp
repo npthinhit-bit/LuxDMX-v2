@@ -15,7 +15,7 @@ static void routeFrameImpl(int universe, const uint8_t* data, uint16_t length,
     bool matched = false;
     for (int i = 0; i < MAX_OUTPUTS; i++) {
         if (!cfg.outputs[i].enabled || portAddress(cfg.outputs[i]) != (uint16_t)universe) continue;
-        rxFrameCount[i]++;
+        stats().rxFrameCount[i]++;
         dmxBufWriteBegin(i);
         dmxBufferState().buffers[i].data[0] = startCode;
         memcpy(&dmxBufferState().buffers[i].data[1], data, length > 512 ? 512 : length);
@@ -36,7 +36,7 @@ static void routeFrameImpl(int universe, const uint8_t* data, uint16_t length,
         }
         matched = true;
     }
-    if (matched) g_srcStatus = sourceStatus();
+    if (matched) stats().srcStatus = sourceStatus();
 }
 
 void routeFrame(int artUniverse, const uint8_t* data, uint16_t length,

@@ -19,7 +19,7 @@ uint32_t identifyUntil = 0;
 void rdmSavePoll() {
     Preferences p;
     p.begin("dmxgw", false);
-    p.putUChar("rdmcount", (uint8_t)rdmCount);
+    p.putUChar("rdmcount", (uint8_t)stats().rdmCount);
     p.putULong("rdmsent", g_rdm.sent);
     p.putULong("rdmrecv", g_rdm.recv);
     p.end();

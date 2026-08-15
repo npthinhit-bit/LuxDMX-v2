@@ -39,7 +39,7 @@ void setup() {
     Serial.begin(115200);
     while (!Serial && millis() < 3000);   // wait for serial monitor (debug builds)
 
-    startMs = millis();
+    stats().startMs = millis();
 
     // 1. NVS migration + config load
     nvs_migrate::migrateNvsKeys(PREF_NS_PTR);

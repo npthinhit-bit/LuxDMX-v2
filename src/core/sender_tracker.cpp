@@ -46,7 +46,7 @@ void updateSender(uint32_t ip, uint8_t proto, int16_t universe,
     s.dataLen  = length < 512 ? length : 512;
     memcpy(s.data, data, s.dataLen);
     for (int o = 0; o < MAX_OUTPUTS; o++)
-        if (cfg.outputs[o].enabled && portAddress(cfg.outputs[o]) == (uint16_t)g_senderTracker.senders[slot].universe) inFrameCnt[o]++;
+        if (cfg.outputs[o].enabled && portAddress(cfg.outputs[o]) == (uint16_t)g_senderTracker.senders[slot].universe) stats().inFrameCnt[o]++;
     s.winCnt++;
     if (now - s.winMs >= 1000) {
         s.fps   = (float)s.winCnt * 1000.0f / (float)(now - s.winMs);

@@ -41,8 +41,8 @@ void handleDmxJson(AsyncWebServerRequest* req) {
         j += "\",\"universe\":"; j += cfg.outputs[i].universe;
         j += ",\"enabled\":"; j += cfg.outputs[i].enabled ? "true" : "false";
         j += ",\"fps\":" + String(outFpsLive(i), 1);
-        j += ",\"srcLost\":" + String(outSrcLost[i] ? "true" : "false");
-        j += ",\"txFrames\":" + String(txFrames[i]);
+        j += ",\"srcLost\":" + String(stats().outSrcLost[i] ? "true" : "false");
+        j += ",\"txFrames\":" + String(stats().txFrames[i]);
         j += ",\"data\":\"";
         for (int c = 0; c < 512; c++) {
             char buf[4];
@@ -121,7 +121,7 @@ void handleRdmJson(AsyncWebServerRequest* req) {
     j += ",\"lineCount\":" + String(rdmLineCount());
     j += ",\"sent\":" + String(rdmSent());
     j += ",\"recv\":" + String(rdmRecv());
-    j += ",\"fixturesA\":" + String(rdmCount);
+    j += ",\"fixturesA\":" + String(stats().rdmCount);
     j += ",\"outputs\":[";
     for (int i = 0; i < MAX_OUTPUTS; i++) {
         if (i) j += ",";
@@ -145,7 +145,7 @@ void handleRdmJson(AsyncWebServerRequest* req) {
     j += "]";
     j += ",\"devices\":[]";
     j += ",\"available\":" + String(rdmLineCount() > 0 ? "true" : "false");
-    j += ",\"scanned\":" + String(rdmCount > 0 ? "true" : "false");
+    j += ",\"scanned\":" + String(stats().rdmCount > 0 ? "true" : "false");
     j += ",\"sensorPoll\":false";
     j += ",\"bqPolicy\":" + String(artNet().bqPolicy);
     j += ",\"discStage\":0";
@@ -197,10 +197,10 @@ void handleHealth(AsyncWebServerRequest* req) {
         j += "\"id\":\"" + String(char('A' + i)) + "\"";
         j += ",\"universe\":" + String(cfg.outputs[i].universe);
         j += ",\"fps\":" + String(outFpsLive(i), 1);
-        j += ",\"source\":\"" + String(outSrcLost[i] ? "none" : "art-net") + "\"";
-        j += ",\"signal\":" + String(outSrcLost[i] ? "false" : "true");
-        j += ",\"rx_frames\":" + String(rxFrameCount[i]);
-        j += ",\"rx_loss\":" + String(rxLossCount[i]);
+        j += ",\"source\":\"" + String(stats().outSrcLost[i] ? "none" : "art-net") + "\"";
+        j += ",\"signal\":" + String(stats().outSrcLost[i] ? "false" : "true");
+        j += ",\"rx_frames\":" + String(stats().rxFrameCount[i]);
+        j += ",\"rx_loss\":" + String(stats().rxLossCount[i]);
         j += "}";
     }
     j += "]";
@@ -442,10 +442,10 @@ void handleRdmTrigger(AsyncWebServerRequest* req) {
 }
 
 void handleRdmTod(AsyncWebServerRequest* req) {
-    String j = "{\"count\":" + String(rdmCount) + ",\"devices\":[";
-    for (int i = 0; i < rdmCount && i < RDM_TOD_MAX; i++) {
+    String j = "{\"count\":" + String(stats().rdmCount) + ",\"devices\":[";
+    for (int i = 0; i < stats().rdmCount && i < RDM_TOD_MAX; i++) {
         if (i) j += ",";
-        j += "{\"uid\":\"" + String(rdmTod[i].man_id, HEX) + String(rdmTod[i].dev_id, HEX) + "\"}";
+        j += "{\"uid\":\"" + String(stats().rdmTod[i].man_id, HEX) + String(stats().rdmTod[i].dev_id, HEX) + "\"}";
     }
     j += "]}";
     sendJson(req, j);

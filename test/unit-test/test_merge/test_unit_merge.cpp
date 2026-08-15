@@ -27,8 +27,8 @@ void setUp(void) {
     clearSenders();
     for (int i = 0; i < MAX_OUTPUTS; i++) {
         memset(&dmxBufferState().buffers[i].data[1], 0, 512);
-        outSrcLost[i] = true;
-        rxLossCount[i] = 0;
+        stats().outSrcLost[i] = true;
+        stats().rxLossCount[i] = 0;
     }
     for (int i = 0; i < MAX_SENDERS; i++) senderTracker().senders[i].lastMs = 0;
     resetOutput(0);

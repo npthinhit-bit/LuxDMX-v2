@@ -95,15 +95,15 @@ void renderDisplay() {
 
 static void snapshotAndTransmit(int outIdx) {
     if (!outReady[outIdx]) return;
-    if (cfg.outputs[outIdx].txStyle == TXSTYLE_DELTA && !outSrcLost[outIdx]) return;
+    if (cfg.outputs[outIdx].txStyle == TXSTYLE_DELTA && !stats().outSrcLost[outIdx]) return;
     uint8_t frame[DMX_PACKET_SIZE];
     if (!dmxBufSnapshot(outIdx, frame)) return;
     RmtDmx* rd = &g_outputs[outIdx].rmt;
     if (rmtDmxIdle(rd)) {
         rmtDmxKick(rd, frame, DMX_PACKET_SIZE);
-        txFrames[outIdx]++;
-        outLastDmxMs[outIdx] = millis();
-        outFps[outIdx] = (float)dmxRateHz(outIdx);
+        stats().txFrames[outIdx]++;
+        stats().outLastDmxMs[outIdx] = millis();
+        stats().outFps[outIdx] = (float)dmxRateHz(outIdx);
     }
 }
 
@@ -127,7 +127,7 @@ static void dmxFrameTick() {
     for (int i = 0; i < MAX_OUTPUTS; i++) {
         if (cfg.outputs[i].enabled && outReady[i]) {
             if (cfg.outputs[i].txStyle == TXSTYLE_DELTA) anyDelta = true;
-            if (now - outLastDmxMs[i] >= dmxPeriodMs(i)) {
+            if (now - stats().outLastDmxMs[i] >= dmxPeriodMs(i)) {
                 snapshotAndTransmit(i);
             }
         }

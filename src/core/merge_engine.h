@@ -14,4 +14,3 @@ void mergeOutput(int outIdx);
 
 void mergeOutputTimed();
 
-extern bool manualMode;

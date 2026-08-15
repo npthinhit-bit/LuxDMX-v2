@@ -28,8 +28,8 @@ void mergeOutput(int outIdx) {
         if (s.priority > topPrio) topPrio = s.priority;
     }
     if (nc == 0) {
-        if (!outSrcLost[outIdx]) rxLossCount[outIdx]++;
-        outSrcLost[outIdx] = true;
+        if (!stats().outSrcLost[outIdx]) stats().rxLossCount[outIdx]++;
+        stats().outSrcLost[outIdx] = true;
         // Webhook alert on source loss
         const char* ip = (nc > 0 && contrib[0] < MAX_SENDERS) ? nullptr : nullptr;
         alertSourceLost(outIdx, ip);
@@ -55,7 +55,7 @@ void mergeOutput(int outIdx) {
         }
         return;
     }
-    outSrcLost[outIdx] = false;
+    stats().outSrcLost[outIdx] = false;
     alertSourceRestored(outIdx);
 
     // MERGE_LTP_TAKEOVER: highest-priority source wins; if tie, newest wins
@@ -126,7 +126,7 @@ void mergeOutputTimed() {
         uint32_t fto = portFailsafeMs(cfg.outputs[i]);
         for (int s = 0; s < MAX_SENDERS; s++) {
             if (senderTracker().senders[s].ip == 0 || (uint16_t)senderTracker().senders[s].universe != portAddress(cfg.outputs[i])) continue;
-            if (now - senderTracker().senders[s].lastMs >= fto && !outSrcLost[i]) {
+            if (now - senderTracker().senders[s].lastMs >= fto && !stats().outSrcLost[i]) {
                 mergeOutput(i);
                 break;
             }

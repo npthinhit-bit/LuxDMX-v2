@@ -102,9 +102,9 @@ void rdmWsProcessQueued() {
             rdmRmtSelect(rdmOut);
             rdm_uid_t found[MAX_SENDERS];
             int count = rdmRmtDiscover(found, MAX_SENDERS);
-            rdmCount = count;
+            stats().rdmCount = count;
             for (int i = 0; i < count && i < RDM_TOD_MAX; i++) {
-                rdmTod[i] = found[i];
+                stats().rdmTod[i] = found[i];
             }
             for (int i = 0; i < count; i++) {
                 Serial.printf("[RDM] discovered " UIDSTR "\n", UID2STR(found[i]));
@@ -182,7 +182,7 @@ void handleWsText(const char* payload, size_t len, uint32_t clientId) {
         return;
     }
     if (msg.indexOf("\"mode\"") >= 0) {
-        manualMode = (msg.indexOf("true") >= 0);
+        stats().manualMode = (msg.indexOf("true") >= 0);
         return;
     }
     if (msg.indexOf("\"identify\"") >= 0) {
