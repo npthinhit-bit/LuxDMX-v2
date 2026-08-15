@@ -42,12 +42,19 @@ struct RdmCmd {
     rdm_uid_t muteUid;
     // For select line
     int lineIdx;
-    // For raw relay
+    // For raw relay (legacy blocking path)
     const uint8_t* reqNoSC;
     int reqLen;
     uint8_t* respNoSC;
     int respNoSCMax;
     int* rawRelayResult;
+    // For Art-Net async relay (core 0 -> core 1 -> core 0 response ring).
+    // req is COPIED into the queue-owned buffer so the enqueue is truly
+    // non-blocking: the core-0 caller's packet buffer must not be referenced
+    // while core 1 runs the (multi-ms) RMT TX/RX transaction.
+    uint8_t  artReq[261];
+    uint16_t artReqLen;
+    uint32_t artDestIp;
     // Completion
     SemaphoreHandle_t done;
     bool* result;
@@ -83,6 +90,12 @@ bool rdmSelectLineAsync(int lineIdx, SemaphoreHandle_t done, bool* result);
 bool rdmRawRelayAsync(const uint8_t* reqNoSC, int reqLen,
                       uint8_t* respNoSC, int respMax,
                       int* result, SemaphoreHandle_t done, bool* success);
+
+// Art-Net async relay: enqueue an RDM request to the core-1 DMX task without
+// blocking core 0. The task runs the timing-critical RMT TX/RX and pushes the
+// reply to the Art-Net response ring (art_rdm_resp_queue); netRxTask sends it via
+// artRdmDrainResponses(). Returns false if the task/queue is down or full.
+bool rdmArtRawRelayEnqueue(const uint8_t* reqNoSC, uint16_t reqLen, uint32_t destIp, int lineIdx);
 
 // Blocking wrappers (for migration compatibility)
 bool rdmTransaction(const rdm_uid_t& dest, uint8_t cc, uint16_t pid,

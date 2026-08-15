@@ -1,6 +1,7 @@
 #include "rdm_task.h"
 #include "rdm_engine.h"
 #include "rdm_disc.h"
+#include "art_rdm_resp_queue.h"
 #include "uart_rx.h"
 #include "gpio_dir.h"
 #include "driver/rmt_tx.h"
@@ -74,46 +75,61 @@ static void rdmTaskLoop(void* /*arg*/) {
                 }
 
                 case RDM_CMD_RAW_RELAY: {
+                    if (cmd.artReqLen && cmd.lineIdx >= 0) rdmRmtSelect(cmd.lineIdx);
                     RmtDmx* rd = g_rdm.rmt;
-                    if (rd && rd->chan && cmd.reqLen >= RDM_HDR_LEN - 1 && cmd.reqLen <= 260) {
-                        static uint8_t pkt[264];
-                        pkt[0] = RDM_SC;
-                        memcpy(pkt + 1, cmd.reqNoSC, cmd.reqLen);
-                        uint16_t destMan = ((uint16_t)cmd.reqNoSC[2] << 8) | cmd.reqNoSC[3];
-                        bool bcast = (destMan == 0xFFFF);
+                    if (rd && rd->chan) {
+                        // Art-Net async path uses the cmd-owned copy; legacy
+                        // blocking path uses the caller-provided pointers.
+                        const uint8_t* req = cmd.artReqLen ? cmd.artReq : cmd.reqNoSC;
+                        int reqLen = cmd.artReqLen ? (int)cmd.artReqLen : cmd.reqLen;
+                        if (reqLen >= RDM_HDR_LEN - 1 && reqLen <= 260) {
+                            static uint8_t pkt[264];
+                            pkt[0] = RDM_SC;
+                            memcpy(pkt + 1, req, reqLen);
+                            uint16_t destMan = ((uint16_t)req[2] << 8) | req[3];
+                            bool bcast = (destMan == 0xFFFF);
 
-                        for (int attempt = 0; attempt < (bcast ? 1 : 3); attempt++) {
-                            rdmTx(pkt, cmd.reqLen + 1);
-                            if (bcast) {
-                                if (cmd.rawRelayResult) *cmd.rawRelayResult = 0;
+                            for (int attempt = 0; attempt < (bcast ? 1 : 3); attempt++) {
+                                rdmTx(pkt, reqLen + 1);
+                                if (bcast) {
+                                    if (!cmd.artReqLen && cmd.rawRelayResult) *cmd.rawRelayResult = 0;
+                                    success = true;
+                                    break;
+                                }
+                                uint8_t rx[96];
+                                int n = rdmReadFrame(rx, sizeof(rx));
+                                gpioDeSet(g_rdm.de, 1);
+                                if (n < 26) { esp_rom_delay_us(1000); continue; }
+                                int s = -1;
+                                for (int i = 0; i < n - 1; i++)
+                                    if (rx[i] == RDM_SC && rx[i + 1] == RDM_SC_SUB) { s = i; break; }
+                                if (s < 0) { esp_rom_delay_us(1000); continue; }
+                                uint8_t* m = rx + s;
+                                int avail = n - s;
+                                int msgLen = m[2];
+                                if (msgLen + 2 > avail || msgLen < RDM_HDR_LEN) { esp_rom_delay_us(1000); continue; }
+                                uint16_t ck = 0; for (int i = 0; i < msgLen; i++) ck += m[i];
+                                if (ck != (uint16_t)((m[msgLen] << 8) | m[msgLen + 1])) { esp_rom_delay_us(1000); continue; }
+                                g_rdm.recv++;
+                                g_rdm.recvMs = millis();
+                                int outLen = msgLen + 2 - 1;
+
+                                if (cmd.artReqLen) {
+                                    // Art-Net async path: hand the no-SC reply to core 0.
+                                    uint16_t pushLen = (uint16_t)outLen;
+                                    if (pushLen > 256) pushLen = 256;
+                                    artRdmPushResponse(cmd.artDestIp, m + 1, pushLen);
+                                } else {
+                                    if (outLen > cmd.respNoSCMax) outLen = cmd.respNoSCMax;
+                                    memcpy(cmd.respNoSC, m + 1, outLen);
+                                    if (cmd.rawRelayResult) *cmd.rawRelayResult = outLen;
+                                }
                                 success = true;
                                 break;
                             }
-                            uint8_t rx[96];
-                            int n = rdmReadFrame(rx, sizeof(rx));
-                            gpioDeSet(g_rdm.de, 1);
-                            if (n < 26) { esp_rom_delay_us(1000); continue; }
-                            int s = -1;
-                            for (int i = 0; i < n - 1; i++)
-                                if (rx[i] == RDM_SC && rx[i + 1] == RDM_SC_SUB) { s = i; break; }
-                            if (s < 0) { esp_rom_delay_us(1000); continue; }
-                            uint8_t* m = rx + s;
-                            int avail = n - s;
-                            int msgLen = m[2];
-                            if (msgLen + 2 > avail || msgLen < RDM_HDR_LEN) { esp_rom_delay_us(1000); continue; }
-                            uint16_t ck = 0; for (int i = 0; i < msgLen; i++) ck += m[i];
-                            if (ck != (uint16_t)((m[msgLen] << 8) | m[msgLen + 1])) { esp_rom_delay_us(1000); continue; }
-                            g_rdm.recv++;
-                            g_rdm.recvMs = millis();
-                            int outLen = msgLen + 2 - 1;
-                            if (outLen > cmd.respNoSCMax) outLen = cmd.respNoSCMax;
-                            memcpy(cmd.respNoSC, m + 1, outLen);
-                            if (cmd.rawRelayResult) *cmd.rawRelayResult = outLen;
-                            success = true;
-                            break;
                         }
+                        break;
                     }
-                    break;
                 }
             }
 
@@ -262,6 +278,21 @@ bool rdmRawRelayAsync(const uint8_t* reqNoSC, int reqLen,
     cmd.done = done;
     cmd.result = success;
 
+    return xQueueSend(g_rdmTask.cmdQueue, &cmd, pdMS_TO_TICKS(100)) == pdTRUE;
+}
+
+
+bool rdmArtRawRelayEnqueue(const uint8_t* reqNoSC, uint16_t reqLen, uint32_t destIp, int lineIdx) {
+    if (!g_rdmTask.running || !g_rdmTask.cmdQueue) return false;
+    RdmCmd cmd = {};
+    cmd.type = RDM_CMD_RAW_RELAY;
+    cmd.artDestIp = destIp;
+    if (reqLen > (uint16_t)sizeof(cmd.artReq)) reqLen = (uint16_t)sizeof(cmd.artReq);
+    if (reqLen > 0 && reqNoSC) {
+        memcpy(cmd.artReq, reqNoSC, reqLen);
+        cmd.artReqLen = reqLen;
+    }
+    cmd.lineIdx = lineIdx;
     return xQueueSend(g_rdmTask.cmdQueue, &cmd, pdMS_TO_TICKS(100)) == pdTRUE;
 }
 

@@ -10,6 +10,7 @@
 #include "output_init.h"
 #include "rdm_engine.h"
 #include "rdm_disc.h"
+#include "rdm_task.h"
 #include "stats.h"
 #include <Arduino.h>
 #include <esp_wifi.h>
@@ -109,32 +110,23 @@ static void handleArtTodRequest(const uint8_t* /*p*/, int /*n*/, uint32_t /*ip*/
 }
 
 static void handleArtRdm(const uint8_t* p, int n, uint32_t ip) {
-    (void)ip;
     if (!cfg.artnetRdm || n < 24) return;
-    // ArtRdm: command at offset 18, parameter data follows.
+    if (g_artSock < 0) return;
     // The RDM message starts at offset 18 in the ArtRdm packet (after the
     // 8-byte ID + 2 opcode + 11-byte header = 21 bytes), but the ArtRdm
     // format has: id(8) + opCode(2) + Ver(1) + FAEver(1) + Flags(1) +
     // RDM commands(1) + Trans# (1) + FAEs(1) + RDM data (n-24 bytes)
     // The RDM packet (with start code) starts at offset 18.
-    rdmRmtSelect(rdmOut);
-    uint8_t respBuf[256];
-    int respLen = rdmRmtRawRelay(p + 18, n - 18, respBuf, sizeof(respBuf));
-    if (respLen > 0) {
-        // Build ArtRdm response and send back to the controller.
-        uint8_t reply[576];
-        memset(reply, 0, sizeof(reply));
-        memcpy(reply, ARTNET_ID, 8);
-        reply[8] = 0x00; reply[9] = 0x83;  // ArtRdm opcode (0x8300) little-endian
-        reply[10] = 14;
-        reply[17] = respBuf[0];  // RDM start code
-        memcpy(reply + 18, respBuf + 1, respLen - 1);
-        struct sockaddr_in dst = {};
-        dst.sin_family = AF_INET;
-        dst.sin_port = htons(ARTNET_PORT);
-        dst.sin_addr.s_addr = ip;
-        lwip_sendto(g_artSock, reply, 18 + respLen, 0, (struct sockaddr*)&dst, sizeof(dst));
-    }
+    // Enqueue to the core-1 DMX task WITHOUT blocking core 0. The old path called
+    // rdmRmtRawRelay() synchronously here, stalling WiFi/AsyncTCP for up to ~5s per
+    // RDM transaction. Core 1 now runs RMT TX/RX and pushes the reply to the
+    // Art-Net response ring; netRxTask drains+ sends it via artRdmDrainResponses().
+    // Line selection (rdmRmtSelect) is deferred to the core-1 task handler to avoid
+    // a race where core 0 could overwrite the line mid-transaction.
+    uint16_t reqLen = (uint16_t)(n - 18);
+    if (reqLen > 256) reqLen = 256;
+    int line = (rdmOut >= 0) ? rdmLineForOut[rdmOut] : -1;
+    rdmArtRawRelayEnqueue(p + 18, reqLen, ip, line);
 }
 
 static void handleArtPoll(const uint8_t* p, int /*n*/, uint32_t ip) {

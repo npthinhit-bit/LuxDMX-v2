@@ -1,5 +1,6 @@
 #include "artnet.h"
 #include "art_pkt_queue.h"
+#include "art_rdm_resp_queue.h"
 #include "config_schema.h"
 #include "frame_router.h"
 #include "merge_engine.h"
@@ -44,6 +45,7 @@ static void sendTimecode();
 
 void artRdmInit() {
     artPktQueueInit();
+    artRdmRespQueueInit();
     g_nodeIp = (uint32_t)netLocalIP();
     uint8_t m[6];
     esp_wifi_get_mac(WIFI_IF_STA, m);
@@ -108,9 +110,28 @@ void artPktDispatchAll() {
 }
 
 void artRdmDrainResponses() {
-    // Response queue drained — placeholder for queued ArtRdm/ArtTod replies.
-    // In a full implementation, the DMX task would push responses to a queue
-    // and this function would send them over the Art-Net socket.
+    // Drain the core-1 RDM response ring and send each ArtRdm reply (opcode 0x8300)
+    // back to the original requester over the 6454 socket. Core 1 pushes via
+    // artRdmPushResponse(); this runs on core 0 in netRxTask. No blocking, no
+    // per-packet heap: just a bounded drain of the ring.
+    ArtRdmResp r;
+    while (artRdmRespPop(r)) {
+        if (g_artSock < 0 || r.len == 0) continue;
+        uint8_t reply[576];
+        memset(reply, 0, sizeof(reply));
+        memcpy(reply, ARTNET_ID, 8);
+        reply[8] = 0x00; reply[9] = 0x83;     // ArtRdm opcode (0x8300) little-endian
+        reply[10] = 14;                        // protocol version hi
+        uint16_t respLen = r.len;
+        if (respLen > 256) respLen = 256;
+        reply[17] = r.data[0];
+        if (respLen > 1) memcpy(reply + 18, r.data + 1, respLen - 1);
+        struct sockaddr_in dst = {};
+        dst.sin_family = AF_INET;
+        dst.sin_port = htons(ARTNET_PORT);
+        dst.sin_addr.s_addr = r.destIp;
+        lwip_sendto(g_artSock, reply, 18 + respLen, 0, (struct sockaddr*)&dst, sizeof(dst));
+    }
 }
 
 // --- Art-Net TimeCode send ---
