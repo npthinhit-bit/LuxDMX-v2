@@ -1,5 +1,7 @@
 #include "config_core.h"
 #include "config_enums.h"
+#include <esp_err.h>
+#include <esp_log.h>
 #include <Preferences.h>
 #include <string.h>
 #include <stdlib.h>
@@ -83,18 +85,18 @@ static bool resolve(const String& key, void*& a, CfgKind& kind, int32_t& mn, int
     return false;
 }
 
-bool setValue(const String& key, const String& val, String& err) {
+esp_err_t setValue(const String& key, const String& val, String& err) {
     void* a; CfgKind kind; int32_t mn, mx; uint16_t flags;
-    if (!resolve(key, a, kind, mn, mx, flags)) { err = String("unknown key: ") + key; return false; }
+    if (!resolve(key, a, kind, mn, mx, flags)) { ESP_LOGE("cfgcore", "unknown key: %s", key.c_str()); err = String("unknown key: ") + key; return ESP_ERR_INVALID_ARG; }
     writeTyped(a, kind, mn, mx, val);
-    return true;
+    return ESP_OK;
 }
 
-bool getValue(const String& key, String& out) {
+esp_err_t getValue(const String& key, String& out) {
     void* a; CfgKind kind; int32_t mn, mx; uint16_t flags;
-    if (!resolve(key, a, kind, mn, mx, flags)) return false;
+    if (!resolve(key, a, kind, mn, mx, flags)) { ESP_LOGE("cfgcore", "key not found: %s", key.c_str()); return ESP_ERR_INVALID_ARG; }
     out = readTyped(a, kind);
-    return true;
+    return ESP_OK;
 }
 
 static void applyNeutral() {
@@ -113,10 +115,10 @@ static void applyNeutral() {
         }
 }
 
-static bool applyNamed(const String& name, String& err, int depth);
+static esp_err_t applyNamed(const String& name, String& err, int depth);
 
-bool applyTemplateText(const char* text, String& err, int depth) {
-    if (depth > 8) { err = "template nesting too deep"; return false; }
+esp_err_t applyTemplateText(const char* text, String& err, int depth) {
+    if (depth > 8) { ESP_LOGE("cfgcore", "template nesting too deep (>%d)", depth); err = "template nesting too deep"; return ESP_ERR_INVALID_STATE; }
     char line[192];
     const char* p = text;
     while (*p) {
@@ -135,28 +137,29 @@ bool applyTemplateText(const char* text, String& err, int depth) {
         char* ke = k + strlen(k); while (ke > k && (ke[-1] == ' ' || ke[-1] == '\t')) *--ke = 0;
         while (*v == ' ' || *v == '\t') v++;
 
-        if (strcmp(k, "extends") == 0) { if (!applyNamed(String(v), err, depth + 1)) return false; continue; }
-        String e2; if (!setValue(String(k), String(v), e2)) { err = e2; return false; }
+        if (strcmp(k, "extends") == 0) { if (applyNamed(String(v), err, depth + 1) != ESP_OK) return ESP_ERR_INVALID_ARG; continue; }
+        String e2; if (setValue(String(k), String(v), e2) != ESP_OK) { err = e2; return ESP_ERR_INVALID_ARG; }
     }
-    return true;
+    return ESP_OK;
 }
 
-static bool applyNamed(const String& name, String& err, int depth) {
+static esp_err_t applyNamed(const String& name, String& err, int depth) {
     for (size_t i = 0; i < CONFIG_TEMPLATE_COUNT; i++)
         if (strcmp(CONFIG_TEMPLATES[i].name, name.c_str()) == 0)
             return applyTemplateText(CONFIG_TEMPLATES[i].text, err, depth);
+    ESP_LOGE("cfgcore", "unknown template: %s", name.c_str());
     err = String("unknown template: ") + name;
-    return false;
+    return ESP_ERR_NOT_FOUND;
 }
 
-bool applyTemplate(const String& name, String& err) { return applyNamed(name, err, 1); }
+esp_err_t applyTemplate(const String& name, String& err) { return applyNamed(name, err, 1); }
 
 void resetToTemplate() {
     applyNeutral();
     String err; applyTemplate(CFG_STR(DEFAULT_TEMPLATE), err);
 }
 
-bool resetTo(const String& name, String& err) {
+esp_err_t resetTo(const String& name, String& err) {
     applyNeutral();
     return applyTemplate(name, err);
 }
@@ -284,7 +287,7 @@ void exportJson(String& out, bool maskSecrets) {
     out += "]}";
 }
 
-bool importJson(const String& json, String& err) {
+esp_err_t importJson(const String& json, String& err) {
     // Simple line-based import: parse "key=value" pairs from JSON-like text.
     // Full JSON parser is overkill for this embedded use case; we scan for
     // "key":"value" or "key":value patterns.
@@ -315,7 +318,7 @@ bool importJson(const String& json, String& err) {
             String val = json.substring(vq + 1, vq2);
             pos = vq2 + 1;
             String e2;
-            if (!setValue(key, val, e2)) ok = false;
+            if (setValue(key, val, e2) != ESP_OK) ok = false;
         } else {
             // Numeric or boolean value
             int valEnd = pos;
@@ -325,11 +328,11 @@ bool importJson(const String& json, String& err) {
             val.trim();
             pos = valEnd;
             String e2;
-            if (!setValue(key, val, e2)) ok = false;
+            if (setValue(key, val, e2) != ESP_OK) ok = false;
         }
     }
-    if (!ok) err = "some keys not recognized";
-    return ok;
+    if (!ok) { ESP_LOGE("cfgcore", "importJson: some keys not recognized"); err = "some keys not recognized"; }
+    return ok ? ESP_OK : ESP_ERR_INVALID_ARG;
 }
 
 void exportXml(String& out, bool maskSecrets) {
@@ -361,7 +364,7 @@ void exportXml(String& out, bool maskSecrets) {
     out += "</config>\n";
 }
 
-bool importXml(const String& xml, String& err) {
+esp_err_t importXml(const String& xml, String& err) {
     bool ok = true;
     int pos = 0;
     int len = xml.length();
@@ -384,11 +387,11 @@ bool importXml(const String& xml, String& err) {
         String val = xml.substring(tagEnd + 1, closeTag);
         val.trim();
         String e2;
-        if (!setValue(tag, val, e2)) ok = false;
+        if (setValue(tag, val, e2) != ESP_OK) ok = false;
         pos = closeTag + tag.length() + 3;
     }
-    if (!ok) err = "some XML keys not recognized";
-    return ok;
+    if (!ok) { ESP_LOGE("cfgcore", "importXml: some keys not recognized"); err = "some XML keys not recognized"; }
+    return ok ? ESP_OK : ESP_ERR_INVALID_ARG;
 }
 
 } // namespace cfgcore

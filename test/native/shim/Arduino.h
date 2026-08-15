@@ -9,6 +9,9 @@
 #include <cstdio>
 #include <cctype>
 #include <cstdarg>
+#ifdef _MSC_VER
+#include <intrin.h>
+#endif
 
 // MSVC host shim for GCC's __attribute__((packed)). MSVC uses #pragma pack.
 // Define __attribute__ as a function-like macro so __attribute__((packed))

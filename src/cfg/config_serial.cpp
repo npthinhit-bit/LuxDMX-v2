@@ -43,7 +43,7 @@ static String applyKv(const String& line) {
         if (eq < 0) { fail++; if (!firstErr.length()) firstErr = String("bad token: ") + tok; continue; }
         String k = tok.substring(0, eq), v = tok.substring(eq + 1);
         String e;
-        if (cfgcore::setValue(k, v, e)) ok++;
+        if (cfgcore::setValue(k, v, e) == ESP_OK) ok++;
         else { fail++; if (!firstErr.length()) firstErr = e; }
     }
     if (fail) return String("ERR ") + firstErr + " (" + ok + " ok, " + fail + " failed)";
@@ -66,7 +66,7 @@ String execute(const String& line) {
     if (verb == "dump") { String s; cfgcore::dump(s, true); return s; }
     if (verb == "get") {
         String v;
-        if (rest.length() && cfgcore::getValue(rest, v)) return rest + "=" + v;
+        if (rest.length() && cfgcore::getValue(rest, v) == ESP_OK) return rest + "=" + v;
         return String("ERR unknown key: ") + rest;
     }
     if (verb == "set") {
@@ -75,7 +75,7 @@ String execute(const String& line) {
         String k = rest.substring(0, s2);
         String v = rest.substring(s2 + 1); v.trim();
         String e;
-        return cfgcore::setValue(k, v, e) ? String("OK") : (String("ERR ") + e);
+        return cfgcore::setValue(k, v, e) == ESP_OK ? String("OK") : (String("ERR ") + e);
     }
     if (verb == "save") {
         bool rb = (rest == "reboot");

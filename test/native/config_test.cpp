@@ -16,7 +16,7 @@ int main() {
     // 2. luxdmx_4uni template: outputs A+B RDM-capable, C+D DMX-only
     {
         String err;
-        CHECK(cfgcore::resetTo("luxdmx_4uni", err), "resetTo luxdmx_4uni");
+        CHECK(cfgcore::resetTo("luxdmx_4uni", err) == ESP_OK, "resetTo luxdmx_4uni");
         CHECK(cfg.outputs[0].enabled && cfg.outputs[0].rtsPin >= 0 && cfg.outputs[0].mode == 1, "out A RDM full");
         CHECK(cfg.outputs[1].enabled && cfg.outputs[1].rtsPin >= 0 && cfg.outputs[1].mode == 1, "out B RDM full");
         CHECK(cfg.outputs[2].enabled && cfg.outputs[2].rtsPin < 0 && cfg.outputs[2].mode == 0, "out C DMX only");
@@ -28,10 +28,10 @@ int main() {
     // 3. setValue / getValue round-trip
     {
         String err;
-        CHECK(cfgcore::setValue("hostname", "testbox", err), "setValue hostname");
+        CHECK(cfgcore::setValue("hostname", "testbox", err) == ESP_OK, "setValue hostname");
         CHECK(cfg.hostname == "testbox", "hostname round-trip");
         String out;
-        CHECK(cfgcore::getValue("hostname", out), "getValue hostname");
+        CHECK(cfgcore::getValue("hostname", out) == ESP_OK, "getValue hostname");
         CHECK(out == "testbox", "getValue returns testbox");
     }
 

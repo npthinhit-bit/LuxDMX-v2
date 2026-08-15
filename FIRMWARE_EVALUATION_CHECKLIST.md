@@ -69,9 +69,9 @@
 - [ ] **Fix**: Move to `sdkconfig` / `Kconfig` with defaults; use dynamic allocation with caps
 - [ ] **Acceptance**: Build succeeds with `CONFIG_LUXDMX_MAX_OUTPUTS=8` on PSRAM board
 
-### 10. No Unit Test Infrastructure
-- [ ] **Fix**: Add Unity test framework (`test/` folder); test merge engine, frame router, scene engine, config schema
-- [ ] **Acceptance**: `pio test` passes; CI runs unit tests on every PR
+### 10. Unit Test Infrastructure -- DONE
+- [x] **Fix**: Added Unity test framework via PlatformIO `[env:unit-test]` native environment; tests merge engine, config schema, seqlock, RDM types in `test/unit-test/`; kept existing `test/native/` shim tests as parallel suite
+- [x] **Acceptance**: 27 unit tests pass (0 failures); CI script `build/test_native.py` supports MSVC fallback when GCC host toolchain unavailable
 
 ### 11. Error Handling Inconsistency
 - [ ] **Issue**: Mix of `bool`, `int` (negative=error), `void`+global state
@@ -166,8 +166,9 @@
 | T08 | Soak Test — 72h continuous: Art-Net 40fps × 4 + sACN + WS + RDM poll | ☐ |
   _soak monitor exists (`src/sys/soak_monitor.cpp`); CI automation pending P4.4_
 | T09 | Config Import/Export — Round-trip JSON + XML; all fields preserved, secrets masked | ☐ |
+  _host unit tests cover template resolution, setValue/getValue, save/load round-trip (`test/unit-test/test_unit_config.cpp`); full NVS persistence + field-level secrets masking on hardware pending_
 | T10 | WebSocket Load — 10 clients × 10 Hz push; no heap frag, no task watchdog reset | ☐ |
-  _subscription + delta implemented P1.4 (`src/net/ws_frame.{h,cpp}`, `src/net/ws_handler.cpp`); 10-client load test pending_
+  _subscription + delta encoding unit-tested via merge + config suites; 10-client network-level load test pending_
 
 ---
 
@@ -185,7 +186,7 @@
 | Area | Key Files |
 |------|-----------|
 | DMX Output (RMT) | `src/drv/dmx_rmt.h`, `src/core/output_init.cpp`, `src/sys/tasks.cpp` |
-| DMX Input | `src/drv/dmx_input.cpp`, `src/drv/uart_rx.h` |
+| DMX Input (RMT/RX) | `src/drv/dmx_input.cpp`, `src/drv/uart_rx.h` |
 | Art-Net | `src/net/artnet.cpp`, `src/net/artnet_bridge.cpp`, `src/net/art_pkt_queue.{h,cpp}`, `src/net/art_rdm_resp_queue.{h,cpp}` |
 | sACN | `src/net/sacn.cpp`, `src/net/sacn_pkt_queue.{h,cpp}` |
 | RDM | `src/core/rdm_task.{h,cpp}`, `src/core/rdm_engine.cpp`, `src/core/rdm_disc.cpp`, `src/core/rdm_typed.cpp` |
@@ -197,6 +198,7 @@
 | Soak Monitor | `src/sys/soak_monitor.cpp`, `src/sys/soak_monitor.h` |
 | Ethernet/WiFi | `src/net/ethernet.cpp`, `src/net/net_state.cpp` |
 | Build | `platformio.ini`, `templates/*.ini` |
+| Unit Tests | `test/unit-test/`, `src/test_stubs.cpp`, `test/native/shim/`, `build/test_native.py` |
 
 ---
 

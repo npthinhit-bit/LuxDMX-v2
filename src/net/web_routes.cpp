@@ -177,7 +177,7 @@ void handleConfigImport(AsyncWebServerRequest* req) {
     }
     String body = req->getParam("config", true)->value();
     String err;
-    if (cfgcore::importJson(body, err)) {
+    if (cfgcore::importJson(body, err) == ESP_OK) {
         saveConfig();
         req->send(200, "text/plain", "Config imported. Reboot to apply.");
     } else {
@@ -225,7 +225,7 @@ void handleConfigPost(AsyncWebServerRequest* req) {
         String body = req->arg("import");
         if (body.length() > 0) {
             String err;
-            if (cfgcore::importJson(body, err)) {
+            if (cfgcore::importJson(body, err) == ESP_OK) {
                 saveConfig();
                 req->send(200, "application/json", "{\"reboot\":true,\"fields\":\"config import\"}");
             } else {
@@ -243,7 +243,7 @@ void handleConfigPost(AsyncWebServerRequest* req) {
         if (!req->hasParam(f.key, true)) continue;
         String val = req->getParam(f.key, true)->value();
         String err;
-        if (cfgcore::setValue(f.key, val, err)) {
+        if (cfgcore::setValue(f.key, val, err) == ESP_OK) {
             changed = true;
             if (f.flags & CFG_REBOOT) {
                 needsReboot = true;
@@ -261,7 +261,7 @@ void handleConfigPost(AsyncWebServerRequest* req) {
             String val = req->getParam(key.c_str(), true)->value();
             String err;
             String fullKey = String(char('a' + o)) + "_" + f.suffix;
-            if (cfgcore::setValue(fullKey, val, err)) {
+            if (cfgcore::setValue(fullKey, val, err) == ESP_OK) {
                 changed = true;
                 if (f.flags & CFG_REBOOT) {
                     needsReboot = true;
