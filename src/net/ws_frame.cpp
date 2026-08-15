@@ -1,6 +1,7 @@
-#include "ws_frame.h"
+﻿#include "ws_frame.h"
 #include "stats.h"
 #include "dmx_buffer.h"
+#include "merge_engine.h"
 #include "sender_tracker.h"
 #include "config_schema.h"
 #include "output_init.h"   // dmxIsDelta, TXSRC_ARTNET
@@ -8,10 +9,20 @@
 #include <Arduino.h>
 #include <ETH.h>
 
-uint8_t wsBuf[WS_FRAME_LEN];
+uint8_t  wsBuf[WS_FRAME_LEN];
+uint8_t  wsChangedBitmap = 0;
+uint32_t wsFrameSeq = 0;
+uint16_t wsClientSub[WS_MAX_CLIENTS] = {0};
+
+// Last-sent DMX per output, for delta detection.
+// Only 512 slots (data[1..512]) are compared, NOT the start code at data[0].
+static uint8_t wsLastDmx[4][WS_CHANS_PER_OUT] = {0};
 
 void wsBuildFrame() {
-    // Header: fps(2) rssi(2) heap(4) uptime(4) senders(1) srcStatus(1) jitter(2)
+    wsFrameSeq++;
+    wsChangedBitmap = 0;
+
+    // --- Header (unchanged: fps/rssi/heap/uptime/senders/srcStatus/jitter) ---
     uint16_t fpsI  = (uint16_t)(fps * 10.0f);
     int16_t  rssi;
     if (g_apMode)      rssi = 1;
@@ -31,12 +42,24 @@ void wsBuildFrame() {
     wsBuf[13] = g_srcStatus;
     wsBuf[14] = jitI >> 8;  wsBuf[15] = jitI & 0xFF;
 
-    // All 4 outputs' 512 channels.
-    for (int i = 0; i < MAX_OUTPUTS; i++)
-        memcpy(&wsBuf[16 + i * WS_CHANS_PER_OUT], &dmxBuffers[i].data[1], WS_CHANS_PER_OUT);
+    // --- DMX data: compare to last-sent for delta, copy into frame ---
+    // DMX data stays at offset 16 (unchanged for frontend compatibility).
+    for (int i = 0; i < MAX_OUTPUTS; i++) {
+        const uint8_t* cur = &dmxBuffers[i].data[1];   // skip start code at data[0]
+        bool changed = false;
+        for (int j = 0; j < WS_CHANS_PER_OUT; j++) {
+            if (cur[j] != wsLastDmx[i][j]) { changed = true; break; }
+        }
+        if (changed) wsChangedBitmap |= (uint8_t)(1 << i);
+        memcpy(wsLastDmx[i], cur, WS_CHANS_PER_OUT);
+        memcpy(&wsBuf[WS_HEADER_LEN + i * WS_CHANS_PER_OUT], cur, WS_CHANS_PER_OUT);
+    }
 
-    // Per-output output/input FPS + TX style.
-    const int OUT_FPS_OFF = 16 + WS_CHANS_ALL;
+    // --- Changed-universe bitmap (before nav tail, invisible to frontend) ---
+    wsBuf[WS_CHANGED_OFF] = wsChangedBitmap;
+
+    // --- Per-output stats (unchanged offset: WS_HEADER_LEN + WS_CHANS_ALL) ---
+    const int OUT_FPS_OFF = WS_HEADER_LEN + WS_CHANS_ALL;  // 2064
     for (int i = 0; i < MAX_OUTPUTS; i++) {
         uint16_t f = (uint16_t)(outFpsLive(i) * 10.0f);
         wsBuf[OUT_FPS_OFF + 2 * i]     = f >> 8;
@@ -53,14 +76,16 @@ void wsBuildFrame() {
         wsBuf[OUT_FPS_OFF + 2 * MAX_OUTPUTS + 2 * i + 1] = inI & 0xFF;
     }
 
-    // TX style bits, fixed tail: fixtures(2) rdmTx(4) rdmRx(4)
+    // TX style bits
     for (int i = 0; i < MAX_OUTPUTS; i++) {
         uint8_t st = 0;
         if (dmxIsDelta(i))                            st |= 0x01;
         if (cfg.outputs[i].txStyleSrc == TXSRC_ARTNET) st |= 0x02;
         wsBuf[OUT_FPS_OFF + 4 * MAX_OUTPUTS + i] = st;
     }
-    int t = 16 + WS_CHANS_ALL + WS_PEROUT_ALL;
+
+    // --- Nav tail: fixtures(2) rdmTx(4) rdmRx(4) — offset shifted by 1 for bitmap ---
+    int t = WS_CHANGED_OFF + 1;   // 2085
     uint16_t nf = (uint16_t)rdmCount;
     uint32_t rtx = g_rdmSent, rrx = g_rdmRecv;
     wsBuf[t]   = nf >> 8;   wsBuf[t+1] = nf & 0xFF;

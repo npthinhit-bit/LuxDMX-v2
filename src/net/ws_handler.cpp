@@ -1,4 +1,4 @@
-#include "ws_handler.h"
+﻿#include "ws_handler.h"
 #include "ws_frame.h"
 #include "stats.h"
 #include "output_init.h"
@@ -137,8 +137,37 @@ void rdmWsProcessQueued() {
     }
 }
 
-void handleWsText(const char* payload, size_t len) {
+void handleWsText(const char* payload, size_t len, uint32_t clientId) {
     String msg(payload, len);
+
+    // --- Subscribe command: select which universes this client receives ---
+    // Client sends: {"cmd":"subscribe","universes":[0,1]}
+    // Unsubscribed universes are skipped in wsPush(), reducing CPU + bandwidth.
+    // Default (on connect) is all universes subscribed.
+    if (msg.indexOf("\"subscribe\"") >= 0) {
+        uint16_t mask = 0;
+        int b1 = msg.indexOf('[');
+        int b2 = msg.indexOf(']', b1);
+        if (b1 >= 0 && b2 > b1) {
+            String arr = msg.substring(b1 + 1, b2);
+            int start = 0;
+            while (start < (int)arr.length()) {
+                int comma = arr.indexOf(',', start);
+                if (comma < 0) comma = arr.length();
+                String num = arr.substring(start, comma);
+                num.trim();
+                if (num.length() > 0) {
+                    int u = num.toInt();
+                    if (u >= 0 && u < MAX_OUTPUTS) mask |= (uint16_t)(1 << u);
+                }
+                start = comma + 1;
+            }
+        }
+        wsClientSub[clientId % WS_MAX_CLIENTS] = mask;
+        Serial.printf("[WS] client %u subscribed to universes 0x%04x\n", clientId, mask);
+        return;
+    }
+
     if (msg.indexOf("\"viewout\"") >= 0) {
         int k = msg.indexOf("\"out\":");
         if (k >= 0) {

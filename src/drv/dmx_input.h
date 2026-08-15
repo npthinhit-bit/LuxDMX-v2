@@ -1,8 +1,10 @@
 #pragma once
 // DMX input via UART break detection (E1.11 receiver).
-// Configured 8N2 at 250000 baud; a DMX break (>=88us low) causes the UART
-// to generate a break interrupt. The ISR reads the post-break slots from the
-// RX FIFO and assembles a complete DMX frame.
+// Configured 8N2 at 250000 baud; a DMX break (>=88 us low) is detected by the
+// ESP32-S3 UART break detector (BRK_DET, primary frame-start marker) and the
+// inter-byte timeout in dmxInPoll() acts as a frame-completion fallback.
+// The post-break start code + 512 slots arrive as a normal 8N2 byte stream
+// read from the RX FIFO.
 #include "driver/uart.h"
 #include "driver/gpio.h"
 #include "rdm_types.h"

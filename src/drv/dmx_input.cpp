@@ -8,6 +8,8 @@
 #include "dmx_input.h"
 #include <Arduino.h>
 #include <string.h>
+#include "soc/uart_reg.h"
+#include "soc/soc.h"
 
 DmxInFrame g_dmxInFrame;
 volatile bool   g_dmxInFrameReady = false;
@@ -32,6 +34,16 @@ bool dmxInInit(int uartNum, int rxPin) {
     uart_set_pin(uart, UART_PIN_NO_CHANGE, rxPin,
                  UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
     gpio_set_pull_mode((gpio_num_t)rxPin, GPIO_PULLUP_ONLY);
+    // Enable UART hardware break detection for the DMX break (>=88 us low).
+    // The ESP32-S3 receiver break detector (BRK_DET) sets UART_BRK_DET_INT_RAW
+    // when RX held low past the break threshold (a few bit times @250000 baud).
+    // A DMX break (~22 bit times) trips it reliably; unlike the 2 ms millis()
+    // inter-byte timeout it is hardware-timed and immune to core-0 CPU load
+    // (WiFi/AsyncTCP). Break detection is always-on hardware (no enable bit);
+    // we clear any stale status here, and dmxInPoll() polls the RAW bit WITHOUT
+    // enabling the interrupt, so the driver ISR never clears it (register
+    // polling, no ISR, race-free).
+    REG_WRITE(UART_INT_CLR_REG(uart), UART_BRK_DET_INT_CLR);
     return true;
 }
 
@@ -39,6 +51,22 @@ bool dmxInPoll(int uartNum) {
     if (uartNum < 1 || uartNum > 2) return false;
     uart_port_t uart = (uart_port_t)(uartNum - 1);
     uint32_t now = millis();
+
+    // Check UART hardware break detection (DMX break) -- the PRIMARY frame-start
+    // marker. BRK_DET is hardware-timed and immune to core-0 CPU load, unlike the
+    // 2 ms inter-byte timeout below (which remains as a fallback). We read the
+    // RAW (unmasked) status and never enable the interrupt, so the driver ISR
+    // cannot clear this bit -- pure register polling, no ISR.
+    if (REG_READ(UART_INT_RAW_REG(uart)) & UART_BRK_DET_INT_RAW) {
+        // DMX break detected by hardware. Clear the raw status so the next break
+        // is detectable (avoids re-triggering every poll). The start code + 512
+        // slots arrive after the break/MAB; the UART discards the break itself, so
+        // we must NOT flush the RX FIFO (that would discard the arriving frame) --
+        // just reset frame assembly so the following bytes form a clean frame.
+        REG_WRITE(UART_INT_CLR_REG(uart), UART_BRK_DET_INT_CLR);
+        g_dmxInIdx = 0;
+        g_dmxInFrameStart = false;
+    }
 
     if (g_dmxInFrameStart && g_dmxInIdx > 0 && (uint32_t)(now - g_dmxInLastByteMs) > 2) {
         if (g_dmxInIdx >= 2) {

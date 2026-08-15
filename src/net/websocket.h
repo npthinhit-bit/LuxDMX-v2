@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 
@@ -14,8 +14,8 @@ void wsPush();
 void wsPushMeta();
 
 // Called from loop() when a WS text frame arrives from the browser.
-// Handles viewout/blackout/mode/identify/set commands.
-void handleWsText(const char* payload, size_t len);
+// Handles viewout/blackout/mode/identify/set commands, subscribe, and RDM control.
+void handleWsText(const char* payload, size_t len, uint32_t clientId);
 
 // Register WS event handler on the AsyncWebServer. Called from setup().
 void wsInit(AsyncWebServer& srv);
