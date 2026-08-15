@@ -17,19 +17,19 @@ static void routeFrameImpl(int universe, const uint8_t* data, uint16_t length,
         if (!cfg.outputs[i].enabled || portAddress(cfg.outputs[i]) != (uint16_t)universe) continue;
         rxFrameCount[i]++;
         dmxBufWriteBegin(i);
-        dmxBuffers[i].data[0] = startCode;
-        memcpy(&dmxBuffers[i].data[1], data, length > 512 ? 512 : length);
+        dmxBufferState().buffers[i].data[0] = startCode;
+        memcpy(&dmxBufferState().buffers[i].data[1], data, length > 512 ? 512 : length);
         dmxBufWriteEnd(i);
         mergeOutput(i);
-        if (i == viewOutput()) maybeLog(i, &dmxBuffers[i].data[1], 512, senderIp, proto);
+        if (i == viewOutput()) maybeLog(i, &dmxBufferState().buffers[i].data[1], 512, senderIp, proto);
         // Universe splitting: mirror to additional outputs via splitMask
         if (cfg.outputs[i].splitMask) {
             for (int j = 0; j < MAX_OUTPUTS; j++) {
                 if (!(cfg.outputs[i].splitMask & (1 << j))) continue;
                 if (!cfg.outputs[j].enabled || j == i) continue;
                 dmxBufWriteBegin(j);
-                dmxBuffers[j].data[0] = startCode;
-                memcpy(&dmxBuffers[j].data[1], data, length > 512 ? 512 : length);
+                dmxBufferState().buffers[j].data[0] = startCode;
+                memcpy(&dmxBufferState().buffers[j].data[1], data, length > 512 ? 512 : length);
                 dmxBufWriteEnd(j);
                 mergeOutput(j);
             }

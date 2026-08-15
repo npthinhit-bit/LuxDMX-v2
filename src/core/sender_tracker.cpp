@@ -4,7 +4,8 @@
 #include <Arduino.h>
 #include <string.h>
 
-Sender senders[MAX_SENDERS] = {};
+static SenderTracker g_senderTracker;
+SenderTracker& senderTracker() { return g_senderTracker; }
 
 bool universeMapped(int universe) {
     for (int o = 0; o < MAX_OUTPUTS; o++)
@@ -17,22 +18,22 @@ void updateSender(uint32_t ip, uint8_t proto, int16_t universe,
     uint32_t now = millis();
     int slot = -1;
     for (int i = 0; i < MAX_SENDERS; i++)
-        if (senders[i].ip == ip && senders[i].proto == proto) { slot = i; break; }
+        if (g_senderTracker.senders[i].ip == ip && g_senderTracker.senders[i].proto == proto) { slot = i; break; }
     bool fresh = false;
     if (slot < 0) {
         for (int i = 0; i < MAX_SENDERS; i++)
-            if (senders[i].ip == 0) { slot = i; break; }
+            if (g_senderTracker.senders[i].ip == 0) { slot = i; break; }
     }
     if (slot < 0) {
         for (int i = 0; i < MAX_SENDERS; i++)
-            if (!universeMapped(senders[i].universe)) { slot = i; break; }
+            if (!universeMapped(g_senderTracker.senders[i].universe)) { slot = i; break; }
         if (slot < 0) {
             slot = 0;
             for (int i = 1; i < MAX_SENDERS; i++)
-                if (senders[i].lastMs < senders[slot].lastMs) slot = i;
+                if (g_senderTracker.senders[i].lastMs < g_senderTracker.senders[slot].lastMs) slot = i;
         }
     }
-    Sender& s = senders[slot];
+    Sender& s = g_senderTracker.senders[slot];
     if (s.ip != ip || s.proto != proto) fresh = true;
     if (fresh) {
         memset(s.data, 0, sizeof(s.data));
@@ -45,7 +46,7 @@ void updateSender(uint32_t ip, uint8_t proto, int16_t universe,
     s.dataLen  = length < 512 ? length : 512;
     memcpy(s.data, data, s.dataLen);
     for (int o = 0; o < MAX_OUTPUTS; o++)
-        if (cfg.outputs[o].enabled && portAddress(cfg.outputs[o]) == (uint16_t)senders[slot].universe) inFrameCnt[o]++;
+        if (cfg.outputs[o].enabled && portAddress(cfg.outputs[o]) == (uint16_t)g_senderTracker.senders[slot].universe) inFrameCnt[o]++;
     s.winCnt++;
     if (now - s.winMs >= 1000) {
         s.fps   = (float)s.winCnt * 1000.0f / (float)(now - s.winMs);
@@ -58,7 +59,7 @@ uint8_t activeSenderCount() {
     uint32_t now = millis();
     uint8_t n = 0;
     for (int i = 0; i < MAX_SENDERS; i++)
-        if (senders[i].ip != 0 && now - senders[i].lastMs < 5000) n++;
+        if (g_senderTracker.senders[i].ip != 0 && now - g_senderTracker.senders[i].lastMs < 5000) n++;
     return n;
 }
 
@@ -66,7 +67,7 @@ int sourcesOnUniverse(int universe, uint32_t windowMs) {
     uint32_t now = millis();
     int n = 0;
     for (int i = 0; i < MAX_SENDERS; i++) {
-        const Sender& s = senders[i];
+        const Sender& s = g_senderTracker.senders[i];
         if (s.ip == 0 || s.universe != universe) continue;
         if (now - s.lastMs < windowMs) n++;
     }

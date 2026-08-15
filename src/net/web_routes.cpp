@@ -59,7 +59,7 @@ void handleSendersJson(AsyncWebServerRequest* req) {
     String j = "[";
     uint32_t now = millis();
     for (int i = 0; i < MAX_SENDERS; i++) {
-        const Sender& s = senders[i];
+        const Sender& s = senderTracker().senders[i];
         if (s.ip == 0 || now - s.lastMs >= 5000) continue;
         if (j.length() > 1) j += ",";
         j += "{";
@@ -147,7 +147,7 @@ void handleRdmJson(AsyncWebServerRequest* req) {
     j += ",\"available\":" + String(rdmLineCount() > 0 ? "true" : "false");
     j += ",\"scanned\":" + String(rdmCount > 0 ? "true" : "false");
     j += ",\"sensorPoll\":false";
-    j += ",\"bqPolicy\":" + String(g_bqPolicy);
+    j += ",\"bqPolicy\":" + String(artNet().bqPolicy);
     j += ",\"discStage\":0";
     j += ",\"discFound\":0";
     j += ",\"discCur\":0";
@@ -155,7 +155,7 @@ void handleRdmJson(AsyncWebServerRequest* req) {
     j += ",\"discovering\":false";
     j += ",\"busy\":false";
     j += ",\"artPort\":" + String(rdmLineCount() > 0 ? String(cfg.outputs[rdmOutForLine[0]].universe) : "0");
-    j += ",\"artPolls\":" + String(g_artPolls);
+    j += ",\"artPolls\":" + String(artNet().artPolls);
     j += ",\"artTodReqs\":0";
     j += ",\"artRdmReqs\":0";
     j += ",\"artFlushes\":0";
@@ -461,8 +461,8 @@ void handleRdmBqp(AsyncWebServerRequest* req) {
         req->send(400, "text/plain", "p must be 0-4");
         return;
     }
-    g_bqPolicy = (uint8_t)p;
-    g_bqDirty = true;
+    artNet().bqPolicy = (uint8_t)p;
+    artNet().bqDirty = true;
     req->send(200, "text/plain", "OK");
 }
 
@@ -508,7 +508,7 @@ String sendersJson() {
     String j = "[";
     uint32_t now = millis();
     for (int i = 0; i < MAX_SENDERS; i++) {
-        const Sender& s = senders[i];
+        const Sender& s = senderTracker().senders[i];
         if (s.ip == 0 || now - s.lastMs >= 5000) continue;
         if (j.length() > 1) j += ",";
         j += "{";

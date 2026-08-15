@@ -174,7 +174,7 @@ void sceneFadeStep() {
         if (elapsed >= fs.durationMs) {
             // Fade complete
             dmxBufWriteBegin(o);
-            memcpy(&dmxBuffers[o].data[1], fs.to + 1, 512);
+            memcpy(&dmxBufferState().buffers[o].data[1], fs.to + 1, 512);
             dmxBufWriteEnd(o);
             fs.active = false;
         } else if (fs.durationMs > 0) {
@@ -184,7 +184,7 @@ void sceneFadeStep() {
             for (int c = 1; c < DMX_PACKET_SIZE; c++) {
                 int32_t from = fs.from[c];
                 int32_t to = fs.to[c];
-                dmxBuffers[o].data[c] = (uint8_t)(from + (to - from) * frac);
+                dmxBufferState().buffers[o].data[c] = (uint8_t)(from + (to - from) * frac);
             }
             dmxBufWriteEnd(o);
         }

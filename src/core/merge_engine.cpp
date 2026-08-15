@@ -21,7 +21,7 @@ void mergeOutput(int outIdx) {
     int     contrib[MAX_SENDERS], nc = 0;
     uint8_t topPrio = 0;
     for (int i = 0; i < MAX_SENDERS; i++) {
-        const Sender& s = senders[i];
+        const Sender& s = senderTracker().senders[i];
         if (s.ip == 0 || (uint16_t)s.universe != portAddress(out)) continue;
         if (now - s.lastMs >= fto) continue;
         contrib[nc++] = i;
@@ -36,7 +36,7 @@ void mergeOutput(int outIdx) {
         switch (out.lossMode) {
             case LOSS_ZERO:
                 dmxBufWriteBegin(outIdx);
-                memset(&dmxBuffers[outIdx].data[1], 0, 512);
+                memset(&dmxBufferState().buffers[outIdx].data[1], 0, 512);
                 dmxBufWriteEnd(outIdx);
                 break;
             case LOSS_STOP:
@@ -62,13 +62,13 @@ void mergeOutput(int outIdx) {
     if (out.mergeMode == MERGE_LTP_TAKEOVER && nc > 0) {
         int best = -1;
         for (int k = 0; k < nc; k++) {
-            const Sender& s = senders[contrib[k]];
+            const Sender& s = senderTracker().senders[contrib[k]];
             if (best < 0) { best = k; continue; }
-            const Sender& b = senders[contrib[best]];
+            const Sender& b = senderTracker().senders[contrib[best]];
             if (s.priority > b.priority || s.lastMs > b.lastMs) best = k;
         }
         dmxBufWriteBegin(outIdx);
-        memcpy(&dmxBuffers[outIdx].data[1], senders[contrib[best]].data, senders[contrib[best]].dataLen);
+        memcpy(&dmxBufferState().buffers[outIdx].data[1], senderTracker().senders[contrib[best]].data, senderTracker().senders[contrib[best]].dataLen);
         dmxBufWriteEnd(outIdx);
         return;
     }
@@ -78,14 +78,14 @@ void mergeOutput(int outIdx) {
         uint8_t merged[256];
         memset(merged, 0, sizeof(merged));
         for (int k = 0; k < nc; k++) {
-            const Sender& s = senders[contrib[k]];
+            const Sender& s = senderTracker().senders[contrib[k]];
             if (s.priority < topPrio) continue;
             int len = s.dataLen < 256 ? s.dataLen : 256;
             for (int c = 0; c < len; c++)
                 if (s.data[c] > merged[c]) merged[c] = s.data[c];
         }
         dmxBufWriteBegin(outIdx);
-        memcpy(&dmxBuffers[outIdx].data[1], merged, 256);
+        memcpy(&dmxBufferState().buffers[outIdx].data[1], merged, 256);
         dmxBufWriteEnd(outIdx);
         return;
     }
@@ -94,13 +94,13 @@ void mergeOutput(int outIdx) {
         uint8_t merged[512];
         memset(merged, 0, sizeof(merged));
         for (int k = 0; k < nc; k++) {
-            const Sender& s = senders[contrib[k]];
+            const Sender& s = senderTracker().senders[contrib[k]];
             if (s.priority < topPrio) continue;
             for (int c = 0; c < s.dataLen; c++)
                 if (s.data[c] > merged[c]) merged[c] = s.data[c];
         }
         dmxBufWriteBegin(outIdx);
-        memcpy(&dmxBuffers[outIdx].data[1], merged, 512);
+        memcpy(&dmxBufferState().buffers[outIdx].data[1], merged, 512);
         dmxBufWriteEnd(outIdx);
         return;
     }
@@ -108,13 +108,13 @@ void mergeOutput(int outIdx) {
     bool usePrio = (out.mergeMode != MERGE_OFF);
     int newest = -1; uint32_t newestMs = 0;
     for (int k = 0; k < nc; k++) {
-        const Sender& s = senders[contrib[k]];
+        const Sender& s = senderTracker().senders[contrib[k]];
         if (usePrio && s.priority < topPrio) continue;
         if (newest < 0 || s.lastMs >= newestMs) { newest = contrib[k]; newestMs = s.lastMs; }
     }
     if (newest >= 0) {
         dmxBufWriteBegin(outIdx);
-        memcpy(&dmxBuffers[outIdx].data[1], senders[newest].data, senders[newest].dataLen);
+        memcpy(&dmxBufferState().buffers[outIdx].data[1], senderTracker().senders[newest].data, senderTracker().senders[newest].dataLen);
         dmxBufWriteEnd(outIdx);
     }
 }
@@ -125,8 +125,8 @@ void mergeOutputTimed() {
         if (!cfg.outputs[i].enabled) continue;
         uint32_t fto = portFailsafeMs(cfg.outputs[i]);
         for (int s = 0; s < MAX_SENDERS; s++) {
-            if (senders[s].ip == 0 || (uint16_t)senders[s].universe != portAddress(cfg.outputs[i])) continue;
-            if (now - senders[s].lastMs >= fto && !outSrcLost[i]) {
+            if (senderTracker().senders[s].ip == 0 || (uint16_t)senderTracker().senders[s].universe != portAddress(cfg.outputs[i])) continue;
+            if (now - senderTracker().senders[s].lastMs >= fto && !outSrcLost[i]) {
                 mergeOutput(i);
                 break;
             }

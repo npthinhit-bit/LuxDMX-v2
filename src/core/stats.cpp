@@ -3,7 +3,10 @@
 #include <Arduino.h>
 #include <string.h>
 
-#define LOG_BUF_CAP 32
+#ifndef CONFIG_LUXDMX_LOG_BUF_CAP
+#define CONFIG_LUXDMX_LOG_BUF_CAP 32
+#endif
+#define LOG_BUF_CAP CONFIG_LUXDMX_LOG_BUF_CAP
 #define LOG_FRAME_LEN 8
 
 static struct {

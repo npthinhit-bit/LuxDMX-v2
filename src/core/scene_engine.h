@@ -4,11 +4,15 @@
 #include "config_schema.h"
 
 // Scene count: 32 for PSRAM targets (S3), 8 for non-PSRAM targets (ESP32).
-#ifdef CONFIG_SPIRAM_SUPPORT
-  #define MAX_SCENES 32
-#else
-  #define MAX_SCENES 8
+// Override via -DCONFIG_LUXDMX_MAX_SCENES=N build flag.
+#ifndef CONFIG_LUXDMX_MAX_SCENES
+  #ifdef CONFIG_SPIRAM_SUPPORT
+    #define CONFIG_LUXDMX_MAX_SCENES 32
+  #else
+    #define CONFIG_LUXDMX_MAX_SCENES 8
+  #endif
 #endif
+#define MAX_SCENES CONFIG_LUXDMX_MAX_SCENES
 
 struct Scene {
     char     name[32];

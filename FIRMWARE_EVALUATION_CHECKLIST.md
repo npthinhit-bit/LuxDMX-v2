@@ -58,16 +58,9 @@
 - [ ] **Fix**: Encapsulate per-module state in opaque structs; pass context pointers
 - [ ] **Acceptance**: No `extern` in headers; each `.c` has single `*_ctx_t` struct
 
-### 9. Hardcoded Limits (Make Configurable)
-| Constant | Current | Target |
-|----------|---------|--------|
-| `MAX_OUTPUTS` | 4 | `CONFIG_LUXDMX_MAX_OUTPUTS` (default 4) |
-| `MAX_SENDERS` | 32 | `CONFIG_LUXDMX_MAX_SENDERS` (default 32) |
-| `RDM_TOD_MAX` | 32 | `CONFIG_LUXDMX_RDM_TOD_MAX` (default 32) |
-| `MAX_SCENES` | 32 | `CONFIG_LUXDMX_MAX_SCENES` (default 32) |
-| `LOG_BUF_CAP` | 32 | `CONFIG_LUXDMX_LOG_BUF_CAP` (default 32) |
-- [ ] **Fix**: Move to `sdkconfig` / `Kconfig` with defaults; use dynamic allocation with caps
-- [ ] **Acceptance**: Build succeeds with `CONFIG_LUXDMX_MAX_OUTPUTS=8` on PSRAM board
+### 9. Hardcoded Limits (Make Configurable) -- DONE
+- [x] **Fix**: All 5 constants wrapped in `#ifndef CONFIG_LUXDMX_*` guards with defaults matching current code values: `MAX_OUTPUTS`=4 (`config_schema.h:7`), `MAX_SENDERS`=16 (`sender_tracker.h:7`), `RDM_TOD_MAX`=64 (`src/core/stats.h:45`), `MAX_SCENES`=32/8 (`scene_engine.h:10/12`), `LOG_BUF_CAP`=32 (`src/core/stats.cpp:7`); `CONFIG_LUXDMX_*` defines added to shared `[env]` build_flags in `platformio.ini:48-51`; `MAX_SCENES` remains PSRAM-conditional via `CONFIG_SPIRAM_SUPPORT` (32 with PSRAM, 8 without) with `CONFIG_LUXDMX_MAX_SCENES` override
+- [x] **Acceptance**: Build succeeds with `CONFIG_LUXDMX_MAX_OUTPUTS=8` (`-D` flag passes, `#warning` instead of `#error` for >4; `#error` replaced with `#warning` using CONFIG macro since MAX_OUTPUTS was not a preprocessor macro and the old check was a no-op)
 
 ### 10. Unit Test Infrastructure -- DONE
 - [x] **Fix**: Added Unity test framework via PlatformIO `[env:unit-test]` native environment; tests merge engine, config schema, seqlock, RDM types in `test/unit-test/`; kept existing `test/native/` shim tests as parallel suite

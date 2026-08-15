@@ -1,4 +1,4 @@
-﻿#include "ws_handler.h"
+#include "ws_handler.h"
 #include "ws_frame.h"
 #include "stats.h"
 #include "output_init.h"
@@ -178,7 +178,7 @@ void handleWsText(const char* payload, size_t len, uint32_t clientId) {
     }
     if (msg.indexOf("\"blackout\"") >= 0) {
         const int mo = viewOutput();
-        dmxBufWriteBegin(mo); memset(&dmxBuffers[mo].data[1], 0, 512); dmxBufWriteEnd(mo);
+        dmxBufWriteBegin(mo); memset(&dmxBufferState().buffers[mo].data[1], 0, 512); dmxBufWriteEnd(mo);
         return;
     }
     if (msg.indexOf("\"mode\"") >= 0) {

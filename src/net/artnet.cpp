@@ -19,26 +19,9 @@
 #include <lwip/sockets.h>
 #include <lwip/inet.h>
 
-int            g_artSock       = -1;
-bool           g_artRdmReady   = false;
-uint32_t       g_nodeIp        = 0;
-uint8_t        g_nodeMac[6]    = {0};
-bool           g_artRdmEnabled = true;
-uint16_t       g_artPolls      = 0;
-uint8_t         g_bqPolicy     = 4;
-volatile bool   g_bqDirty     = false;
-volatile bool   g_artCfgDirty = false;
+static ArtNetState g_artNet;
 
-uint8_t  artSyncMode = 0;
-uint32_t artSyncLastMs = 0;
-
-// --- Art-Net TimeCode (E1.31 Annex C) ---
-ArtTimeCode g_timecode = {0, 0, 0, 0, 0};
-bool        g_timecodeValid = false;
-bool        g_timecodeSend = false;
-uint8_t     g_timecodeType = 0;
-uint8_t     g_timecodeFps = 25;
-static uint32_t g_tcLastSendMs = 0;
+ArtNetState& artNet() { return g_artNet; }
 
 static void artHandlePacket(const uint8_t* p, int n, uint32_t ip);
 static void sendTimecode();
@@ -46,45 +29,45 @@ static void sendTimecode();
 void artRdmInit() {
     artPktQueueInit();
     artRdmRespQueueInit();
-    g_nodeIp = (uint32_t)netLocalIP();
+    g_artNet.nodeIp = (uint32_t)netLocalIP();
     uint8_t m[6];
     esp_wifi_get_mac(WIFI_IF_STA, m);
-    memcpy(g_nodeMac, m, 6);
-    g_artRdmEnabled = cfg.artnetRdm;
-    g_timecodeSend = cfg.timecodeSend;
-    g_timecodeType = cfg.timecodeType;
-    g_timecodeFps  = cfg.timecodeFps;
-    g_artSock = lwip_socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (g_artSock >= 0) {
+    memcpy(g_artNet.nodeMac, m, 6);
+    g_artNet.artRdmEnabled = cfg.artnetRdm;
+    g_artNet.timecodeSend = cfg.timecodeSend;
+    g_artNet.timecodeType = cfg.timecodeType;
+    g_artNet.timecodeFps  = cfg.timecodeFps;
+    g_artNet.artSock = lwip_socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (g_artNet.artSock >= 0) {
         int one = 1;
-        lwip_setsockopt(g_artSock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
-        lwip_setsockopt(g_artSock, SOL_SOCKET, SO_BROADCAST, &one, sizeof(one));
+        lwip_setsockopt(g_artNet.artSock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
+        lwip_setsockopt(g_artNet.artSock, SOL_SOCKET, SO_BROADCAST, &one, sizeof(one));
         // QoS/DSCP marking for time-sensitive DMX traffic
         if (cfg.dscpEnabled && cfg.dscpDmx >= 0 && cfg.dscpDmx <= 63) {
             int tos = (cfg.dscpDmx & 0x3F) << 2;  // DSCP in upper 6 bits of TOS
-            lwip_setsockopt(g_artSock, IPPROTO_IP, IP_TOS, &tos, sizeof(tos));
+            lwip_setsockopt(g_artNet.artSock, IPPROTO_IP, IP_TOS, &tos, sizeof(tos));
         }
         struct sockaddr_in a = {};
         a.sin_family = AF_INET; a.sin_port = htons(ARTNET_PORT);
         a.sin_addr.s_addr = INADDR_ANY;
-        lwip_bind(g_artSock, (struct sockaddr*)&a, sizeof(a));
-        int fl = lwip_fcntl(g_artSock, F_GETFL, 0);
-        lwip_fcntl(g_artSock, F_SETFL, fl | O_NONBLOCK);
-        g_artRdmReady = true;
+        lwip_bind(g_artNet.artSock, (struct sockaddr*)&a, sizeof(a));
+        int fl = lwip_fcntl(g_artNet.artSock, F_GETFL, 0);
+        lwip_fcntl(g_artNet.artSock, F_SETFL, fl | O_NONBLOCK);
+        g_artNet.artRdmReady = true;
     } else {
         Serial.println("[ART] socket() failed");
     }
     Serial.printf("[ART] Art-Net up on :%d (RDM %s)\n",
-                  ARTNET_PORT, g_artRdmEnabled ? "on" : "off");
+                  ARTNET_PORT, g_artNet.artRdmEnabled ? "on" : "off");
 }
 
 void artRdmPollRx() {
-    if (!g_artRdmReady || g_artSock < 0) return;
+    if (!g_artNet.artRdmReady || g_artNet.artSock < 0) return;
     static uint8_t buf[640];
     // Producer: recv at most 8 packets/tick (was 64) and enqueue parsed Art-Net.
     for (int k = 0; k < 8; k++) {
         struct sockaddr_in src; socklen_t sl = sizeof(src);
-        int n = lwip_recvfrom(g_artSock, buf, sizeof(buf), 0, (struct sockaddr*)&src, &sl);
+        int n = lwip_recvfrom(g_artNet.artSock, buf, sizeof(buf), 0, (struct sockaddr*)&src, &sl);
         if (n <= 0) return;
         if (n >= 12 && memcmp(buf, ARTNET_ID, 8) == 0) {
             ArtPkt p;
@@ -116,7 +99,7 @@ void artRdmDrainResponses() {
     // per-packet heap: just a bounded drain of the ring.
     ArtRdmResp r;
     while (artRdmRespPop(r)) {
-        if (g_artSock < 0 || r.len == 0) continue;
+        if (g_artNet.artSock < 0 || r.len == 0) continue;
         uint8_t reply[576];
         memset(reply, 0, sizeof(reply));
         memcpy(reply, ARTNET_ID, 8);
@@ -130,16 +113,16 @@ void artRdmDrainResponses() {
         dst.sin_family = AF_INET;
         dst.sin_port = htons(ARTNET_PORT);
         dst.sin_addr.s_addr = r.destIp;
-        lwip_sendto(g_artSock, reply, 18 + respLen, 0, (struct sockaddr*)&dst, sizeof(dst));
+        lwip_sendto(g_artNet.artSock, reply, 18 + respLen, 0, (struct sockaddr*)&dst, sizeof(dst));
     }
 }
 
 // --- Art-Net TimeCode send ---
 static void sendTimecode() {
-    if (!g_timecodeSend || g_artSock < 0) return;
+    if (!g_artNet.timecodeSend || g_artNet.artSock < 0) return;
     uint32_t now = millis();
-    if (now - g_tcLastSendMs < 1000 / g_timecodeFps) return;
-    g_tcLastSendMs = now;
+    if (now - g_artNet.tcLastSendMs < 1000 / g_artNet.timecodeFps) return;
+    g_artNet.tcLastSendMs = now;
 
     // Build ArtTimeCode packet (opcode 0x9700, 13 bytes total)
     uint8_t pkt[64];
@@ -149,33 +132,33 @@ static void sendTimecode() {
     pkt[9] = (ARTNET_OP_TIMECODE >> 8) & 0xFF;
     pkt[10] = 0;  // flags
     // Data bytes 11-14: type(3b | hour 3b | minute 8b | second 8b | frame 8b)
-    pkt[11] = ((g_timecode.type & 0x07) << 5) | ((g_timecode.hour & 0x07) << 2);
-    pkt[12] = g_timecode.minute;
-    pkt[13] = g_timecode.second;
-    pkt[14] = g_timecode.frame;
+    pkt[11] = ((g_artNet.timecode.type & 0x07) << 5) | ((g_artNet.timecode.hour & 0x07) << 2);
+    pkt[12] = g_artNet.timecode.minute;
+    pkt[13] = g_artNet.timecode.second;
+    pkt[14] = g_artNet.timecode.frame;
 
     struct sockaddr_in dst = {};
     dst.sin_family = AF_INET;
     dst.sin_port = htons(ARTNET_PORT);
     dst.sin_addr.s_addr = 0xFFFFFFFFu;  // broadcast
-    lwip_sendto(g_artSock, pkt, 15, 0, (struct sockaddr*)&dst, sizeof(dst));
+    lwip_sendto(g_artNet.artSock, pkt, 15, 0, (struct sockaddr*)&dst, sizeof(dst));
 }
 
 static void artHandlePacket(const uint8_t* p, int n, uint32_t ip) {
     uint16_t op = p[8] | (p[9] << 8);
 
     if (op == ARTNET_OP_SYNC) {
-        artSyncMode = false;   // SYNC commits the staged frames and returns to immediate mode
+        g_artNet.syncMode = false;   // SYNC commits the staged frames and returns to immediate mode
         commitArtSyncStaged();
         artnetBridgeDispatch(op, p, n, ip);
         return;
     }
 
-    if (artSyncMode) {
+    if (g_artNet.syncMode) {
         uint32_t now = millis();
-        if (now - artSyncLastMs > ARTSYNC_TIMEOUT_MS) {
+        if (now - g_artNet.syncLastMs > ARTSYNC_TIMEOUT_MS) {
             Serial.println("[ART] ArtSync timeout, falling back to immediate");
-            artSyncMode = false;
+            g_artNet.syncMode = false;
         }
     }
 
@@ -193,12 +176,12 @@ static void artHandlePacket(const uint8_t* p, int n, uint32_t ip) {
         if (18 + length > n) length = n - 18;
         uint8_t priority = (n >= 60) ? p[59] : DEFAULT_PRIORITY;
 
-        if (artSyncMode) {
+        if (g_artNet.syncMode) {
             for (int i = 0; i < MAX_OUTPUTS; i++) {
                 if (!cfg.outputs[i].enabled || portAddress(cfg.outputs[i]) != universe) continue;
-                memcpy(dmxStaged[i], p + 18, length);
-                dmxStagedLen[i] = length;
-                dmxStagedValid[i] = true;
+                memcpy(dmxBufferState().staged[i], p + 18, length);
+                dmxBufferState().stagedLen[i] = length;
+                dmxBufferState().stagedValid[i] = true;
             }
             updateSender(ip, 0, (int16_t)universe, priority, p + 18, length);
             return;
@@ -210,12 +193,12 @@ static void artHandlePacket(const uint8_t* p, int n, uint32_t ip) {
     // --- Art-Net TimeCode (opcode 0x9700) ---
     if (op == ARTNET_OP_TIMECODE && n >= 13) {
         // Layout: [8]id [9]op [10]flags [11]type [12]hour [13]min [14]sec [15]frame
-        g_timecode.type    = (p[11] >> 5) & 0x07;
-        g_timecode.hour    = (p[11] >> 2) & 0x07;
-        g_timecode.minute  = p[12];
-        g_timecode.second  = p[13];
-        g_timecode.frame   = p[14];
-        g_timecodeValid    = true;
+        g_artNet.timecode.type    = (p[11] >> 5) & 0x07;
+        g_artNet.timecode.hour    = (p[11] >> 2) & 0x07;
+        g_artNet.timecode.minute  = p[12];
+        g_artNet.timecode.second  = p[13];
+        g_artNet.timecode.frame   = p[14];
+        g_artNet.timecodeValid    = true;
         // Timecode-triggered scene playback
         sceneCheckTimecodeTrigger();
         return;
@@ -254,13 +237,13 @@ static void artHandlePacket(const uint8_t* p, int n, uint32_t ip) {
 
 void commitArtSyncStaged() {
     for (int i = 0; i < MAX_OUTPUTS; i++) {
-        if (!cfg.outputs[i].enabled || !dmxStagedValid[i]) continue;
+        if (!cfg.outputs[i].enabled || !dmxBufferState().stagedValid[i]) continue;
         dmxBufWriteBegin(i);
-        memcpy(&dmxBuffers[i].data[1], dmxStaged[i], dmxStagedLen[i]);
-        if (dmxStagedLen[i] < 512) memset(&dmxBuffers[i].data[1 + dmxStagedLen[i]], 0, 512 - dmxStagedLen[i]);
+        memcpy(&dmxBufferState().buffers[i].data[1], dmxBufferState().staged[i], dmxBufferState().stagedLen[i]);
+        if (dmxBufferState().stagedLen[i] < 512) memset(&dmxBufferState().buffers[i].data[1 + dmxBufferState().stagedLen[i]], 0, 512 - dmxBufferState().stagedLen[i]);
         dmxBufWriteEnd(i);
-        updateSender(0, 0, (int16_t)portAddress(cfg.outputs[i]), DEFAULT_PRIORITY, dmxStaged[i], dmxStagedLen[i]);
-        dmxStagedValid[i] = false;
+        updateSender(0, 0, (int16_t)portAddress(cfg.outputs[i]), DEFAULT_PRIORITY, dmxBufferState().staged[i], dmxBufferState().stagedLen[i]);
+        dmxBufferState().stagedValid[i] = false;
         mergeOutput(i);
     }
 }

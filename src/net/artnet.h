@@ -23,18 +23,40 @@ static constexpr uint8_t  ATC_FLUSH = 0x01;
 
 // BackgroundQueuePolicy: severity for background status collection.
 // 4 = disabled (default); 0..3 = collect NONE/ADVISORY/WARNING/ERROR.
-extern uint8_t g_bqPolicy;
-extern volatile bool g_bqDirty;
-extern volatile bool g_artCfgDirty;
 static constexpr uint32_t BQ_POLL_MS = 5000;
 
-// Internal Art-Net socket and node state (see artnet.cpp).
-extern int      g_artSock;
-extern bool     g_artRdmReady;
-extern uint32_t g_nodeIp;
-extern uint8_t  g_nodeMac[6];
-extern bool     g_artRdmEnabled;
-extern uint16_t g_artPolls;
+// --- Art-Net TimeCode (E1.31 Annex C) ---
+struct ArtTimeCode {
+    uint8_t  type;      // 0=Film(24), 1=EFG(25), 2=DF(29.97), 3=SMPTE(30)
+    uint8_t  hour;
+    uint8_t  minute;
+    uint8_t  second;
+    uint8_t  frame;
+};
+
+// Single struct holding all ArtNet module state.
+// Defined as static in artnet.cpp; access via artNet() accessor.
+struct ArtNetState {
+    int           artSock = -1;
+    bool          artRdmReady = false;
+    uint32_t      nodeIp = 0;
+    uint8_t       nodeMac[6] = {0};
+    bool          artRdmEnabled = true;
+    uint16_t      artPolls = 0;
+    uint8_t       bqPolicy = 4;
+    volatile bool bqDirty = false;
+    volatile bool artCfgDirty = false;
+    uint8_t       syncMode = 0;
+    uint32_t      syncLastMs = 0;
+    ArtTimeCode   timecode = {0,0,0,0,0};
+    bool          timecodeValid = false;
+    bool          timecodeSend = false;
+    uint8_t       timecodeType = 0;
+    uint8_t       timecodeFps = 25;
+    uint32_t      tcLastSendMs = 0;
+};
+
+ArtNetState& artNet();
 
 // Initialize the raw 6454 UDP socket + bridge state. Called from setup().
 void artRdmInit();
@@ -49,8 +71,6 @@ void artPktDispatchAll();
 void artRdmDrainResponses();
 
 // ArtSync state — staging mode and last sync timestamp.
-extern uint8_t  artSyncMode;
-extern uint32_t artSyncLastMs;
 static constexpr uint32_t ARTSYNC_TIMEOUT_MS = 1000;
 
 // Commit all staged ArtDMX frames to the live DMX buffers (called when ArtSync
@@ -60,20 +80,6 @@ void commitArtSyncStaged();
 
 // ArtNet bridge dispatch: routes control opcodes (poll, sync, address, etc.)
 void artnetBridgeDispatch(uint16_t op, const uint8_t* p, int n, uint32_t ip);
-
-// --- Art-Net TimeCode (E1.31 Annex C) ---
-struct ArtTimeCode {
-    uint8_t  type;      // 0=Film(24), 1=EFG(25), 2=DF(29.97), 3=SMPTE(30)
-    uint8_t  hour;
-    uint8_t  minute;
-    uint8_t  second;
-    uint8_t  frame;
-};
-extern ArtTimeCode g_timecode;
-extern bool        g_timecodeValid;
-extern bool        g_timecodeSend;      // enable sending ArtTimeCode
-extern uint8_t     g_timecodeType;     // type to send
-extern uint8_t     g_timecodeFps;      // frames per second
 
 // Start TimeCode send task (core 0).
 void artnetTimecodeStart();

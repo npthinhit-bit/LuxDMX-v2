@@ -108,11 +108,11 @@ static void snapshotAndTransmit(int outIdx) {
 }
 
 static void flushArtSyncStaged() {
-    if (!artSyncMode) return;
+    if (!artNet().syncMode) return;
     uint32_t now = millis();
-    if (now - artSyncLastMs > ARTSYNC_TIMEOUT_MS) {
+    if (now - artNet().syncLastMs > ARTSYNC_TIMEOUT_MS) {
         Serial.println("[ART] ArtSync timeout, falling back to immediate");
-        artSyncMode = false;
+        artNet().syncMode = false;
         commitArtSyncStaged();
     }
 }

@@ -41,7 +41,10 @@ extern volatile uint32_t g_rdmRecv;
 extern int rdmCount;
 
 // Discovered RDM fixtures (TOD — Table of Devices). Populated by discovery sweep.
-#define RDM_TOD_MAX 64
+#ifndef CONFIG_LUXDMX_RDM_TOD_MAX
+#define CONFIG_LUXDMX_RDM_TOD_MAX 64
+#endif
+#define RDM_TOD_MAX CONFIG_LUXDMX_RDM_TOD_MAX
 extern rdm_uid_t rdmTod[];
 
 float outFpsLive(int i);

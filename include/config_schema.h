@@ -3,7 +3,10 @@
 
 // The persisted config structs, moved here out of main.cpp. config_schema.cpp
 // describes every field below in one table (CONFIG_FIELDS / OUTPUT_FIELDS).
-static constexpr int MAX_OUTPUTS = 4;
+#ifndef CONFIG_LUXDMX_MAX_OUTPUTS
+#define CONFIG_LUXDMX_MAX_OUTPUTS 4
+#endif
+static constexpr int MAX_OUTPUTS = CONFIG_LUXDMX_MAX_OUTPUTS;
 
 struct DmxOutput {
     bool enabled;
@@ -87,6 +90,6 @@ struct Config {
 
 extern Config cfg;
 
-#if MAX_OUTPUTS > 4
-#error "ESP32-S3 hardware ceiling: 4 RMT TX channels"
+#if CONFIG_LUXDMX_MAX_OUTPUTS > 4
+#warning "CONFIG_LUXDMX_MAX_OUTPUTS > 4: ESP32-S3 has only 4 RMT TX channels; extra outputs will not be driven"
 #endif

@@ -19,14 +19,14 @@ static void resetOutput(int i) {
 }
 
 static void clearSenders() {
-    memset(senders, 0, MAX_SENDERS * sizeof(Sender));
+    memset(senderTracker().senders, 0, MAX_SENDERS * sizeof(Sender));
 }
 
 int main() {
     // --- HTP merge: multiple sources, per-channel max ---
     {
         clearSenders();
-        memset(&dmxBuffers[0].data[1], 0, 512);
+        memset(&dmxBufferState().buffers[0].data[1], 0, 512);
         resetOutput(0);
         cfg.outputs[0].mergeMode = MERGE_HTP;
 
@@ -45,7 +45,7 @@ int main() {
     // --- OFF / LTP: last source wins whole frame ---
     {
         clearSenders();
-        memset(&dmxBuffers[0].data[1], 0, 512);
+        memset(&dmxBufferState().buffers[0].data[1], 0, 512);
         resetOutput(0);
         cfg.outputs[0].mergeMode = MERGE_OFF;
 
@@ -63,7 +63,7 @@ int main() {
     // --- Signal loss: LOSS_ZERO blacks the buffer ---
     {
         clearSenders();
-        memset(&dmxBuffers[0].data[1], 0, 512);
+        memset(&dmxBufferState().buffers[0].data[1], 0, 512);
         resetOutput(0);
         cfg.outputs[0].lossMode = LOSS_ZERO;
         cfg.outputs[0].mergeMode = MERGE_HTP;
@@ -78,7 +78,7 @@ int main() {
     // --- Source on different universe doesn't affect output ---
     {
         clearSenders();
-        memset(&dmxBuffers[0].data[1], 0, 512);
+        memset(&dmxBufferState().buffers[0].data[1], 0, 512);
         resetOutput(0);
         cfg.outputs[0].mergeMode = MERGE_OFF;
 
@@ -94,7 +94,7 @@ int main() {
     // --- LTP-Takeover: highest priority source preempts, not just newest ---
     {
         clearSenders();
-        memset(&dmxBuffers[0].data[1], 0, 512);
+        memset(&dmxBufferState().buffers[0].data[1], 0, 512);
         resetOutput(0);
         cfg.outputs[0].mergeMode = MERGE_LTP_TAKEOVER;
 
@@ -105,9 +105,9 @@ int main() {
         // Send low-priority first
         updateSender(0xC0A80103, 0, 1, 100, f1, 512);  // priority 100
         // Manually update lastMs to make it "newer" (simulate timing)
-        senders[0].lastMs = 999999;
+        senderTracker().senders[0].lastMs = 999999;
         updateSender(0xC0A80104, 0, 1, 200, f2, 512);  // priority 200 (higher)
-        // senders[1].lastMs will be ~0 (millis shims to 0), senders[0].lastMs is huge
+        // senderTracker().senders[1].lastMs will be ~0 (millis shims to 0), senderTracker().senders[0].lastMs is huge
 
         mergeOutput(0);
         uint8_t snap[DMX_PACKET_SIZE];
@@ -118,7 +118,7 @@ int main() {
     // --- Priority merge: only highest-priority sources contribute, per-channel max ---
     {
         clearSenders();
-        memset(&dmxBuffers[0].data[1], 0, 512);
+        memset(&dmxBufferState().buffers[0].data[1], 0, 512);
         resetOutput(0);
         cfg.outputs[0].mergeMode = MERGE_PRIORITY;
 
@@ -138,7 +138,7 @@ int main() {
     // --- Per-port failsafe timeout: 0 = use global default (SOURCE_TIMEOUT_MS) ---
     {
         clearSenders();
-        memset(&dmxBuffers[0].data[1], 0, 512);
+        memset(&dmxBufferState().buffers[0].data[1], 0, 512);
         resetOutput(0);
         cfg.outputs[0].failsafeTimeout = 0;  // should default to SOURCE_TIMEOUT_MS (2500)
         cfg.outputs[0].lossMode = LOSS_ZERO;
@@ -155,7 +155,7 @@ int main() {
     // --- Per-port failsafe timeout: non-zero override ---
     {
         clearSenders();
-        memset(&dmxBuffers[0].data[1], 0, 512);
+        memset(&dmxBufferState().buffers[0].data[1], 0, 512);
         resetOutput(0);
         cfg.outputs[0].failsafeTimeout = 10;  // 10-second timeout
         cfg.outputs[0].lossMode = LOSS_ZERO;
@@ -171,7 +171,7 @@ int main() {
     // --- LOSS_PRESET falls back to HOLD (scene engine not implemented yet) ---
     {
         clearSenders();
-        memset(&dmxBuffers[0].data[1], 0, 512);
+        memset(&dmxBufferState().buffers[0].data[1], 0, 512);
         resetOutput(0);
         cfg.outputs[0].lossMode = LOSS_PRESET;
         cfg.outputs[0].lossPreset = 5;
@@ -185,7 +185,7 @@ int main() {
     // --- LOSS_HOME falls back to HOLD ---
     {
         clearSenders();
-        memset(&dmxBuffers[0].data[1], 0, 512);
+        memset(&dmxBufferState().buffers[0].data[1], 0, 512);
         resetOutput(0);
         cfg.outputs[0].lossMode = LOSS_HOME;
 

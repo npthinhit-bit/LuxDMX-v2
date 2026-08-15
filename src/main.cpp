@@ -119,11 +119,11 @@ void loop() {
 
     // Dirty-flag persistence
     if (rdmPollDirty) { rdmPollDirty = false; rdmSavePoll(); }
-    if (g_artCfgDirty) { g_artCfgDirty = false; saveConfig(); }
-    if (g_bqDirty) {
-        g_bqDirty = false;
+    if (artNet().artCfgDirty) { artNet().artCfgDirty = false; saveConfig(); }
+    if (artNet().bqDirty) {
+        artNet().bqDirty = false;
         Preferences p; p.begin(PREF_NS, false);
-        p.putUChar("bqpolicy", g_bqPolicy); p.end();
+        p.putUChar("bqpolicy", artNet().bqPolicy); p.end();
     }
 
     // Process queued WebSocket RDM operations (runs on core 0, outside RMT use)

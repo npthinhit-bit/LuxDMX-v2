@@ -13,27 +13,28 @@ struct DmxBuffer {
     volatile uint32_t  seq;
 };
 
-extern DmxBuffer dmxBuffers[DMX_OUTPUT_COUNT];
-extern uint32_t  dmxTornSkips;
-
-// ArtSync staging: ArtDMX frames are staged here until ArtSync arrives.
-extern uint8_t  dmxStaged[DMX_OUTPUT_COUNT][DMX_PACKET_SIZE];
-extern bool     dmxStagedValid[DMX_OUTPUT_COUNT];
-extern uint16_t dmxStagedLen[DMX_OUTPUT_COUNT];
-
-// sACN Stream Sync staging: same pattern, per-output sync universe.
-extern uint8_t  sacnStaged[DMX_OUTPUT_COUNT][DMX_PACKET_SIZE];
-extern bool     sacnStagedValid[DMX_OUTPUT_COUNT];
-extern uint16_t sacnStagedLen[DMX_OUTPUT_COUNT];
-extern uint16_t  sacnSyncAddress[DMX_OUTPUT_COUNT];
+struct DmxBufferState {
+    DmxBuffer   buffers[DMX_OUTPUT_COUNT];
+    uint32_t    tornSkips;
+    // ArtSync staging: ArtDMX frames are staged here until ArtSync arrives.
+    uint8_t     staged[DMX_OUTPUT_COUNT][DMX_PACKET_SIZE];
+    bool        stagedValid[DMX_OUTPUT_COUNT];
+    uint16_t    stagedLen[DMX_OUTPUT_COUNT];
+    // sACN Stream Sync staging: same pattern, per-output sync universe.
+    uint8_t     sacnStaged[DMX_OUTPUT_COUNT][DMX_PACKET_SIZE];
+    bool        sacnStagedValid[DMX_OUTPUT_COUNT];
+    uint16_t    sacnStagedLen[DMX_OUTPUT_COUNT];
+    uint16_t    sacnSyncAddr[DMX_OUTPUT_COUNT];
+};
+DmxBufferState& dmxBufferState();
 
 // Writer side: wrap a memcpy into dmxBuffers[i].data[1..512].
-inline void dmxBufWriteBegin(int i) { dmxBuffers[i].seq++; __sync_synchronize(); }
-inline void dmxBufWriteEnd(int i)   { __sync_synchronize(); dmxBuffers[i].seq++; }
+inline void dmxBufWriteBegin(int i) { dmxBufferState().buffers[i].seq++; __sync_synchronize(); }
+inline void dmxBufWriteEnd(int i)   { __sync_synchronize(); dmxBufferState().buffers[i].seq++; }
 
 // Set a single channel (1-based) and commit. Used by the WS manual-control path.
 inline void dmxBufWriteEndSet(int i, int ch, uint8_t val) {
-    if (ch >= 1 && ch < DMX_PACKET_SIZE) dmxBuffers[i].data[ch] = val;
+    if (ch >= 1 && ch < DMX_PACKET_SIZE) dmxBufferState().buffers[i].data[ch] = val;
     dmxBufWriteEnd(i);
 }
 

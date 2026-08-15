@@ -17,10 +17,6 @@
 #include <string.h>
 #include <lwip/sockets.h>
 
-extern int g_artSock;
-extern uint32_t g_nodeIp;
-extern uint8_t  g_nodeMac[6];
-extern uint16_t g_artPolls;
 
 static void sendArtPollReply(uint32_t ip) {
     uint8_t reply[130];
@@ -56,7 +52,7 @@ static void sendArtPollReply(uint32_t ip) {
     const char* nodeName = "LuxDMX Professional";
     for (int i = 0; i < 16; i++) reply[66 + i] = nodeName[i] ? nodeName[i] : ' ';
 
-    uint32_t ipLe = g_nodeIp;
+    uint32_t ipLe = artNet().nodeIp;
     memcpy(reply + 74, &ipLe, 4);
     reply[78] = (uint8_t)(ARTNET_PORT & 0xFF);
     reply[79] = (uint8_t)((ARTNET_PORT >> 8) & 0xFF);
@@ -68,7 +64,7 @@ static void sendArtPollReply(uint32_t ip) {
     dst.sin_port = htons(ARTNET_PORT);
     dst.sin_addr.s_addr = ip;
 
-    lwip_sendto(g_artSock, reply, sizeof(reply), 0, (struct sockaddr*)&dst, sizeof(dst));
+    lwip_sendto(artNet().artSock, reply, sizeof(reply), 0, (struct sockaddr*)&dst, sizeof(dst));
 }
 
 static void handleArtAddress(const uint8_t* p, int n, uint32_t ip) {
@@ -84,16 +80,16 @@ static void handleArtAddress(const uint8_t* p, int n, uint32_t ip) {
             }
             break;
         case 'U':  // Unlock: commit pending changes
-            g_artCfgDirty = true;
+            artNet().artCfgDirty = true;
             saveConfig();
             break;
         case 'N':  // Net: set net switch on addressed ports
             cfg.outputs[address].net = dataVal;
-            g_artCfgDirty = true;
+            artNet().artCfgDirty = true;
             break;
         case 'S':  // Subnet: set subnet on addressed ports
             cfg.outputs[address].subnet = dataVal & 0x0F;
-            g_artCfgDirty = true;
+            artNet().artCfgDirty = true;
             break;
         case 'T':  // Test fade
             break;
@@ -103,7 +99,7 @@ static void handleArtAddress(const uint8_t* p, int n, uint32_t ip) {
 }
 
 static void handleArtIpProg(const uint8_t* /*p*/, int /*n*/, uint32_t /*ip*/) {
-    g_artCfgDirty = true;
+    artNet().artCfgDirty = true;
 }
 
 static void handleArtTodRequest(const uint8_t* /*p*/, int /*n*/, uint32_t /*ip*/) {
@@ -111,7 +107,7 @@ static void handleArtTodRequest(const uint8_t* /*p*/, int /*n*/, uint32_t /*ip*/
 
 static void handleArtRdm(const uint8_t* p, int n, uint32_t ip) {
     if (!cfg.artnetRdm || n < 24) return;
-    if (g_artSock < 0) return;
+    if (artNet().artSock < 0) return;
     // The RDM message starts at offset 18 in the ArtRdm packet (after the
     // 8-byte ID + 2 opcode + 11-byte header = 21 bytes), but the ArtRdm
     // format has: id(8) + opCode(2) + Ver(1) + FAEver(1) + Flags(1) +
@@ -131,7 +127,7 @@ static void handleArtRdm(const uint8_t* p, int n, uint32_t ip) {
 
 static void handleArtPoll(const uint8_t* p, int /*n*/, uint32_t ip) {
     (void)p;
-    g_artPolls++;
+    artNet().artPolls++;
     sendArtPollReply(ip);
 }
 

@@ -20,17 +20,17 @@ static void resetOutput(int i) {
 }
 
 static void clearSenders() {
-    memset(senders, 0, MAX_SENDERS * sizeof(Sender));
+    memset(senderTracker().senders, 0, MAX_SENDERS * sizeof(Sender));
 }
 
 void setUp(void) {
     clearSenders();
     for (int i = 0; i < MAX_OUTPUTS; i++) {
-        memset(&dmxBuffers[i].data[1], 0, 512);
+        memset(&dmxBufferState().buffers[i].data[1], 0, 512);
         outSrcLost[i] = true;
         rxLossCount[i] = 0;
     }
-    for (int i = 0; i < MAX_SENDERS; i++) senders[i].lastMs = 0;
+    for (int i = 0; i < MAX_SENDERS; i++) senderTracker().senders[i].lastMs = 0;
     resetOutput(0);
 }
 void tearDown(void) {}
@@ -87,7 +87,7 @@ void test_merge_ltp_takeover_priority(void) {
     memset(f2, 200, sizeof(f2));
     cfg.outputs[0].mergeMode = MERGE_LTP_TAKEOVER;
     updateSender(0xC0A80103, 0, 1, 100, f1, 512);
-    senders[0].lastMs = 999999;
+    senderTracker().senders[0].lastMs = 999999;
     updateSender(0xC0A80104, 0, 1, 200, f2, 512);
     mergeOutput(0);
     uint8_t snap[DMX_PACKET_SIZE];

@@ -132,11 +132,11 @@ void startSacn() {
             if (!sacnSyncUdp.beginMulticast(smcast, 5568)) {
                 Serial.printf("[sACN] ERROR: failed to join sync universe %u multicast\n", ssu);
             }
-            sacnSyncAddress[i] = ssu;
+            dmxBufferState().sacnSyncAddr[i] = ssu;
             Serial.printf("[sACN] out%d sync universe %u  multicast 239.255.%u.%u:5568\n",
                           i, ssu, sh, sl);
         } else {
-            sacnSyncAddress[i] = 0;
+            dmxBufferState().sacnSyncAddr[i] = 0;
         }
     }
 }
@@ -181,11 +181,11 @@ static void handleSacnPacket(int outIdx, uint32_t senderIp, const uint8_t* p, in
     bool staged = false;
     for (int i = 0; i < MAX_OUTPUTS; i++) {
         if (!cfg.outputs[i].enabled) continue;
-        if (sacnSyncAddress[i] != 0 && portAddress(cfg.outputs[i]) == (uint16_t)artUniv) {
+        if (dmxBufferState().sacnSyncAddr[i] != 0 && portAddress(cfg.outputs[i]) == (uint16_t)artUniv) {
             uint16_t copyLen = payloadLen > 512 ? 512 : payloadLen;
-            memcpy(sacnStaged[i], p + SACN_DATA_OFF, copyLen);
-            sacnStagedLen[i] = copyLen;
-            sacnStagedValid[i] = true;
+            memcpy(dmxBufferState().sacnStaged[i], p + SACN_DATA_OFF, copyLen);
+            dmxBufferState().sacnStagedLen[i] = copyLen;
+            dmxBufferState().sacnStagedValid[i] = true;
             sacnSyncLossMs[i] = (uint32_t)millis();
             updateSender(senderIp, 1, (int16_t)artUniv, priority, p + SACN_DATA_OFF, payloadLen);
             staged = true;
@@ -224,13 +224,13 @@ void readSacn() {
     // Process sync staging on outputs with sync address set
     for (int i = 0; i < MAX_OUTPUTS; i++) {
         if (!cfg.outputs[i].enabled) continue;
-        if (sacnSyncAddress[i] != 0 && sacnStagedValid[i]) {
+        if (dmxBufferState().sacnSyncAddr[i] != 0 && dmxBufferState().sacnStagedValid[i]) {
             uint32_t syncMs = now - sacnSyncLossMs[i];
             if (syncMs < 500) continue;
             if (syncMs >= 2500) {
-                routeFrame((int)portAddress(cfg.outputs[i]), sacnStaged[i], sacnStagedLen[i], 0, 1, DEFAULT_PRIORITY);
-                sacnStagedValid[i] = false;
-                sacnSyncAddress[i] = 0;
+                routeFrame((int)portAddress(cfg.outputs[i]), dmxBufferState().sacnStaged[i], dmxBufferState().sacnStagedLen[i], 0, 1, DEFAULT_PRIORITY);
+                dmxBufferState().sacnStagedValid[i] = false;
+                dmxBufferState().sacnSyncAddr[i] = 0;
                 sacnSyncLossMs[i] = 0;
             }
         }
@@ -254,9 +254,9 @@ void readSacn() {
                     uint16_t su = ((uint16_t)sacnBuf[SACN_UNIVERSE_OFF] << 8)
                                 | sacnBuf[SACN_UNIVERSE_OFF + 1];
                     for (int i = 0; i < MAX_OUTPUTS; i++) {
-                        if (sacnSyncAddress[i] == su && sacnStagedValid[i]) {
-                            routeFrame((int)portAddress(cfg.outputs[i]), sacnStaged[i], sacnStagedLen[i], 0, 1, DEFAULT_PRIORITY);
-                            sacnStagedValid[i] = false;
+                        if (dmxBufferState().sacnSyncAddr[i] == su && dmxBufferState().sacnStagedValid[i]) {
+                            routeFrame((int)portAddress(cfg.outputs[i]), dmxBufferState().sacnStaged[i], dmxBufferState().sacnStagedLen[i], 0, 1, DEFAULT_PRIORITY);
+                            dmxBufferState().sacnStagedValid[i] = false;
                             sacnSyncLossMs[i] = now;
                         }
                     }

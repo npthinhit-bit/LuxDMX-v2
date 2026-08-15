@@ -3,7 +3,10 @@
 #include "config_schema.h"
 #include "config_enums.h"
 
-#define MAX_SENDERS 16
+#ifndef CONFIG_LUXDMX_MAX_SENDERS
+#define CONFIG_LUXDMX_MAX_SENDERS 16
+#endif
+#define MAX_SENDERS CONFIG_LUXDMX_MAX_SENDERS
 #define SOURCE_TIMEOUT_MS 2500
 #define DEFAULT_PRIORITY 100
 
@@ -20,7 +23,10 @@ struct Sender {
     uint8_t  data[512];
 };
 
-extern Sender senders[];
+struct SenderTracker {
+    Sender senders[MAX_SENDERS];
+};
+SenderTracker& senderTracker();
 
 bool universeMapped(int universe);
 void updateSender(uint32_t ip, uint8_t proto, int16_t universe,

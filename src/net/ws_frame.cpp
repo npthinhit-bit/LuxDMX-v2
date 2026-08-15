@@ -1,4 +1,4 @@
-﻿#include "ws_frame.h"
+#include "ws_frame.h"
 #include "stats.h"
 #include "dmx_buffer.h"
 #include "merge_engine.h"
@@ -45,7 +45,7 @@ void wsBuildFrame() {
     // --- DMX data: compare to last-sent for delta, copy into frame ---
     // DMX data stays at offset 16 (unchanged for frontend compatibility).
     for (int i = 0; i < MAX_OUTPUTS; i++) {
-        const uint8_t* cur = &dmxBuffers[i].data[1];   // skip start code at data[0]
+        const uint8_t* cur = &dmxBufferState().buffers[i].data[1];   // skip start code at data[0]
         bool changed = false;
         for (int j = 0; j < WS_CHANS_PER_OUT; j++) {
             if (cur[j] != wsLastDmx[i][j]) { changed = true; break; }
@@ -84,7 +84,7 @@ void wsBuildFrame() {
         wsBuf[OUT_FPS_OFF + 4 * MAX_OUTPUTS + i] = st;
     }
 
-    // --- Nav tail: fixtures(2) rdmTx(4) rdmRx(4) — offset shifted by 1 for bitmap ---
+    // --- Nav tail: fixtures(2) rdmTx(4) rdmRx(4) � offset shifted by 1 for bitmap ---
     int t = WS_CHANGED_OFF + 1;   // 2085
     uint16_t nf = (uint16_t)rdmCount;
     uint32_t rtx = g_rdmSent, rrx = g_rdmRecv;
