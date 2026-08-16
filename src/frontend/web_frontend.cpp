@@ -21,6 +21,7 @@
 #include "pages/setup_done_page.h"
 #include "pages/reset_done_page.h"
 #include <Arduino.h>
+#include "firmware_version.h"
 
 static void sendAppPage(AsyncWebServerRequest* req, const __FlashStringHelper* pageBody, const __FlashStringHelper* pageCss, const __FlashStringHelper* pageJs) {
     String html;
@@ -47,6 +48,7 @@ static void sendAppPage(AsyncWebServerRequest* req, const __FlashStringHelper* p
     html += F("</script>");
     if (pageJs) { html += F("<script>"); html += String(pageJs); html += F("</script>"); }
     html += F("</body></html>");
+    html.replace("__FWVER__", String(FIRMWARE_VERSION));
     AsyncWebServerResponse* r = req->beginResponse(200, "text/html", html);
     r->addHeader("Cache-Control", "no-cache");
     req->send(r);
@@ -54,6 +56,7 @@ static void sendAppPage(AsyncWebServerRequest* req, const __FlashStringHelper* p
 
 static void sendRawPage(AsyncWebServerRequest* req, const __FlashStringHelper* pageHtml) {
     String html = String(pageHtml);
+    html.replace("__FWVER__", String(FIRMWARE_VERSION));
     AsyncWebServerResponse* r = req->beginResponse(200, "text/html", html);
     r->addHeader("Cache-Control", "no-cache");
     req->send(r);

@@ -32,7 +32,7 @@ CLAUDE.md
 /src/idf_component.yml.orig
 
 # Local-only private working assets — kept OUT of the public repo.
-# (UI simulator / video pipeline + promo plan; backed up privately in tombueng/LuxDMX-ops.)
+# (UI simulator / video pipeline + promo plan; backed up privately in thinhh0321/LuxDMX-v2-ops.)
 /sim/
 PROMO_PLAN.local.md
 

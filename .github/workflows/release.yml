@@ -1,0 +1,110 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g., v1.2.3)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build:
+    name: Build Release Firmware
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        env:
+          - esp32dev
+          - esp32s3dev
+          - wt32eth01
+          - esp32s3_psram
+          - esp32s3_n16r8_eth
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PlatformIO
+        run: |
+          python -m pip install --upgrade pip
+          pip install platformio
+
+      - name: Build ${{ matrix.env }}
+        run: pio run -e ${{ matrix.env }}
+        shell: bash
+
+      - name: Prepare release artifacts
+        run: |
+          mkdir -p release_artifacts/${{ matrix.env }}
+          cp .pio/build/${{ matrix.env }}/firmware.bin release_artifacts/${{ matrix.env }}/firmware-${{ matrix.env }}.bin
+          cp .pio/build/${{ matrix.env }}/firmware.elf release_artifacts/${{ matrix.env }}/firmware-${{ matrix.env }}.elf
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-firmware-${{ matrix.env }}
+          path: release_artifacts/${{ matrix.env }}/
+          retention-days: 30
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-firmware-*
+          path: release_artifacts
+          merge-multiple: true
+
+      - name: Prepare release files
+        run: |
+          mkdir -p release_final
+          for env in esp32dev esp32s3dev wt32eth01 esp32s3_psram esp32s3_n16r8_eth; do
+            if [ -f "release_artifacts/firmware-$env.bin" ]; then
+              cp "release_artifacts/firmware-$env.bin" "release_final/firmware-$env.bin"
+              cp "release_artifacts/firmware-$env.elf" "release_final/firmware-$env.elf"
+            fi
+          done
+          ls -la release_final/
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            echo "release_notes<<EOF" >> $GITHUB_OUTPUT
+            git log --pretty=format:"- %s (%an)" $PREV_TAG..HEAD >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "release_notes=Initial release" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release_final/*
+          body: ${{ steps.release_notes.outputs.release_notes }}
+          draft: false
+          prerelease: ${{ contains(github.ref, '-') }}
+          tag_name: ${{ github.ref_name }}
+          name: LuxDMX-v2 ${{ github.ref_name }}

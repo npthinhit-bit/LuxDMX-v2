@@ -45,4 +45,8 @@ static const char RDM_PAGE_BODY[] PROGMEM = R"=====(
         <button class="btn btn-outline-secondary btn-sm" onclick="hideDiscModal()">Cancel</button>
         <button class="btn btn-primary btn-sm" onclick="startDiscovery()">Run discovery</button>
       </div>
+    </div>
+  </div>
+</div>
+
 )=====";

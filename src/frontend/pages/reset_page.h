@@ -69,8 +69,8 @@ footer a:hover { color: var(--gh-text); }
 </div>
 
 <footer class="text-center py-3 border-top">
-  &copy; 2026 <a href="https://github.com/tombueng">tombueng</a>
-  &nbsp;&middot;&nbsp; <a href="https://github.com/tombueng/LuxDMX">LuxDMX</a>
+  &copy; 2026 <a href="https://github.com/thinhh0321">thinhh0321</a>
+  &nbsp;&middot;&nbsp; <a href="https://github.com/thinhh0321/LuxDMX">LuxDMX</a>
   &nbsp;&middot;&nbsp; MIT License
 </footer>
 

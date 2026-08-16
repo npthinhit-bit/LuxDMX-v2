@@ -37,6 +37,7 @@ void handleRebootPost(AsyncWebServerRequest* req);
 // OTA
 void handleOtaGithub(AsyncWebServerRequest* req);
 void handleOtaUrl(AsyncWebServerRequest* req);
+void handleOtaStatusJson(AsyncWebServerRequest* req);
 
 // RDM control
 void handleRdmTrigger(AsyncWebServerRequest* req);

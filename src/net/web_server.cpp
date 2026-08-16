@@ -37,7 +37,8 @@ void webRegisterRoutes(AsyncWebServer& http) {
     http.on("/reboot",            HTTP_POST, handleRebootPost);
     http.on("/ota/github",        HTTP_POST, handleOtaGithub);
     http.on("/ota/url",           HTTP_POST, handleOtaUrl);
-    http.on("/ota/status",        HTTP_GET,  handleOtaStatus);
+    http.on("/ota",               HTTP_GET,  handleOtaStatus);
+    http.on("/ota/status",        HTTP_GET,  handleOtaStatusJson);
     http.on("/ota/upload",        HTTP_POST, NULL, otaUploadChunk);
     http.on("/version.json",      HTTP_GET,  handleVersionJson);
     http.on("/info.json",         HTTP_GET,  handleInfoJson);

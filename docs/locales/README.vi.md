@@ -20,16 +20,16 @@
 </p>
 
 <p align="center">
-  <a href="https://tombueng.github.io/LuxDMX/"><img alt="Flash trong trình duyệt" src="https://img.shields.io/badge/flash%20in-browser-2dd4bf"></a>
-  <a href="https://github.com/tombueng/LuxDMX/actions/workflows/build.yml"><img alt="Build" src="https://github.com/tombueng/LuxDMX/actions/workflows/build.yml/badge.svg"></a>
-  <a href="https://github.com/tombueng/LuxDMX/releases"><img alt="Firmware mới nhất" src="https://img.shields.io/github/v/tag/tombueng/LuxDMX?filter=v*&sort=semver&label=firmware"></a>
+  <a href="https://thinhh0321.github.io/LuxDMX-v2/"><img alt="Flash trong trình duyệt" src="https://img.shields.io/badge/flash%20in-browser-2dd4bf"></a>
+  <a href="https://github.com/thinhh0321/LuxDMX-v2/actions/workflows/ci.yml"><img alt="Build" src="https://github.com/thinhh0321/LuxDMX-v2/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/thinhh0321/LuxDMX-v2/releases"><img alt="Firmware mới nhất" src="https://img.shields.io/github/v/tag/thinhh0321/LuxDMX-v2?filter=v*&sort=semver&label=firmware"></a>
   <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue">
   <img alt="Version" src="https://img.shields.io/badge/version-V2.0%20modular-blue">
   <img alt="Status: stable" src="https://img.shields.io/badge/status-stable-green">
 </p>
 
 <p align="center">
-  <a href="https://tombueng.github.io/LuxDMX/"><b>⚡ Flash từ trình duyệt</b></a> &nbsp;·&nbsp;
+  <a href="https://thinhh0321.github.io/LuxDMX-v2/"><b>⚡ Flash từ trình duyệt</b></a> &nbsp;·&nbsp;
   <a href="https://luxdmx.org/video"><b>▶ Xem video demo</b></a> &nbsp;·&nbsp;
   <a href="hardware/README.md"><b>🛠 PCB tùy chỉnh</b></a> &nbsp;·&nbsp;
   <a href="#-cài-%C4%91%E1%BA%AFt-phi%C3%AAn-b%E1%BA%BFn-%C4%91%C3%A3-xay-d%E1%BB%B1ng">Cài đặt</a>
@@ -161,7 +161,7 @@ V2 là một bản **rewrite hoàn toàn mô-đun** của firmware gốc độc 
 
 ### ⚡ Flash từ trình duyệt — không cần cài đặt, không cần dòng lệnh
 
-Mở **[trình flash web](https://tombueng.github.io/LuxDMX/)** trong Chrome hoặc Edge trên máy tính, cắm board, chọn model, nhấn flash. Hoàn tất — không cần Python, esptool, hay toolchain.
+Mở **[trình flash web](https://thinhh0321.github.io/LuxDMX-v2/)** trong Chrome hoặc Edge trên máy tính, cắm board, chọn model, nhấn flash. Hoàn tất — không cần Python, esptool, hay toolchain.
 
 > Các phương pháp thủ công/scripted dưới đây vẫn hoạt động cho WT32-ETH01 (không có cổng USB).
 
@@ -177,7 +177,7 @@ Mở **[trình flash web](https://tombueng.github.io/LuxDMX/)** trong Chrome ho�
 #### Windows — lệnh một dòng (PowerShell)
 
 ```powershell
-Set-ExecutionPolicy -Scope Process Bypass; irm https://raw.githubusercontent.com/tombueng/LuxDMX/master/flash.ps1 | iex
+Set-ExecutionPolicy -Scope Process Bypass; irm https://raw.githubusercontent.com/thinhh0321/LuxDMX-v2/main/flash.ps1 | iex
 ```
 
 #### macOS / Linux
@@ -186,7 +186,7 @@ Set-ExecutionPolicy -Scope Process Bypass; irm https://raw.githubusercontent.com
 pip install esptool
 
 # ESP32 (WROOM-32)
-REPO=tombueng/LuxDMX
+REPO=thinhh0321/LuxDMX-v2
 for f in firmware.bin bootloader.bin partitions.bin boot_app0.bin; do
   curl -sL "$(curl -s https://api.github.com/repos/$REPO/releases/tags/latest \
     | python3 -c "import sys,json; assets=json.load(sys.stdin)['assets']; \
@@ -705,7 +705,7 @@ MIT — làm gì bạn muốn, đề nghị ghi công.
 
 <p align="center">
   <sub>
-    <a href="https://tombueng.github.io/LuxDMX/">⚡ Flash từ trình duyệt</a> &nbsp;·&nbsp;
+    <a href="https://thinhh0321.github.io/LuxDMX-v2/">⚡ Flash từ trình duyệt</a> &nbsp;·&nbsp;
     <a href="https://luxdmx.org/video">▶ Xem video demo</a> &nbsp;·&nbsp;
     <a href="hardware/README.md">🛠 PCB tùy chỉnh</a>
   </sub>

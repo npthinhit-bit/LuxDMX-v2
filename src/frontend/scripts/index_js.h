@@ -358,7 +358,7 @@ function extractChanges(body) {
 // Update check is driven entirely by the live LuxDMX.org release list so the banner
 // always reflects the true newest version (the device only polls once at boot).
 fetch('/version.json').then(function(r) { return r.json(); }).then(function(d) {
-  var curNum = vNum(d.current);
+  var curNum = vNum(d.version);
   fetch('https://luxdmx.org/firmware/releases')
     .then(function(r) { return r.json(); })
     .then(function(list) {

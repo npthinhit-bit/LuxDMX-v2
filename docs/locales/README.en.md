@@ -20,16 +20,16 @@
 </p>
 
 <p align="center">
-  <a href="https://tombueng.github.io/LuxDMX/"><img alt="Flash in browser" src="https://img.shields.io/badge/flash%20in-browser-2dd4bf"></a>
-  <a href="https://github.com/tombueng/LuxDMX/actions/workflows/build.yml"><img alt="Build" src="https://github.com/tombueng/LuxDMX/actions/workflows/build.yml/badge.svg"></a>
-  <a href="https://github.com/tombueng/LuxDMX/releases"><img alt="Latest firmware" src="https://img.shields.io/github/v/tag/tombueng/LuxDMX?filter=v*&sort=semver&label=firmware"></a>
+  <a href="https://thinhh0321.github.io/LuxDMX/"><img alt="Flash in browser" src="https://img.shields.io/badge/flash%20in-browser-2dd4bf"></a>
+  <a href="https://github.com/thinhh0321/LuxDMX-v2/actions/workflows/ci.yml"><img alt="Build" src="https://github.com/thinhh0321/LuxDMX-v2/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/thinhh0321/LuxDMX-v2/releases"><img alt="Latest firmware" src="https://img.shields.io/github/v/tag/thinhh0321/LuxDMX-v2?filter=v*&sort=semver&label=firmware"></a>
   <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue">
   <img alt="Version" src="https://img.shields.io/badge/version-V2.0%20modular-blue">
   <img alt="Status: stable" src="https://img.shields.io/badge/status-stable-green">
 </p>
 
 <p align="center">
-  <a href="https://tombueng.github.io/LuxDMX/"><b>⚡ Flash from your browser</b></a> &nbsp;·&nbsp;
+  <a href="https://thinhh0321.github.io/LuxDMX-v2/"><b>⚡ Flash from your browser</b></a> &nbsp;·&nbsp;
   <a href="https://luxdmx.org/video"><b>▶ Watch the demo</b></a> &nbsp;·&nbsp;
   <a href="hardware/README.md"><b>🛠 Custom PCB</b></a> &nbsp;·&nbsp;
   <a href="#-flashing-pre-built-firmware">Install</a>
@@ -168,7 +168,7 @@ V2 is a ground-up **modular rewrite** of the original monolithic firmware. The c
 
 ### ⚡ Flash from your browser — no install, no command line
 
-Open **[the web flasher](https://tombueng.github.io/LuxDMX/)** in desktop Chrome or Edge, plug in your board, pick your model, and click flash. That's it — no Python, no esptool, no toolchain.
+Open **[the web flasher](https://thinhh0321.github.io/LuxDMX/)** in desktop Chrome or Edge, plug in your board, pick your model, and click flash. That's it — no Python, no esptool, no toolchain.
 
 > The manual / scripted methods below still work for the WT32-ETH01 (which has no USB port).
 
@@ -184,7 +184,7 @@ Open **[the web flasher](https://tombueng.github.io/LuxDMX/)** in desktop Chrome
 #### Windows — one-liner (PowerShell)
 
 ```powershell
-Set-ExecutionPolicy -Scope Process Bypass; irm https://raw.githubusercontent.com/tombueng/LuxDMX/master/flash.ps1 | iex
+Set-ExecutionPolicy -Scope Process Bypass; irm https://raw.githubusercontent.com/thinhh0321/LuxDMX-v2/main/scripts/flash.ps1 | iex
 ```
 
 #### macOS / Linux
@@ -193,7 +193,7 @@ Set-ExecutionPolicy -Scope Process Bypass; irm https://raw.githubusercontent.com
 pip install esptool
 
 # ESP32 (WROOM-32)
-REPO=tombueng/LuxDMX
+REPO=thinhh0321/LuxDMX-v2
 for f in firmware.bin bootloader.bin partitions.bin boot_app0.bin; do
   curl -sL "$(curl -s https://api.github.com/repos/$REPO/releases/tags/latest \
     | python3 -c "import sys,json; assets=json.load(sys.stdin)['assets']; \
@@ -710,7 +710,7 @@ MIT — do whatever you want, attribution appreciated.
 
 <p align="center">
   <sub>
-    <a href="https://tombueng.github.io/LuxDMX/">⚡ Flash from browser</a> &nbsp;·&nbsp;
+    <a href="https://thinhh0321.github.io/LuxDMX/">⚡ Flash from browser</a> &nbsp;·&nbsp;
     <a href="https://luxdmx.org/video">▶ Watch the demo</a> &nbsp;·&nbsp;
     <a href="hardware/README.md">🛠 Custom PCB</a>
   </sub>

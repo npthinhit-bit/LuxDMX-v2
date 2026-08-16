@@ -60,7 +60,7 @@ function tick() {
   fetch('/version.json', { cache: 'no-store' })
     .then(function(r){ if (!r.ok) throw 0; return r.json(); })
     .then(function(d){
-      if (d && d.current && d.current !== FROM) {        // device reports the NEW version -> done
+      if (d && d.version && d.version !== FROM) {        // device reports the NEW version -> done
         show('Up to date', 'Reloading…', 100);
         location.replace('/');
         return;

@@ -350,13 +350,25 @@ void handleRebootPost(AsyncWebServerRequest* req) {
 }
 
 void handleOtaGithub(AsyncWebServerRequest* req) {
-    if (!req->hasParam("url", true)) {
-        req->send(400, "text/plain", "missing url");
+    String ver;
+    if (req->hasParam("version", true)) {
+        ver = req->getParam("version", true)->value();
+    } else if (req->hasParam("url", true)) {
+        otaTarget = req->getParam("url", true)->value();
+    } else {
+        req->send(400, "text/plain", "missing version or url");
         return;
     }
-    String url = req->getParam("url", true)->value();
-    otaFromGitHub(url);
-    req->send(200, "text/plain", "OTA update started");
+    if (ver.length()) {
+        otaTarget = "https://github.com/thinhh0321/LuxDMX/releases/download/v" + ver + "/firmware-esp32-s3.bin";
+    }
+    AsyncWebServerResponse* r = req->beginResponse(302, "text/plain", "");
+    r->addHeader("Location", "/ota");
+    req->send(r);
+    xTaskCreatePinnedToCore([](void*) {
+        otaFromGitHub(otaTarget);
+        vTaskDelete(NULL);
+    }, "ota_gh", 8192, nullptr, 1, nullptr, 0);
 }
 
 void handleOtaUrl(AsyncWebServerRequest* req) {
@@ -364,9 +376,22 @@ void handleOtaUrl(AsyncWebServerRequest* req) {
         req->send(400, "text/plain", "missing url");
         return;
     }
-    String url = req->getParam("url", true)->value();
-    otaFromUrl(url);
-    req->send(200, "text/plain", "OTA update started");
+    otaTarget = req->getParam("url", true)->value();
+    AsyncWebServerResponse* r = req->beginResponse(302, "text/plain", "");
+    r->addHeader("Location", "/ota");
+    req->send(r);
+    xTaskCreatePinnedToCore([](void*) {
+        otaFromUrl(otaTarget);
+        vTaskDelete(NULL);
+    }, "ota_url", 8192, nullptr, 1, nullptr, 0);
+}
+
+void handleOtaStatusJson(AsyncWebServerRequest* req) {
+    String j = "{";
+    j += "\"pct\":" + String(otaProgPct);
+    j += ",\"phase\":" + String(otaProgPhase);
+    j += "}";
+    sendJson(req, j);
 }
 
 void handleRdmTrigger(AsyncWebServerRequest* req) {

@@ -52,7 +52,7 @@ footer a { color: var(--gh-muted); text-decoration: none; }
 
 <nav class="site-nav">
   <span class="brand">
-    <img src="/logo.png?v=__FWVER__" alt="LuxDMX">
+    <img src="/logo.webp?v=__FWVER__" alt="LuxDMX">
     <span class="brand-text">LuxDMX</span>
   </span>
 </nav>
@@ -131,8 +131,8 @@ footer a { color: var(--gh-muted); text-decoration: none; }
 </div>
 
 <footer class="text-center py-3 border-top">
-  &copy; 2026 <a href="https://github.com/tombueng">tombueng</a>
-  &nbsp;&mdash;&nbsp; <a href="https://github.com/tombueng/LuxDMX">LuxDMX</a>
+  &copy; 2026 <a href="https://github.com/thinhh0321">thinhh0321</a>
+  &nbsp;&mdash;&nbsp; <a href="https://github.com/thinhh0321/LuxDMX">LuxDMX</a>
 </footer>
 
 <script>
