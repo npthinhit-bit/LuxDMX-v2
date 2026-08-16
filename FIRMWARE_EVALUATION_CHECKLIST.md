@@ -102,9 +102,9 @@
 - [ ] **Fix**: Enable by default; provide key provisioning flow; document rotation
 - [ ] **Acceptance**: Unsigned firmware rejected; signed firmware accepted; key rotation tested
 
-### 17. No Rate Limiting on Config/OTA Endpoints
-- [ ] **Fix**: Add IP-based rate limiting (5 req/min OTA, 30 req/min config)
-- [ ] **Acceptance**: Burst requests return 429; legitimate use unaffected
+### 17. No Rate Limiting on Config/OTA Endpoints -- DONE
+- [x] **Fix**: IP-based token-bucket rate limiter in `src/net/rate_limiter.{h,cpp}`; `g_otaRateLimiter` (5 req/min, burst 10) wraps `/ota/github`, `/ota/url`, `/ota/upload`; `g_configRateLimiter` (30 req/min, burst 60) wraps `/config` POST + `/config/import` POST via `rateLimitHandler` wrapper in `web_server.cpp`; `otaUploadChunk` checks rate at `index==0` in `ota.cpp`; all rate-limited routes return HTTP 429 with `Retry-After: 60` and `Cache-Control: no-store`
+- [x] **Acceptance**: Burst requests return 429; legitimate use unaffected
 
 ### 18. WiFi Credentials Unencrypted in NVS
 - [ ] **Issue**: `wifiPsk` stored plain (only masked in UI via `CFG_SECRET`)

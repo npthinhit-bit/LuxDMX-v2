@@ -402,3 +402,66 @@ generation to modular `src/frontend/*.h` fragments introduced 6 bugs:
 
 **Key takeaway**: Frontend migrations are high-risk. Every endpoint URL, API
 field name, form parameter, image path, and placeholder must be verified end-to-end.
+
+---
+
+## BUG-009: Config page missing save bar and board picker modal HTML elements
+
+Date: 2026-08-16
+Subsystem: web/frontend
+Severity: Critical (entire Settings page non-functional — board picking, saving, and collapsible section validation all broken)
+
+Affected hardware: all
+Affected PlatformIO environment: all
+
+### Symptom
+The `/config` page loads but is completely non-functional:
+- No "Save" button is visible at the bottom of the page (the fixed save bar is absent)
+- Clicking "Show board & pick pins" does nothing (the board modal is absent)
+- No board diagram ever appears
+- Collapsible sections don't update their summary lines (validation crashes)
+- The page appears to load settings (fields are populated from /info.json) but nothing can be saved or changed
+
+### Root Cause
+During the frontend migration from monolithic `src/pages/*.html` to modular `src/frontend/*.h` fragments, the config page body (`CONFIG_PAGE_BODY` in `src/frontend/pages/config_page.h`) was assembled with all the form fields and cards but the following HTML fragments were never included:
+1. The `#save-bar` container with its `#save-btn` submit button — the CSS for it exists in both `src/frontend/base/styles.h` and `src/frontend/pages/config_css.h`, and a code comment at config_page.h:585 references it ("Save lives in the fixed #save-bar at the bottom of the page"), but the actual HTML element was never written.
+2. The `#board-modal` board picker modal with child elements `#board-modal-title`, `#board-svg-wrap`, `#board-pick-hint`, `#board-sel-modal`, `#board-modal-close`, `#board-modal-done`, `#board-print` — the CSS for `.board-card`, `.board-wrap`, `.board-svg`, `.board-legend`, `.hdr-strips` etc. exists in `config_css.h`, and the JS code in `config_js.h` extensively references all these IDs (15 references across 15 lines), but no HTML was ever emitted for them.
+3. The container `<div class="container py-4">` opened at line 5 was never closed (missing `</div>`).
+
+The JavaScript crash chain:
+- `config_js.h` line 231: `$('save-btn').disabled = false` throws `TypeError: Cannot read properties of null` because `save-btn` doesn't exist in the DOM
+- This crashes the entire `/info.json` `.then()` callback, preventing `initBoards()` (line 233) from running
+- Without `initBoards()`, no event listeners are attached to `board-sel`, `board-apply`, `board-open`, `board-sel-modal`, `board-modal-close`, `board-modal-done`, `board-print`, or `board-modal`
+- The form submit handler at line 286 also references `$('save-btn')` and would crash on any submission attempt
+- The `validate()` function at line 1015 guards with `if (sb)` but the unguarded access at line 231 crashes first
+
+### Incorrect Approaches
+- Attempted to make the JS null-guarded (e.g., `if ($('save-btn')) $('save-btn').disabled = false`) — rejected because this would hide the broken config page behind defensive checks instead of fixing the root cause. The save button and board modal MUST exist for the page to function.
+- Considered adding the elements via `sendAppPage()` in `web_frontend.cpp` — rejected because the board modal is config-page-specific; adding it globally would pollute the index and RDM pages with unused DOM.
+
+### Fix
+Added the missing HTML elements to the end of `CONFIG_PAGE_BODY` in `src/frontend/pages/config_page.h`:
+1. Closed the container `<div>` that was left open
+2. Added `#save-bar` with `#save-btn` button using `form="cfg-form"` to associate it with the config form (the JS submits via fetch, so the button lives outside the form)
+3. Added `#board-modal` (using the `.app-modal` + `.board-card` CSS classes from `config_css.h`) containing:
+   - `#board-modal-title` (header title span)
+   - `#board-print` / `#board-modal-close` (header buttons)
+   - `#board-sel-modal` (board selector dropdown mirroring the main `board-sel`)
+   - `#board-svg-wrap` (SVG diagram container using `.board-wrap` class)
+   - `#board-pick-hint` (pin assignment hint, starts hidden via `.d-none`)
+   - `#board-modal-done` (footer button)
+
+### Files / Functions
+- `src/frontend/pages/config_page.h` — added closing `</div>` for container, `#save-bar` with `#save-btn`, and `#board-modal` with all child elements
+
+### Validation
+Build succeeded: `pio run -e esp32s3_psram`. The config page now renders with:
+- A fixed save bar at the bottom of the viewport with a "Save settings" button
+- A board picker modal that opens when "Show board & pick pins" is clicked
+- All DOM element IDs match the references in `config_js.h`
+
+### Regression Risk
+Low. The changes are additive (new HTML elements at the end of an existing PROGMEM string). No existing elements were modified or removed. The `#save-bar` and `#board-modal` CSS was already present in both `styles.h` and `config_css.h`, so the new HTML simply activates previously-defined styling. The `APP_MODAL_HTML` (generic confirm modal) from `shared_js.h` is separate and unaffected.
+
+### Lesson
+When migrating frontend code from monolithic HTML pages to modular PROGMEM fragments, verify that EVERY DOM element ID referenced by JavaScript has a matching HTML element in the corresponding body fragment. A missing element causes a null reference that crashes the entire page's JavaScript, silently breaking all functionality. The `tools/extract_frontend.py` script's regex-based extraction (which previously caused BUG-005 with unclosed divs) was not involved here — the board modal and save bar were never in the source HTML at all, suggesting they were designed in JS/CSS but the HTML was never written. Always cross-reference JS `$('elementId')` calls against the HTML to catch missing elements before they ship.

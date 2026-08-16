@@ -1,4 +1,5 @@
 #include "web_server.h"
+#include "rate_limiter.h"
 #include "web_pages.h"
 #include "frontend/web_frontend.h"
 #include "web_routes.h"
@@ -8,6 +9,19 @@
 
 AsyncWebServer http(80);
 volatile uint32_t httpReqCount = 0;
+
+static void rateLimitHandler(AsyncWebServerRequest* req, ArRequestHandlerFunction handler,
+                             RateLimiter& rl) {
+    uint32_t ip = (uint32_t)req->client()->remoteIP();
+    if (!rl.allow(ip)) {
+        AsyncWebServerResponse* r = req->beginResponse(429, "text/plain", "Too Many Requests");
+        r->addHeader("Retry-After", "60");
+        r->addHeader("Cache-Control", "no-store");
+        req->send(r);
+        return;
+    }
+    handler(req);
+}
 
 // Route registration. Static page handlers live in web_pages.cpp; the dynamic
 // JSON/config/OTA handlers remain in main.cpp for now (migrated to dedicated
@@ -22,9 +36,13 @@ void webRegisterRoutes(AsyncWebServer& http) {
     http.on("/senders.json",      HTTP_GET,  handleSendersJson);
     http.on("/log.json",          HTTP_GET,  handleLogJson);
     http.on("/config",            HTTP_GET,  handleConfigGet);
-    http.on("/config",            HTTP_POST, handleConfigPost);
+    http.on("/config",            HTTP_POST, [](AsyncWebServerRequest* req) {
+        rateLimitHandler(req, handleConfigPost, g_configRateLimiter);
+    });
     http.on("/config/export",     HTTP_GET,  handleConfigExport);
-    http.on("/config/import",     HTTP_POST, handleConfigImport);
+    http.on("/config/import",     HTTP_POST, [](AsyncWebServerRequest* req) {
+        rateLimitHandler(req, handleConfigImport, g_configRateLimiter);
+    });
     http.on("/health",            HTTP_GET,  handleHealth);
     http.on("/diag/soak-stats",   HTTP_GET,  [](AsyncWebServerRequest* req) {
         req->send(200, "application/json", soakStatsJson());
@@ -35,8 +53,12 @@ void webRegisterRoutes(AsyncWebServer& http) {
     http.on("/reset",             HTTP_GET,  handleResetGet);
     http.on("/reset",             HTTP_POST, handleResetPost);
     http.on("/reboot",            HTTP_POST, handleRebootPost);
-    http.on("/ota/github",        HTTP_POST, handleOtaGithub);
-    http.on("/ota/url",           HTTP_POST, handleOtaUrl);
+    http.on("/ota/github",        HTTP_POST, [](AsyncWebServerRequest* req) {
+        rateLimitHandler(req, handleOtaGithub, g_otaRateLimiter);
+    });
+    http.on("/ota/url",           HTTP_POST, [](AsyncWebServerRequest* req) {
+        rateLimitHandler(req, handleOtaUrl, g_otaRateLimiter);
+    });
     http.on("/ota",               HTTP_GET,  handleOtaStatus);
     http.on("/ota/status",        HTTP_GET,  handleOtaStatusJson);
     http.on("/ota/upload",        HTTP_POST, NULL, otaUploadChunk);

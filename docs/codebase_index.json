@@ -127,7 +127,7 @@
     "src/frontend/pages/config_page.h": {
       "layer": "net",
       "purpose": "Config page body (PROGMEM): board picker, output config, DMX/RDM pins, WiFi/Ethernet, OTA section",
-      "notes": "Form POSTs to /config, has ota-form posting version to /ota/github"
+      "notes": "Form POSTs to /config, has ota-form posting version to /ota/github. Contains fixed #save-bar with #save-btn (Save button, submits form via fetch in config_js.h). Contains #board-modal board pin picker modal with child elements: #board-modal-title, #board-print, #board-modal-close, #board-sel-modal, #board-svg-wrap, #board-pick-hint, #board-modal-done. All elements required by config_js.h. Container div properly closed."
     },
     "src/frontend/pages/config_css.h": {
       "layer": "net",

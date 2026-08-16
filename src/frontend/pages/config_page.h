@@ -699,4 +699,7 @@ static const char CONFIG_PAGE_BODY[] PROGMEM = R"=====(
       </form>
     </div>
   </div>
+  </div>
+<div id="save-bar"><div class="save-inner d-flex justify-content-between align-items-center flex-wrap gap-2"><button type="submit" form="cfg-form" id="save-btn" class="btn btn-primary btn-sm" disabled>Save settings</button></div></div>
+<div class="app-modal" id="board-modal"><div class="card board-card"><div class="card-header d-flex align-items-center justify-content-between"><span id="board-modal-title">Board pin map</span><div class="d-flex gap-1"><button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2" id="board-print" title="Print pin assignment">Print</button><button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2" id="board-modal-close" title="Close">&times;</button></div></div><div class="card-body p-2"><div class="mb-1"><select class="form-select form-select-sm" id="board-sel-modal"></select></div><div id="board-svg-wrap" class="board-wrap"></div><div id="board-pick-hint" class="d-none small text-secondary mt-1"></div></div><div class="card-footer d-flex justify-content-end"><button type="button" class="btn btn-primary btn-sm" id="board-modal-done">Done</button></div></div></div>
 )=====";

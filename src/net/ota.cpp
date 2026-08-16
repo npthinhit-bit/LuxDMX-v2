@@ -1,4 +1,5 @@
 #include "ota.h"
+#include "rate_limiter.h"
 #include "sys_platform.h"
 #include "config_schema.h"
 #include "config_core.h"
@@ -43,6 +44,12 @@ void otaUploadChunk(AsyncWebServerRequest* request, const String& filename,
                     size_t index, uint8_t* data, size_t len, bool final) {
     (void)filename;
     if (index == 0) {
+        uint32_t ip = (uint32_t)request->client()->remoteIP();
+        if (!g_otaRateLimiter.allow(ip)) {
+            otaProgPhase = 3;
+            request->send(429, "text/plain", "Too Many Requests");
+            return;
+        }
         otaProgPhase = 1;
         otaProgPct = 0;
         size_t fwSize = request->contentLength();
