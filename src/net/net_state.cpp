@@ -68,6 +68,15 @@ bool parseIp(const String& s, IPAddress& out) {
     return out.fromString(s);
 }
 
+bool netIsLocalSubnet(uint32_t ip) {
+    IPAddress local = netLocalIP();
+    IPAddress mask = netSubnetMask();
+    if ((ip & (uint32_t)mask) == ((uint32_t)local & (uint32_t)mask)) return true;
+    // 169.254.x.x link-local (setup portal / DHCP failure), network byte order
+    if ((ip & 0xFFFF0000u) == 0xA9FE0000u) return true;
+    return false;
+}
+
 void applyStaStaticIp() {
     if (!cfg.staticIp) { WiFi.config((uint32_t)0, (uint32_t)0, (uint32_t)0); return; }
     IPAddress ip, gw, sn, dns;

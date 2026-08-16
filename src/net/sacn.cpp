@@ -10,6 +10,7 @@
 #include <Arduino.h>
 #include <Preferences.h>
 #include <string.h>
+#include <freertos/semphr.h>
 
 const uint8_t ACN_PACKET_ID[12] = {
     0x41, 0x53, 0x43, 0x2d, 0x45, 0x31, 0x2e, 0x31,
@@ -20,6 +21,7 @@ WiFiUDP sacnUdp[MAX_OUTPUTS];
 uint8_t sacnBuf[638];
 
 static uint8_t sacnOwnCid[16] = {0};
+static SemaphoreHandle_t cidMutex = nullptr;
 static uint32_t sacnDiscLastMs = 0;
 static uint32_t sacnSyncLossMs[MAX_OUTPUTS] = {0};
 static WiFiUDP sacnSyncUdp;
@@ -34,7 +36,12 @@ static uint16_t sacnSyncUniverseFor(int outIdx) {
     return (uint16_t)cfg.outputs[outIdx].sacnSync;
 }
 
-static void initCid() {
+void sacnInitCidMutex() {
+    if (!cidMutex) cidMutex = xSemaphoreCreateMutex();
+}
+
+void sacnInitCid() {
+    xSemaphoreTake(cidMutex, portMAX_DELAY);
     Preferences p; p.begin("dmxgw", false);
     if (!p.getBytes("cid", sacnOwnCid, 16)) {
         uint32_t chipId = (uint32_t)ESP.getEfuseMac();
@@ -51,6 +58,11 @@ static void initCid() {
         p.putBytes("cid", sacnOwnCid, 16);
     }
     p.end();
+    xSemaphoreGive(cidMutex);
+}
+
+const uint8_t* sacnGetCid() {
+    return sacnOwnCid;
 }
 
 // --- sACN Universe Discovery (E1.31) transmit ---------------------------------
@@ -113,7 +125,8 @@ static void sendSacnDiscovery() {
 
 void startSacn() {
     sacnPktQueueInit();
-    initCid();
+    sacnInitCidMutex();
+    sacnInitCid();
     for (int i = 0; i < MAX_OUTPUTS; i++) {
         sacnUdp[i].stop();
         if (!cfg.outputs[i].enabled) continue;

@@ -6,6 +6,10 @@
 // Returns true if the active interface has a live link.
 bool netConnected();
 
+// Returns true if the given IP (network byte order) is on the local subnet
+// or a 169.254.x.x link-local address (setup portal / DHCP failure).
+bool netIsLocalSubnet(uint32_t ip);
+
 // Current IP / subnet / gateway for the active interface.
 IPAddress netLocalIP();
 IPAddress netSubnetMask();

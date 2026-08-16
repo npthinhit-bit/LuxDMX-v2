@@ -19,45 +19,58 @@
 
 
 static void sendArtPollReply(uint32_t ip) {
-    uint8_t reply[130];
+    uint8_t reply[240];
     memset(reply, 0, sizeof(reply));
     memcpy(reply + 0, ARTNET_ID, 8);
-    reply[8]  = 0x00;     // opcode lo (0x2100 for PollReply)
+    reply[8]  = 0x00;
     reply[9]  = 0x21;
-    reply[10] = 14;       // protocol version hi
-    reply[11] = 0;        // protocol version lo (14.0)
-    reply[12] = 0;        // 0 = root device
-    reply[13] = MAX_OUTPUTS;  // port count lo
-    reply[14] = MAX_OUTPUTS;  // port count hi
-    reply[16] = 0x02;     // OEM lo (0x02 = ESTA vendor-less, temporary)
-    reply[17] = 0x00;     // OEM hi
-    reply[18] = 0;        // ubea
-    reply[19] = 0;        // status 1
-    reply[20] = 0x80;     // port 0-3 type: DMX output
-    reply[21] = 0x80;
-    reply[22] = 0x80;
-    reply[23] = 0x80;
-    reply[28] = 0x01;     // output port 0
-    reply[29] = 0x02;     // output port 1
-    reply[30] = 0x03;     // output port 2
-    reply[31] = 0x04;     // output port 3
+    reply[10] = 14;
+    reply[11] = 0;
+    reply[12] = 0;
+    reply[13] = MAX_OUTPUTS;
+    reply[14] = 0;
+    reply[16] = 0x02;
+    reply[17] = 0x00;
+    reply[18] = 0;
+    reply[19] = 0;
 
-    // Net (0-127) at byte 34, subnet (lower nibble) at byte 35
-    reply[34] = (uint8_t)cfg.outputs[0].net;
-    reply[35] = (uint8_t)(cfg.outputs[0].subnet << 4);
+    bool hasRdm = cfg.artnetRdm;
+    for (int i = 0; i < MAX_OUTPUTS; i++) {
+        reply[20 + i] = 0x80;
+        reply[24 + i] = 0x01;
+        reply[28 + i] = cfg.outputs[i].enabled ? 0x01 : 0x00;
+        reply[32 + i] = 0;
+        reply[36 + i] = (uint8_t)(cfg.outputs[i].universe & 0x0F);
+    }
+    reply[43] = hasRdm ? 0x02 : 0x01;
 
     const char* shortName = "LuxDMX";
     for (int i = 0; i < 16; i++) reply[48 + i] = shortName[i] ? shortName[i] : ' ';
 
-    const char* nodeName = "LuxDMX Professional";
-    for (int i = 0; i < 16; i++) reply[66 + i] = nodeName[i] ? nodeName[i] : ' ';
+    const char* longName = "LuxDMX Professional";
+    for (int i = 0; i < 16; i++) reply[64 + i] = longName[i] ? longName[i] : ' ';
 
-    uint32_t ipLe = artNet().nodeIp;
-    memcpy(reply + 74, &ipLe, 4);
-    reply[78] = (uint8_t)(ARTNET_PORT & 0xFF);
-    reply[79] = (uint8_t)((ARTNET_PORT >> 8) & 0xFF);
-    reply[80] = 1;
-    reply[81] = 0;
+    const char* nodeReport = "2000:0000:0001:0100 - LuxDMX V2 Ready";
+    for (int i = 0; i < 96 && nodeReport[i]; i++) reply[80 + i] = nodeReport[i];
+
+    memcpy(reply + 176, artNet().nodeMac, 6);
+
+    IPAddress localIp = netLocalIP();
+    uint32_t ipVal = (uint32_t)localIp;
+    memcpy(reply + 182, &ipVal, 4);
+
+    reply[186] = (uint8_t)(ARTNET_PORT & 0xFF);
+    reply[187] = (uint8_t)((ARTNET_PORT >> 8) & 0xFF);
+    reply[188] = 1;
+    reply[189] = 0;
+
+    IPAddress sn = netSubnetMask();
+    uint32_t snVal = (uint32_t)sn;
+    memcpy(reply + 190, &snVal, 4);
+
+    IPAddress gw = netGatewayIP();
+    uint32_t gwVal = (uint32_t)gw;
+    memcpy(reply + 194, &gwVal, 4);
 
     struct sockaddr_in dst = {};
     dst.sin_family = AF_INET;
@@ -98,7 +111,12 @@ static void handleArtAddress(const uint8_t* p, int n, uint32_t ip) {
     }
 }
 
-static void handleArtIpProg(const uint8_t* /*p*/, int /*n*/, uint32_t /*ip*/) {
+static void handleArtIpProg(const uint8_t* /*p*/, int /*n*/, uint32_t ip) {
+    if (!cfg.ipProg) return;
+    if (!netIsLocalSubnet(ip)) {
+        Serial.printf("[ART] ArtIpProg from non-local subnet %08x, ignoring\n", ip);
+        return;
+    }
     artNet().artCfgDirty = true;
 }
 

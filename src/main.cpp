@@ -80,6 +80,22 @@ void setup() {
         MDNS.addService("http",   "tcp", 80);
         if (cfg.protocol != 1) MDNS.addService("artnet", "udp", 6454);
         if (cfg.protocol != 0) MDNS.addService("e131",   "udp", 5568);
+        if (cfg.protocol != 1) {
+            MDNS.addServiceTxt("artnet", "udp", "vers", "4.2");
+            MDNS.addServiceTxt("artnet", "udp", "port", "6454");
+        }
+        if (cfg.protocol != 0) {
+            sacnInitCidMutex();
+            sacnInitCid();
+            char cidHex[33];
+            const uint8_t* cid = sacnGetCid();
+            for (int i = 0; i < 16; i++)
+                snprintf(cidHex + i * 2, 3, "%02x", cid[i]);
+            cidHex[32] = '\0';
+            MDNS.addServiceTxt("e131", "udp", "cid", (const char*)cidHex);
+            MDNS.addServiceTxt("e131", "udp", "universe",
+                               String(cfg.outputs[0].universe + 1).c_str());
+        }
     }
 
     // 6. Output init (RMT channels, UART RX, DE/RE GPIO, RDM lines)

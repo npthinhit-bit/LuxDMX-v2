@@ -33,3 +33,12 @@ void readSacnSocket(int outIdx);
 
 // Drain all outputs' sACN sockets. Called from the netRxTask on core 0.
 void readSacn();
+
+// Initialize the sACN source CID (reads from NVS or derives from chip ID).
+void sacnInitCid();
+
+// Create the CID mutex (idempotent; call before sacnInitCid).
+void sacnInitCidMutex();
+
+// Accessor for the sACN source CID (16 bytes, read-only).
+const uint8_t* sacnGetCid();
