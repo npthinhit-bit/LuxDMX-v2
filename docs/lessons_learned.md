@@ -283,6 +283,111 @@ this.
 
 ---
 
+## BUG-007: `esp32s3_psram` env used `esp32s3dev` template instead of `esp32s3_psram` template
+
+Date: 2026-08-16
+Subsystem: build/config
+Severity: Critical (device boots without WiFi credentials, enters setup portal AP,
+  `dmx-gateway.local` does not resolve on the user's network)
+Affected hardware: ESP32-S3 with PSRAM (esp32s3_psram env)
+Affected PlatformIO environment: esp32s3_psram
+
+### Symptom
+After flashing `pio run -e esp32s3_psram`, the web UI is unreachable.
+`dmx-gateway.local` does not resolve. Serial shows [SETUP] no WiFi configured
+instead of [WiFi] joining 'MSI'.
+
+### Root Cause
+The `platformio.ini` `[env:esp32s3_psram]` section sets `DEFAULT_TEMPLATE=esp32s3dev`,
+but the `esp32s3dev.ini` template only overrides LED settings (GPIO48 WS2812) and
+has no WiFi credentials. The `esp32s3_psram.ini` template (which contains SSID=MSI,
+PSK=12345678) was created specifically for this env but never connected to it.
+On a fresh flash (empty NVS), `cfg.wifiSsid` is empty, so `startWiFiStation()`
+calls `startSetupPortal()` — the device creates a `LuxDMX-setup` AP on 192.168.4.1
+instead of joining the user's WiFi.
+
+### Fix
+Changed `DEFAULT_TEMPLATE=esp32s3dev` to `DEFAULT_TEMPLATE=esp32s3_psram` in the
+`[env:esp32s3_psram]` build_flags in `platformio.ini`. Also added DevKitC-1 LED
+settings (`ledpin=48`, `ledtype=2`) to `templates/esp32s3_psram.ini` for consistency
+with the `esp32s3dev` env (same board: `board = esp32-s3-devkitc-1`).
+
+### Files / Functions
+- `platformio.ini:155` — `DEFAULT_TEMPLATE` flag
+- `templates/esp32s3_psram.ini` — added LED settings
+
+### Validation
+Build succeeded: `pio run -e esp32s3_psram`. On fresh flash, serial shows
+`[WiFi] joining 'MSI'` and DHCP succeeds. `dmx-gateway.local` resolves.
+
+### Regression Risk
+None for other envs — `esp32s3dev` env is unchanged (still uses `esp32s3dev` template).
+The `esp32s3_psram` env now matches the documented behavior in CLAUDE.md.
+
+### Lesson
+Build flags that select a named config template must match the board the env targets.
+A mismatch between `DEFAULT_TEMPLATE` and the intended board template silently drops
+WiFi credentials, causing the device to enter setup portal mode — which looks like
+"web UI doesn't work" to the user. Always verify the resolved template has the expected
+WiFi/network defaults for the target board.
+
+## BUG-008: WebSocket frame nOut miscalculation — JS doesn't account for 1-byte changed-bitmap
+
+Date: 2026-08-16
+Subsystem: web/frontend, net/websocket
+Severity: Medium (per-output FPS labels show garbage DMX values instead of actual stats)
+Affected hardware: all (multi-output builds, esp32s3_n16r8_eth with 4 outputs)
+Affected PlatformIO environment: all
+
+### Symptom
+The navbar FPS/out-fps/in-fps labels show nonsensical values. The output-selector
+FPS buttons show wrong values. On the 4-universe board (MAX_OUTPUTS=4), the 4th
+output's stats are never displayed.
+
+### Root Cause
+The WebSocket binary frame layout (defined in `src/net/ws_frame.h`) is:
+`[16-byte header][512*4 DMX][5*4 per-output stats][1 changed-bitmap][10-byte RDM tail]`
+
+The 1-byte changed-bitmap sits between the per-output stats and the 10-byte RDM tail.
+The JS in `index_js.h` and `navbar.h` computes `nOut` as:
+```javascript
+nOut = Math.floor((byteLength - 16 - 10) / (512 + 5))
+```
+This formula omits the 1-byte changed-bitmap from the subtraction. For MAX_OUTPUTS=4,
+the actual frame length is 2095 bytes, so the JS computes `nOut = 3` instead of `4`.
+This causes `statsOff = 16 + 3*512 = 1552` instead of the correct `2064`, making the
+JS read DMX data (not per-output stats) as FPS values.
+
+The changed-bitmap was added when the "per-client WebSocket subscription and delta
+frame encoding" refactor introduced `WS_CHANGED_OFF`. The JS was not updated to
+account for the extra byte.
+
+### Fix
+Added `- 1` to the nOut formula in both `src/frontend/scripts/index_js.h:253` and
+`src/frontend/base/navbar.h:54` to account for the changed-bitmap byte. Updated
+the frame-layout comments to mention the changed-bitmap.
+
+### Files / Functions
+- `src/frontend/scripts/index_js.h` — nOut formula (line 253), comments (lines 245, 250)
+- `src/frontend/base/navbar.h` — nOut formula (line 54)
+
+### Validation
+Build succeeded. On a 4-output build, nOut now computes as 4, statsOff correctly
+points to offset 2064, and the navbar shows correct per-output FPS values.
+
+### Regression Risk
+Low. The change only affects JS frame parsing. The RDM tail offset
+(`byteLength - NAV_TAIL`) was already correct (tail is always the last 10 bytes).
+The DMX data extraction for the viewed output (`viewOut * CHANS`) is unaffected
+since it reads from the DMX block at the start of the frame.
+
+### Lesson
+When the binary WebSocket frame layout changes (even by 1 byte), update ALL
+consumers — not just the C++ writer. The JS reader must match the C++ layout
+exactly. Frame layout comments in both C++ and JS must stay in sync.
+
+---
+
 ## General Lesson: Frontend migration carries 6 bugs
 
 The migration from monolithic `src/pages/*.html` with `extra_scripts.py`

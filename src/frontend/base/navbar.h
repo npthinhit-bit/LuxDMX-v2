@@ -51,7 +51,7 @@ window.LuxNav = (function(){
   function stats(buf){
     if(!(buf instanceof ArrayBuffer) || buf.byteLength<16) return;
     var v=new DataView(buf);
-    var nOut=Math.max(0,Math.floor((buf.byteLength-16-NAV_TAIL)/(CHANS_PER_OUT+PER_OUT)));
+    var nOut=Math.max(0,Math.floor((buf.byteLength-16-NAV_TAIL-1)/(CHANS_PER_OUT+PER_OUT)));
     var statsOff=16+nOut*CHANS_PER_OUT, out=[], inp=[], sty=[];
     for(var oi=0;oi<nOut;oi++){
       out.push((v.getUint16(statsOff+2*oi)/10).toFixed(1));

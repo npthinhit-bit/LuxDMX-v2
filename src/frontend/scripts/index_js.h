@@ -242,15 +242,15 @@ function connect() {
     }
     if (!(e.data instanceof ArrayBuffer)) return;
     if (window.LuxNav) LuxNav.stats(e.data);   // the shared navbar reads its stats off this frame
-    // frame: 16-byte header, dmx(512 * nOut), per-output stats(5 * nOut), 10-byte RDM tail
+    // frame: 16-byte header, dmx(512 * nOut), per-output stats(5 * nOut), 1 changed-bitmap, 10-byte RDM tail
     var v = new DataView(e.data);
     var srcStatus = v.getUint8(13);   // 0 = normal, 1 = conflict, 2 = merging (drives the banners)
 
     // Output frame rates label each output-selector button.
-    // Frame layout: 16-byte header, DMX(CHANS * nOut), per-output stats(5 * nOut), 10-byte tail.
+    // Frame layout: 16-byte header, DMX(CHANS * nOut), per-output stats(5 * nOut), 1 changed-bitmap, 10-byte tail.
     // 5 bytes per output: out fps(2), in fps(2), transmit style(1).
     var CHANS = 512;
-    var nOut = Math.max(0, Math.floor((v.byteLength - 16 - 10) / (CHANS + 5)));
+    var nOut = Math.max(0, Math.floor((v.byteLength - 16 - 10 - 1) / (CHANS + 5)));
     var statsOff = 16 + nOut * CHANS;   // start of the per-output stats blocks
     var perOut = [];
     for (var oi = 0; oi < nOut; oi++) perOut[oi] = v.getUint16(statsOff + 2 * oi) / 10;

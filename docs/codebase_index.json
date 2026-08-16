@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "LuxDMX V2",
-  "last_updated": "2026-08-16T04:21:55+00:00",
+  "last_updated": "2026-08-16T11:16:49+00:00",
   "files": {
     "src/main.cpp": {
       "layer": "app",
@@ -36,7 +36,9 @@
         "handleSetupDone",
         "handleResetDone"
       ],
-      "includes": ["firmware_version.h"],
+      "includes": [
+        "firmware_version.h"
+      ],
       "changed_in_fix": true
     },
     "src/frontend/web_frontend.h": {
@@ -61,7 +63,11 @@
     "src/frontend/base/navbar.h": {
       "layer": "net",
       "purpose": "Shared navbar: NAVBAR_CSS + NAVBAR_HTML + NAVBAR_JS. Navbar shows live stats via /info.json and WebSocket binary frames. Uses /logo.webp",
-      "key_variables": ["NAVBAR_CSS", "NAVBAR_HTML", "NAVBAR_JS"],
+      "key_variables": [
+        "NAVBAR_CSS",
+        "NAVBAR_HTML",
+        "NAVBAR_JS"
+      ],
       "notes": "navbar JS fetches /info.json (not /version.json) for version display"
     },
     "src/frontend/base/footer.h": {
@@ -171,7 +177,9 @@
     "src/net/web_server.cpp": {
       "layer": "net",
       "purpose": "Route registration: http.on() for all endpoints",
-      "key_functions": ["webRegisterRoutes"],
+      "key_functions": [
+        "webRegisterRoutes"
+      ],
       "changed_in_fix": true,
       "notes": "Routes: /ota -> handleOtaStatus (HTML), /ota/status -> handleOtaStatusJson (JSON)"
     },
@@ -234,9 +242,15 @@
         "otaFromGitHub",
         "otaFromUrl"
       ],
-      "key_variables": ["otaProgPhase", "otaProgPct"]
+      "key_variables": [
+        "otaProgPhase",
+        "otaProgPct"
+      ]
     },
-    "src/net/ota.h": { "layer": "net", "purpose": "OTA function declarations" },
+    "src/net/ota.h": {
+      "layer": "net",
+      "purpose": "OTA function declarations"
+    },
     "src/net/ota_sign.cpp": {
       "layer": "net",
       "purpose": "Ed25519 signature verification for release firmware"
@@ -256,7 +270,10 @@
     "src/net/ws_handler.cpp": {
       "layer": "net",
       "purpose": "WebSocket text handler: RDM commands (discover/setaddr/identify/setpers/setlabel)",
-      "key_functions": ["wsInit", "wsSendJson"]
+      "key_functions": [
+        "wsInit",
+        "wsSendJson"
+      ]
     },
     "src/net/ws_handler.h": {
       "layer": "net",
@@ -279,9 +296,14 @@
         "artnetRecv",
         "handleArtRdm"
       ],
-      "key_variables": ["artRdmRespQueue"]
+      "key_variables": [
+        "artRdmRespQueue"
+      ]
     },
-    "src/net/artnet.h": { "layer": "net", "purpose": "Art-Net declarations" },
+    "src/net/artnet.h": {
+      "layer": "net",
+      "purpose": "Art-Net declarations"
+    },
     "src/net/art_rdm_resp_queue.cpp": {
       "layer": "net",
       "purpose": "Cross-core SPSC ring buffer for Art-Net RDM responses (8x256B, volatile + __sync_synchronize)"
@@ -294,7 +316,10 @@
       "layer": "net",
       "purpose": "sACN/E1.31 multicast receiver (own code)"
     },
-    "src/net/sacn.h": { "layer": "net", "purpose": "sACN declarations" },
+    "src/net/sacn.h": {
+      "layer": "net",
+      "purpose": "sACN declarations"
+    },
     "src/net/ethernet.cpp": {
       "layer": "net",
       "purpose": "Ethernet init: W5500 SPI + RMII LAN8720"
@@ -334,7 +359,10 @@
     "src/core/rdm_task.cpp": {
       "layer": "core",
       "purpose": "RDM FreeRTOS task on core 1 (priority 18): command queue, rdmRmtSelect, rdmTx, rdmReadFrame",
-      "key_functions": ["rdmTaskLoop", "rdmRmtSelect"],
+      "key_functions": [
+        "rdmTaskLoop",
+        "rdmRmtSelect"
+      ],
       "notes": "Uses xTaskCreatePinnedToCore on core 1"
     },
     "src/core/rdm_task.h": {
@@ -349,7 +377,10 @@
       "layer": "core",
       "purpose": "Statistics collection"
     },
-    "src/core/stats.h": { "layer": "core", "purpose": "Stats declarations" },
+    "src/core/stats.h": {
+      "layer": "core",
+      "purpose": "Stats declarations"
+    },
     "src/core/output_init.cpp": {
       "layer": "core",
       "purpose": "Output initialization (outputInitAll) + crash guard"
@@ -386,7 +417,10 @@
       "layer": "sys",
       "purpose": "OLED display driver (I2C / SPI)"
     },
-    "src/sys/display.h": { "layer": "sys", "purpose": "Display declarations" },
+    "src/sys/display.h": {
+      "layer": "sys",
+      "purpose": "Display declarations"
+    },
     "src/sys/soak_monitor.cpp": {
       "layer": "sys",
       "purpose": "Soak-test heap watchdog (LUXDMX_SOAK_TEST). Reboots if DRAM < 30KB"
@@ -421,7 +455,9 @@
         "FIRMWARE_BUILD",
         "FIRMWARE_VARIANT"
       ],
-      "key_functions": ["versionCheck"]
+      "key_functions": [
+        "versionCheck"
+      ]
     },
     "src/sys/firmware_version.h": {
       "layer": "sys",
@@ -431,11 +467,18 @@
       "layer": "sys",
       "purpose": "Serial/system logging"
     },
-    "src/sys/syslog.h": { "layer": "sys", "purpose": "Syslog declarations" },
+    "src/sys/syslog.h": {
+      "layer": "sys",
+      "purpose": "Syslog declarations"
+    },
     "src/cfg/config_schema.cpp": {
       "layer": "cfg",
       "purpose": "Canonical CONFIG_FIELDS[] + OUTPUT_FIELDS[] table. Single source of truth for all config fields.",
-      "key_functions": ["cfgFieldLookup", "cfgFieldValidate", "cfgForEachField"]
+      "key_functions": [
+        "cfgFieldLookup",
+        "cfgFieldValidate",
+        "cfgForEachField"
+      ]
     },
     "src/cfg/config_core.cpp": {
       "layer": "cfg",
@@ -528,7 +571,11 @@
     "tools/extract_frontend.py": {
       "layer": "build",
       "purpose": "Standalone: extracts page bodies/CSS/JS from src/pages/*.html into src/frontend/*.h. Not called by build.",
-      "key_functions": ["extract_css", "extract_body", "extract_scripts"],
+      "key_functions": [
+        "extract_css",
+        "extract_body",
+        "extract_scripts"
+      ],
       "notes": "extract_body regex strips trailing </div> — caused BUG-005 unclosed HTML in rdm_page.h"
     },
     "src/config_templates_gen.cpp": {
@@ -688,7 +735,10 @@
       "type": "bool",
       "notes": "true if Ethernet (W5500/RMII) is active"
     },
-    "g_dmxTask": { "file": "src/sys/tasks.cpp", "type": "TaskHandle_t" },
+    "g_dmxTask": {
+      "file": "src/sys/tasks.cpp",
+      "type": "TaskHandle_t"
+    },
     "OTA_BOOT_TRIES": {
       "file": "src/sys/sys_platform.h",
       "type": "static const uint8_t",
@@ -786,10 +836,21 @@
         "handleHealth",
         "sendJson"
       ],
-      "src/net/web_server.cpp": ["webRegisterRoutes"],
-      "src/sys/tasks.cpp": ["createTasks", "dmxTxTask", "netRxTask", "ledTask"],
-      "src/core/dmx_buffer.cpp": ["snapshotAndTransmit"],
-      "src/sys/firmware_version.cpp": ["versionCheck"],
+      "src/net/web_server.cpp": [
+        "webRegisterRoutes"
+      ],
+      "src/sys/tasks.cpp": [
+        "createTasks",
+        "dmxTxTask",
+        "netRxTask",
+        "ledTask"
+      ],
+      "src/core/dmx_buffer.cpp": [
+        "snapshotAndTransmit"
+      ],
+      "src/sys/firmware_version.cpp": [
+        "versionCheck"
+      ],
       "src/net/ota.cpp": [
         "otaBootUpdate",
         "otaUploadChunk",
@@ -799,11 +860,26 @@
       "src/sys/sys_platform.cpp": []
     },
     "function_calls": {
-      "sendAppPage": ["String", "FPSTR", "FPSTR", "String", "sendJson"],
-      "sendRawPage": ["String"],
-      "handleOtaStatus": ["sendRawPage"],
-      "handleOtaStatusJson": ["sendJson"],
-      "handleOtaGithub": ["otaFromGitHub", "xTaskCreatePinnedToCore"],
+      "sendAppPage": [
+        "String",
+        "FPSTR",
+        "FPSTR",
+        "String",
+        "sendJson"
+      ],
+      "sendRawPage": [
+        "String"
+      ],
+      "handleOtaStatus": [
+        "sendRawPage"
+      ],
+      "handleOtaStatusJson": [
+        "sendJson"
+      ],
+      "handleOtaGithub": [
+        "otaFromGitHub",
+        "xTaskCreatePinnedToCore"
+      ],
       "webRegisterRoutes": [
         "handleRoot",
         "handleConfigGet",
@@ -815,15 +891,30 @@
         "handleOtaGithub",
         "handleOtaUrl"
       ],
-      "createTasks": ["xTaskCreatePinnedToCore", "xTaskCreate"],
-      "versionCheckTask": ["versionCheck"]
+      "createTasks": [
+        "xTaskCreatePinnedToCore",
+        "xTaskCreate"
+      ],
+      "versionCheckTask": [
+        "versionCheck"
+      ]
     },
     "module_dependencies": {
-      "drv": ["core"],
-      "cfg": ["core"],
+      "drv": [
+        "core"
+      ],
+      "cfg": [
+        "core"
+      ],
       "core": [],
-      "net": ["core", "cfg", "sys"],
-      "sys": ["core"]
+      "net": [
+        "core",
+        "cfg",
+        "sys"
+      ],
+      "sys": [
+        "core"
+      ]
     },
     "file_dependencies": {
       "src/frontend/web_frontend.cpp": [
@@ -915,7 +1006,14 @@
       "CONFIG_SPIRAM_USE_MALLOC=y",
       "CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP=y",
       "CONFIG_SPIRAM_IGNORE_NOTFOUND=y"
-    ]
+    ],
+    "default_templates": {
+      "esp32dev": "esp32dev",
+      "esp32s3dev": "esp32s3dev",
+      "wt32eth01": "wt32eth01",
+      "esp32s3_psram": "esp32s3_psram",
+      "esp32s3_n16r8_eth": "luxdmx_4uni"
+    }
   },
   "timing_sensitive": [
     "dmxTxTask",
@@ -958,7 +1056,10 @@
     "src/frontend/pages/setup_page.h",
     "src/net/web_routes.cpp",
     "src/net/web_routes.h",
-    "src/net/web_server.cpp"
+    "src/net/web_server.cpp",
+    "platformio.ini",
+    "templates/esp32s3_psram.ini",
+    "src/frontend/base/navbar.h"
   ],
   "bugs_fixed": [
     "BUG-001: __FWVER__ never substituted",
@@ -966,6 +1067,8 @@
     "BUG-003: /ota/status returned HTML instead of JSON",
     "BUG-004: handleOtaGithub param version vs url mismatch",
     "BUG-005: Unclosed HTML divs in rdm_page.h",
-    "BUG-006: /logo.png vs /logo.webp in setup_page.h"
+    "BUG-006: /logo.png vs /logo.webp in setup_page.h",
+    "BUG-007: esp32s3_psram env DEFAULT_TEMPLATE=esp32s3dev instead of esp32s3_psram (no WiFi creds)",
+    "BUG-008: WebSocket frame nOut miscalculation (JS didn't account for 1-byte changed-bitmap)"
   ]
 }
