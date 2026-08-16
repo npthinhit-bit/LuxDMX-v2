@@ -465,3 +465,137 @@ Low. The changes are additive (new HTML elements at the end of an existing PROGM
 
 ### Lesson
 When migrating frontend code from monolithic HTML pages to modular PROGMEM fragments, verify that EVERY DOM element ID referenced by JavaScript has a matching HTML element in the corresponding body fragment. A missing element causes a null reference that crashes the entire page's JavaScript, silently breaking all functionality. The `tools/extract_frontend.py` script's regex-based extraction (which previously caused BUG-005 with unclosed divs) was not involved here — the board modal and save bar were never in the source HTML at all, suggesting they were designed in JS/CSS but the HTML was never written. Always cross-reference JS `$('elementId')` calls against the HTML to catch missing elements before they ship.
+
+
+## BUG-010: ArtPollReply field offsets wrong, ESTA code missing, NodeType inverted, GoodOutput values reversed
+
+Date: 2026-08-16
+Subsystem: net/artnet
+Severity: High (ArtPollReply rejected or misinterpreted by lighting consoles)
+Affected hardware: all (Art-Net enabled builds)
+Affected PlatformIO environment: all with `cfg.protocol != 1`
+
+### Symptom
+Lighting consoles (e.g., ETC, AVOLITES, MadMapper) fail to properly identify or control LuxDMX devices in Art-Net mode. Some consoles show the device as an "input" node instead of an output node, others don't discover it at all, and the ShortName/LongName appear garbled in the console's device list.
+
+### Root Cause
+`sendArtPollReply()` in `src/net/artnet_bridge.cpp` had multiple Art-Net 4 ArtPollReply layout violations:
+
+1. **NumNodes (bytes 12-13)** set to `0, MAX_OUTPUTS` instead of `1, 0` -- claims there are MAX_OUTPUTS nodes in a single device
+2. **NumPorts (bytes 14-15)** set to `0, 0` instead of `MAX_OUTPUTS, 0` -- claims zero ports
+3. **NodeType (byte 16)** set to `0x02` (input node) instead of `0x01` (output node) -- LuxDMX is output-only
+4. **ESTA code (bytes 18-21)** never written -- left as zeros from `memset`
+5. **ShortName (bytes 22-39)** written at offset 44 with only 16 bytes instead of offset 22 with 18 bytes -- shifted into the ESTA/GoodInput area
+6. **LongName (bytes 40-73)** written at offset 60 with 32 bytes instead of offset 40 with 34 bytes -- shifted by 20 bytes
+7. **NodeReport (bytes 74-137)** written at offset 92 with 64 bytes -- shifted by 18 bytes
+8. **SwOut at wrong offset**: `reply[24+i] = 0x80` (bytes 24-27) -- this is not a valid ArtPollReply field at that offset; 0x80 is also not a valid SwOut style value (valid values: 0=DMX, 1=ArtNet, etc.)
+9. **GoodOutput (bytes 172-175)**: written at offset 28-31 with values `0x01` (enabled) / `0x80` (disabled) -- reversed and at wrong offset. Art-Net spec uses bit 7 (0x80) = "good", so enabled should be 0x80, disabled should be 0x00.
+10. **Oem (bytes 140-141)**, **Status1 (byte 144)**, **Status2 (byte 145)** never populated -- left as zeros
+11. **SwIn/SwOut (bytes 148-155)** never explicitly written
+
+### Incorrect Approaches
+- Tried leaving the "reserved" IP/Subnet/Gateway at bytes 156-167 in place (non-standard, falls in reserved area) -- kept for backward compatibility since existing controllers may read it there
+
+### Fix
+Rewrote `sendArtPollReply()` with the correct Art-Net 4 field layout:
+- NumNodes = 1 (byte 12, LE)
+- NumPorts = MAX_OUTPUTS (byte 14, LE)
+- NodeType = 0x01 (output node)
+- ESTA code at bytes 18-21 (placeholder 0x00000000, needs registered ESTA code)
+- ShortName at bytes 22-39 (18 bytes, space-padded)
+- LongName at bytes 40-73 (34 bytes, space-padded)
+- NodeReport at bytes 74-137 (64 bytes, space-padded)
+- Oem at bytes 140-141 (0x0000)
+- Status1 at byte 144, Status2 at byte 145 (0x00)
+- SwIn at bytes 148-151 (0x00 = DMX, no inputs)
+- SwOut at bytes 152-155 (0x00 = DMX style)
+- GoodInput at bytes 168-171 (0x80 = good)
+- GoodOutput at bytes 172-175 (0x80 if enabled, 0x00 if disabled)
+- MAC at bytes 176-181 (unchanged)
+- IP/Subnet/Gateway kept at bytes 156-167 (non-standard but existing behavior)
+
+### Files / Functions
+- `src/net/artnet_bridge.cpp` -- `sendArtPollReply()` (complete rewrite of body)
+
+### Validation
+Build succeeded: `pio run -e esp32s3_psram`.
+
+### Regression Risk
+Medium. The ArtPollReply is broadcast in response to ArtPoll from lighting consoles. Existing console sessions will need to rediscover the device. The field values are now spec-compliant, so consoles that previously worked (by accident) should continue to work, and consoles that previously rejected the reply should now accept it.
+
+### Lesson
+ArtPollReply field offsets and semantics must be verified against the official Art-Net 4 specification. Writing fields at incorrect offsets puts garbage data in adjacent fields (e.g., SwOut values in the ShortName area). Always cross-check against a known-good reference implementation. The NumNodes field should be 1 for a single device, not the port count. The NodeType bit for output is 0x01, not 0x02.
+
+---
+
+## BUG-011: OTA signature verification used deprecated mbedtls SHA256 API
+
+Date: 2026-08-16
+Subsystem: net/ota_sign
+Severity: Medium (build warnings; risk of API removal in future mbedtls versions)
+Affected hardware: all with OTA_SIGN_ENABLED=1 (esp32s3_n16r8_eth)
+Affected PlatformIO environment: esp32s3_n16r8_eth (and any future production build)
+
+### Symptom
+The `otaVerifyAndCommit()` function in `src/net/ota_sign.cpp` called the deprecated non-_ret mbedtls SHA256 functions (`mbedtls_sha256_starts`, `mbedtls_sha256_update`, `mbedtls_sha256_finish`) which return void and have been deprecated in mbedtls 3.x. These functions could be removed in future ESP-IDF versions, causing build failures.
+
+### Root Cause
+The mbedtls SHA256 API changed in mbedtls 3.x: functions that previously returned void (`mbedtls_sha256_starts`, `mbedtls_sha256_update`, `mbedtls_sha256_finish`) were renamed with a `_ret` suffix and now return `int` (error code). The original code did not check return values either, silently ignoring potential SHA-256 computation errors.
+
+### Fix
+Replaced all mbedtls SHA256 calls with their `_ret` variants and added return value checks with proper cleanup:
+- `mbedtls_sha256_starts_ret(&shaCtx, 0)` -- returns int, check for != 0
+- `mbedtls_sha256_update_ret(&shaCtx, buf, toRead)` -- returns int, check for != 0
+- `mbedtls_sha256_finish_ret(&shaCtx, hash)` -- returns int, check for != 0
+
+Each failure path frees the SHA256 context before returning false.
+
+### Files / Functions
+- `src/net/ota_sign.cpp` -- `otaVerifyAndCommit()` (lines 87-115)
+
+### Validation
+Build succeeded: `pio run -e esp32s3_psram`. The code compiles without deprecation warnings for SHA256 API calls.
+
+### Regression Risk
+Low. The `_ret` variants are functionally identical to their non-ret counterparts in mbedtls 3.x (the non-ret versions are thin wrappers). The additional error checks are defensive -- a SHA-256 failure on an ESP32 is extremely unlikely, but checking is correct embedded practice.
+
+### Lesson
+Always use the `_ret` variant of mbedtls functions in mbedtls 3.x projects (ESP-IDF v5.x). The non-ret variants are deprecated and may be removed. Always check return values from mbedtls functions -- a failed SHA-256 or PK operation should cause the OTA verification to fail (reject the update), not silently accept a potentially corrupt signature.
+
+---
+
+## BUG-012: mDNS base service TXT records missing (api-version, fw-version, distro, board)
+
+Date: 2026-08-16
+Subsystem: net/mDNS
+Severity: Low (discovery tools cannot identify firmware version or board type)
+Affected hardware: all
+Affected PlatformIO environment: all
+
+### Symptom
+mDNS discovery tools (e.g., `dns-sd -B _services._dns-sd._udp`) can see the HTTP service is announced but cannot determine the firmware version, API version, or board type from the TXT records. Only Art-Net and sACN services had TXT records configured.
+
+### Root Cause
+In `src/main.cpp`, `MDNS.addServiceTxt()` was only called for the "artnet" and "e131" services. The "http" service (port 80) had no TXT records attached, so discovery tools querying the HTTP service TXT records would get no metadata.
+
+### Fix
+Added four TXT records to the "http" service in `src/main.cpp` after `MDNS.addService("http", "tcp", 80)`:
+```cpp
+MDNS.addServiceTxt("http", "tcp", "api-version", "1");
+MDNS.addServiceTxt("http", "tcp", "fw-version", FIRMWARE_VERSION);
+MDNS.addServiceTxt("http", "tcp", "distro", "luxdmx-v2");
+MDNS.addServiceTxt("http", "tcp", "board", BOARD_ID);
+```
+`FIRMWARE_VERSION` is available via `src/sys/firmware_version.h` (already included) and `BOARD_ID` via `src/sys/sys_platform.h` (already included).
+
+### Files / Functions
+- `src/main.cpp` -- `setup()` (mDNS registration section)
+
+### Validation
+Build succeeded: `pio run -e esp32s3_psram`.
+
+### Regression Risk
+None. TXT records are additive metadata -- they do not affect mDNS service discovery or HTTP functionality.
+
+### Lesson
+Base service TXT records (not just protocol-specific ones) are essential for device discovery and identification. Lighting consoles and network scanners rely on these fields to filter, categorize, and verify devices. Always add version and board identification to the primary HTTP mDNS service so that any discovery tool can identify the device regardless of which protocol mode it is in.

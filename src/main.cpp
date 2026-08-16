@@ -78,6 +78,10 @@ void setup() {
     otaBootUpdate();
     if (MDNS.begin(cfg.hostname.c_str())) {
         MDNS.addService("http",   "tcp", 80);
+        MDNS.addServiceTxt("http", "tcp", "api-version", "1");
+        MDNS.addServiceTxt("http", "tcp", "fw-version", FIRMWARE_VERSION);
+        MDNS.addServiceTxt("http", "tcp", "distro", "luxdmx-v2");
+        MDNS.addServiceTxt("http", "tcp", "board", BOARD_ID);
         if (cfg.protocol != 1) MDNS.addService("artnet", "udp", 6454);
         if (cfg.protocol != 0) MDNS.addService("e131",   "udp", 5568);
         if (cfg.protocol != 1) {

@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "project": "LuxDMX V2",
-  "last_updated": "2026-08-16T11:16:49+00:00",
+  "last_updated": "2026-08-16T23:30:00+00:00",
   "files": {
     "src/main.cpp": {
       "layer": "app",
-      "purpose": "Thin wiring layer: setup() numbered phases + loop() polls serial/dirty-flags/RDM/OTA queues/WebSocket push",
+      "purpose": "Thin wiring layer: setup() numbered phases + loop() polls serial/dirty-flags/RDM/OTA queues/WebSocket push. Registers mDNS services with TXT records (api-version, fw-version, distro, board).",
       "key_functions": [
         "setup",
         "loop",
@@ -176,12 +176,13 @@
     },
     "src/net/web_server.cpp": {
       "layer": "net",
-      "purpose": "Route registration: http.on() for all endpoints",
+      "purpose": "Route registration: http.on() for all endpoints. rateLimitHandler() wrapper enforces token-bucket rate limiting on config/OTA POST routes.",
       "key_functions": [
-        "webRegisterRoutes"
+        "webRegisterRoutes",
+        "rateLimitHandler"
       ],
       "changed_in_fix": true,
-      "notes": "Routes: /ota -> handleOtaStatus (HTML), /ota/status -> handleOtaStatusJson (JSON)"
+      "notes": "Routes: /ota -> handleOtaStatus (HTML), /ota/status -> handleOtaStatusJson (JSON). Rate limiting via rateLimitHandler() wrapper on 4 POST routes: /config POST, /ota/github POST, /ota/url POST, /ota/upload POST"
     },
     "src/net/web_server.h": {
       "layer": "net",
@@ -234,7 +235,7 @@
     },
     "src/net/ota.cpp": {
       "layer": "net",
-      "purpose": "OTA implementation: otaBootUpdate (crash-guard), otaUploadChunk, otaFromGitHub, otaFromUrl. Writes otaProgPhase (0=idle,1=dl+write,2=finalize,3=err) and otaProgPct",
+      "purpose": "OTA implementation: otaBootUpdate (crash-guard), otaUploadChunk (rate-limited at index==0 via g_otaRateLimiter), otaFromGitHub, otaFromUrl. Writes otaProgPhase (0=idle,1=dl+write,2=finalize,3=err) and otaProgPct",
       "key_functions": [
         "otaBootUpdate",
         "otaUploadChunk",
@@ -245,6 +246,9 @@
       "key_variables": [
         "otaProgPhase",
         "otaProgPct"
+      ],
+      "includes": [
+        "src/net/rate_limiter.h"
       ]
     },
     "src/net/ota.h": {
@@ -253,11 +257,19 @@
     },
     "src/net/ota_sign.cpp": {
       "layer": "net",
-      "purpose": "Ed25519 signature verification for release firmware"
+      "purpose": "Ed25519 signature verification for release firmware. Uses mbedtls 3.x _ret API (mbedtls_sha256_starts_ret/update_ret/finish_ret) with return-value checking. Computes SHA-256 of firmware image, verifies 64-byte Ed25519 signature suffix using MBEDTLS_MD_NONE (hash-as-message)."
     },
     "src/net/ota_sign.h": {
       "layer": "net",
       "purpose": "OTA signature verification declarations"
+    },
+    "src/net/rate_limiter.cpp": {
+      "layer": "net",
+      "purpose": "IP-based token-bucket rate limiter for HTTP endpoints. Per-client-IP buckets with fixed-size table (32 entries, no heap). Global instances: g_otaRateLimiter(5/min, burst 10), g_configRateLimiter(30/min, burst 60). Called from AsyncWebServer task on core 0."
+    },
+    "src/net/rate_limiter.h": {
+      "layer": "net",
+      "purpose": "RateLimiter class: RateLimitEntry struct, allow(ip), getHits(ip). Global g_otaRateLimiter and g_configRateLimiter extern declarations."
     },
     "src/net/websocket.cpp": {
       "layer": "net",
@@ -299,6 +311,20 @@
       "key_variables": [
         "artRdmRespQueue"
       ]
+    },
+    "src/net/artnet_bridge.cpp": {
+      "layer": "net",
+      "purpose": "ArtPollReply, ArtAddress, ArtIpProg, ArtTodRequest, ArtRdm handlers. sendArtPollReply() builds a 240-byte ArtPollReply with correct Art-Net 4 field layout (NumNodes=1, NumPorts=MAX_OUTPUTS, NodeType=0x01 output, ESTA code, ShortName@22, LongName@40, NodeReport@74, SwIn@148, SwOut@152, GoodInput@168, GoodOutput@172, MAC@176). handleArtRdm() enqueues to core-1 DMX task (non-blocking).",
+      "key_functions": [
+        "sendArtPollReply",
+        "handleArtAddress",
+        "handleArtIpProg",
+        "handleArtTodRequest",
+        "handleArtRdm",
+        "handleArtPoll",
+        "artnetBridgeDispatch"
+      ],
+      "changed_in_fix": true
     },
     "src/net/artnet.h": {
       "layer": "net",
@@ -581,6 +607,18 @@
     "src/config_templates_gen.cpp": {
       "layer": "cfg",
       "purpose": "NVS template string array (compiled-in board defaults)"
+    },
+    "tools/gen_ota_keys.py": {
+      "layer": "build",
+      "purpose": "Generates Ed25519 key pair (public/private) for OTA signature verification. Outputs firmware_secure_boot_public_key.pem and firmware_secure_boot_private_key.pem"
+    },
+    "tools/sign_ota.py": {
+      "layer": "build",
+      "purpose": "Signs built firmware binary with Ed25519 private key. Appends 64-byte signature to .bin for ota_sign.cpp verification"
+    },
+    "docs/ota-key-management.md": {
+      "layer": "build",
+      "purpose": "Documentation for OTA signing key generation, distribution, and rotation workflow"
     }
   },
   "functions": {

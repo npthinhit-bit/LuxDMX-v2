@@ -13,7 +13,7 @@
 #include <WiFi.h>
 
 #ifndef OTA_SIGN_ENABLED
-#define OTA_SIGN_ENABLED 0
+#define OTA_SIGN_ENABLED 1
 #endif
 
 void otaBootUpdate() {

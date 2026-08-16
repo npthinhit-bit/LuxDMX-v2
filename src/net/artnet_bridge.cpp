@@ -1,4 +1,4 @@
-#include "artnet.h"
+ï»¿#include "artnet.h"
 #include "config_schema.h"
 #include "config_core.h"
 #include "frame_router.h"
@@ -22,55 +22,61 @@ static void sendArtPollReply(uint32_t ip) {
     uint8_t reply[240];
     memset(reply, 0, sizeof(reply));
     memcpy(reply + 0, ARTNET_ID, 8);
-    reply[8]  = 0x00;
-    reply[9]  = 0x21;
+    reply[8]  = 0x21;
+    reply[9]  = 0x00;
     reply[10] = 14;
     reply[11] = 0;
-    reply[12] = 0;
-    reply[13] = MAX_OUTPUTS;
-    reply[14] = 0;
-    reply[16] = 0x02;
+    reply[12] = 1;
+    reply[13] = 0;
+    reply[14] = MAX_OUTPUTS;
+    reply[15] = 0;
+    reply[16] = 0x01;
     reply[17] = 0x00;
-    reply[18] = 0;
-    reply[19] = 0;
 
-    bool hasRdm = cfg.artnetRdm;
-    for (int i = 0; i < MAX_OUTPUTS; i++) {
-        reply[20 + i] = 0x80;
-        reply[24 + i] = 0x01;
-        reply[28 + i] = cfg.outputs[i].enabled ? 0x01 : 0x00;
-        reply[32 + i] = 0;
-        reply[36 + i] = (uint8_t)(cfg.outputs[i].universe & 0x0F);
-    }
-    reply[43] = hasRdm ? 0x02 : 0x01;
+    // ESTA manufacturer code - placeholder, replace with a registered ESTA code
+    reply[18] = 0x00;
+    reply[19] = 0x00;
+    reply[20] = 0x00;
+    reply[21] = 0x00;
 
-    const char* shortName = "LuxDMX";
-    for (int i = 0; i < 16; i++) reply[48 + i] = shortName[i] ? shortName[i] : ' ';
+    const char* shortName = "LuxDMX V2";
+    for (int i = 0; i < 18; i++) reply[22 + i] = shortName[i] ? shortName[i] : 0x20;
 
-    const char* longName = "LuxDMX Professional";
-    for (int i = 0; i < 16; i++) reply[64 + i] = longName[i] ? longName[i] : ' ';
+    const char* longName = "LuxDMX V2 Art-Net/sACN to DMX Gateway";
+    for (int i = 0; i < 34; i++) reply[40 + i] = longName[i] ? longName[i] : 0x20;
 
     const char* nodeReport = "2000:0000:0001:0100 - LuxDMX V2 Ready";
-    for (int i = 0; i < 96 && nodeReport[i]; i++) reply[80 + i] = nodeReport[i];
+    for (int i = 0; i < 64; i++) reply[74 + i] = nodeReport[i] ? nodeReport[i] : 0x20;
 
-    memcpy(reply + 176, artNet().nodeMac, 6);
+    reply[140] = 0x00;
+    reply[141] = 0x00;
+
+    reply[144] = 0x00;
+    reply[145] = 0x00;
+
+    // SwIn[4] (bytes 148-151): input port switch style — 0 = DMX. No inputs on LuxDMX.
+    for (int i = 0; i < MAX_OUTPUTS; i++) reply[148 + i] = 0x00;
+
+    // SwOut[4] (bytes 152-155): output port switch style — 0 = DMX
+    for (int i = 0; i < MAX_OUTPUTS; i++) reply[152 + i] = 0x00;
 
     IPAddress localIp = netLocalIP();
     uint32_t ipVal = (uint32_t)localIp;
-    memcpy(reply + 182, &ipVal, 4);
-
-    reply[186] = (uint8_t)(ARTNET_PORT & 0xFF);
-    reply[187] = (uint8_t)((ARTNET_PORT >> 8) & 0xFF);
-    reply[188] = 1;
-    reply[189] = 0;
+    memcpy(reply + 156, &ipVal, 4);
 
     IPAddress sn = netSubnetMask();
     uint32_t snVal = (uint32_t)sn;
-    memcpy(reply + 190, &snVal, 4);
+    memcpy(reply + 160, &snVal, 4);
 
     IPAddress gw = netGatewayIP();
     uint32_t gwVal = (uint32_t)gw;
-    memcpy(reply + 194, &gwVal, 4);
+    memcpy(reply + 164, &gwVal, 4);
+
+    for (int i = 0; i < MAX_OUTPUTS; i++) reply[168 + i] = 0x80;
+
+    for (int i = 0; i < MAX_OUTPUTS; i++) reply[172 + i] = cfg.outputs[i].enabled ? 0x80 : 0x00;
+
+    memcpy(reply + 176, artNet().nodeMac, 6);
 
     struct sockaddr_in dst = {};
     dst.sin_family = AF_INET;
