@@ -1,6 +1,6 @@
 #pragma once
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 // Cross-core lock-free SPSC ring: core-1 DMX task PRODUCES completed ArtRdm
 // replies, core-0 netRxTask CONSUMES them via artRdmDrainResponses(). Because the
@@ -10,7 +10,8 @@
 static constexpr size_t ART_RDM_RESP_CAP = 8;
 static constexpr size_t ART_RDM_RESP_MAX = 260;
 
-struct ArtRdmResp {
+struct ArtRdmResp
+{
     uint32_t destIp;
     uint16_t len;
     uint8_t  data[ART_RDM_RESP_MAX];
@@ -18,4 +19,4 @@ struct ArtRdmResp {
 
 void artRdmRespQueueInit(void);
 bool artRdmPushResponse(uint32_t destIp, const uint8_t* data, uint16_t len);  // core 1
-bool artRdmRespPop(ArtRdmResp& out);                                           // core 0
+bool artRdmRespPop(ArtRdmResp& out);                                          // core 0

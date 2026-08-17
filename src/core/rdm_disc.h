@@ -5,7 +5,7 @@
 // All discovery runs on the DMX task thread (the sole owner of the RMT channel).
 #include "rdm_types.h"
 
-uint64_t uidPack(const rdm_uid_t& u);
+uint64_t  uidPack(const rdm_uid_t& u);
 rdm_uid_t uidUnpack(uint64_t v);
 
 // Send DISC_UNIQUE_BRANCH(lower..upper). Returns 0 = empty, 1 = one found, 2 = collision.

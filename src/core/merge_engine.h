@@ -1,6 +1,6 @@
 #pragma once
-#include <stdint.h>
 #include "config_enums.h"
+#include <stdint.h>
 
 // Merge one output's frame from its live sources. Called after updateSender()
 // caches a new frame, before the DMX task clocks it out. Honours E1.31 priority
@@ -13,4 +13,3 @@
 void mergeOutput(int outIdx);
 
 void mergeOutputTimed();
-

@@ -1,0 +1,47 @@
+# Dependabot configuration for LuxDMX-v2
+# Tracks GitHub Actions versions and Python tool dependencies.
+# PlatformIO git-based dependencies (AsyncTCP, ESPAsyncWebServer) are tracked
+# via the dependency-scan CI job (pio pkg list + GitHub release tag check).
+version: 2
+
+updates:
+  # GitHub Actions versions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 4
+    reviewers:
+      - "thinhh0321"
+    commit-message:
+      prefix: "chore"
+      prefix-development: "chore"
+      include: "scope"
+
+  # Python dependencies used by CI tooling (tools/*.py scripts)
+  # If a requirements.txt is added at the repo root, this will track it.
+  - package-ecosystem: "pip"
+    directory: "/tools"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 4
+    reviewers:
+      - "thinhh0321"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+
+  # PlatformIO library dependencies (Unity test framework)
+  - package-ecosystem: "platformio"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 4
+    reviewers:
+      - "thinhh0321"
+    commit-message:
+      prefix: "chore"
+      include: "scope"

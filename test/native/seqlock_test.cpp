@@ -2,21 +2,33 @@
 // Verifies that a snapshot during a write is retried, and that a
 // stable writer yields a clean copy (no torn reads).
 #include "seqlock.h"
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
-#include <cstdint>
 
-struct Frame {
+struct Frame
+{
     uint8_t data[8];
 };
 
 static int g_pass = 0, g_fail = 0;
-#define CHECK(cond, msg) do { if (cond) g_pass++; else { g_fail++; printf("  FAIL: %s\n", msg); } } while (0)
+#define CHECK(cond, msg)                 \
+    do                                   \
+    {                                    \
+        if (cond)                        \
+            g_pass++;                    \
+        else                             \
+        {                                \
+            g_fail++;                    \
+            printf("  FAIL: %s\n", msg); \
+        }                                \
+    } while (0)
 
-int main() {
-    Frame src[1] = {};
+int main()
+{
+    Frame   src[1] = {};
     SeqLock sl;
-    Frame dst[1] = {};
+    Frame   dst[1] = {};
 
     // Clean snapshot: writer idle -> reader gets the data.
     memset(src->data, 0xAA, sizeof(src->data));
@@ -29,9 +41,11 @@ int main() {
     CHECK(dst->data[0] == 0x42, "snapshot during stable write correct");
 
     // Multiple write+read cycles.
-    for (int cycle = 0; cycle < 100; cycle++) {
+    for (int cycle = 0; cycle < 100; cycle++)
+    {
         sl.writeBegin();
-        for (int b = 0; b < 8; b++) src->data[b] = (uint8_t)(cycle + b);
+        for (int b = 0; b < 8; b++)
+            src->data[b] = (uint8_t)(cycle + b);
         sl.writeEnd();
         CHECK(sl.snapshot(src, dst, sizeof(src->data)), "cycle snapshot ok");
         CHECK(dst->data[0] == (uint8_t)cycle, "cycle data[0] ok");

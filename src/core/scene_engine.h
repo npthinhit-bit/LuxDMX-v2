@@ -1,29 +1,30 @@
 #pragma once
-#include <stdint.h>
-#include "rdm_types.h"
 #include "config_schema.h"
+#include "rdm_types.h"
+#include <stdint.h>
 
 // Scene count: 32 for PSRAM targets (S3), 8 for non-PSRAM targets (ESP32).
 // Override via -DCONFIG_LUXDMX_MAX_SCENES=N build flag.
 #ifndef CONFIG_LUXDMX_MAX_SCENES
-  #ifdef CONFIG_SPIRAM_SUPPORT
-    #define CONFIG_LUXDMX_MAX_SCENES 32
-  #else
-    #define CONFIG_LUXDMX_MAX_SCENES 8
-  #endif
+#ifdef CONFIG_SPIRAM_SUPPORT
+#define CONFIG_LUXDMX_MAX_SCENES 32
+#else
+#define CONFIG_LUXDMX_MAX_SCENES 8
+#endif
 #endif
 #define MAX_SCENES CONFIG_LUXDMX_MAX_SCENES
 
-struct Scene {
+struct Scene
+{
     char     name[32];
     uint16_t fadeTimeMs;
-    uint8_t  triggerMask;   // bitfield: which triggers can fire this scene
-    uint8_t  priority;       // scene priority vs live network data (0-255)
+    uint8_t  triggerMask;                         // bitfield: which triggers can fire this scene
+    uint8_t  priority;                            // scene priority vs live network data (0-255)
     uint8_t  data[MAX_OUTPUTS][DMX_PACKET_SIZE];  // per-output frame (start code + 512 slots)
     bool     active;
 };
 
-extern Scene* g_scenes;
+extern Scene*  g_scenes;
 extern uint8_t g_sceneHome;
 
 // Load/save a single scene to NVS.

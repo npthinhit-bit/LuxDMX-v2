@@ -1,7 +1,7 @@
 #pragma once
-#include <stdint.h>
-#include "config_schema.h"
 #include "config_enums.h"
+#include "config_schema.h"
+#include <stdint.h>
 
 #ifndef CONFIG_LUXDMX_MAX_SENDERS
 #define CONFIG_LUXDMX_MAX_SENDERS 16
@@ -10,7 +10,8 @@
 #define SOURCE_TIMEOUT_MS 2500
 #define DEFAULT_PRIORITY 100
 
-struct Sender {
+struct Sender
+{
     uint32_t ip;
     uint8_t  proto;
     uint32_t lastMs;
@@ -23,16 +24,16 @@ struct Sender {
     uint8_t  data[512];
 };
 
-struct SenderTracker {
+struct SenderTracker
+{
     Sender senders[MAX_SENDERS];
 };
 SenderTracker& senderTracker();
 
 bool universeMapped(int universe);
-void updateSender(uint32_t ip, uint8_t proto, int16_t universe,
-                  uint8_t priority, const uint8_t* data, uint16_t length);
+void updateSender(uint32_t ip, uint8_t proto, int16_t universe, uint8_t priority, const uint8_t* data, uint16_t length);
 uint8_t activeSenderCount();
-int sourcesOnUniverse(int universe, uint32_t windowMs);
-bool hasConflict();
-bool isMerging();
+int     sourcesOnUniverse(int universe, uint32_t windowMs);
+bool    hasConflict();
+bool    isMerging();
 uint8_t sourceStatus();

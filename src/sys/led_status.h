@@ -1,8 +1,9 @@
 #pragma once
-#include <stdint.h>
 #include <Arduino.h>
+#include <stdint.h>
 
-struct LedState {
+struct LedState
+{
     uint32_t rgb = 0;
     bool     on  = false;
 };
@@ -14,4 +15,3 @@ void setLedColor(uint32_t rgb, bool on);
 void setLedColor(uint32_t rgb);
 void setLedBrightness(uint8_t pct);
 void bootConnectingLed();
-

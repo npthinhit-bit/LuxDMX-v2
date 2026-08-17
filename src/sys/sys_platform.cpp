@@ -7,8 +7,8 @@ const char* AP_SSID = "LuxDMX-setup";
 // C++-only OTA state (String is Arduino-esp32; keep it out of platform.h so the
 // header stays includable from ESP-IDF C components compiled via the
 // from-source arduino-esp32 build path).
-String otaTarget       = "latest";
-String latestVersion   = "";
+String otaTarget     = "latest";
+String latestVersion = "";
 
 #if defined(BOARD_LUXDMX_V6)
 const char BOARD_ID[] = "luxdmx_v6";
@@ -27,8 +27,8 @@ const char MCU_ID[] = "esp32";
 #endif
 
 // Reboot / OTA scheduling state
-bool     pendingWifiReset = false;
-uint32_t pendingRebootAt  = 0;
-volatile uint8_t otaProgPhase = 0;
-volatile uint8_t otaProgPct   = 0;
-bool     updateAvailable = false;
+bool             pendingWifiReset = false;
+uint32_t         pendingRebootAt  = 0;
+volatile uint8_t otaProgPhase     = 0;
+volatile uint8_t otaProgPct       = 0;
+bool             updateAvailable  = false;

@@ -1,9 +1,10 @@
 #pragma once
-#include <Arduino.h>
 #include "config_schema.h"
+#include <Arduino.h>
 
 // Syslog level codes (RFC 5424 severity).
-enum SyslogLevel {
+enum SyslogLevel
+{
     SYSLOG_EMERG  = 0,
     SYSLOG_ALERT  = 1,
     SYSLOG_CRIT   = 2,

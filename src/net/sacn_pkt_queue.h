@@ -1,9 +1,10 @@
 #pragma once
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 static constexpr size_t SACN_PKT_CAP = 16;
 static constexpr size_t SACN_PKT_MAX = 638;
-struct SacnPkt {
+struct SacnPkt
+{
     uint16_t len;
     uint16_t outIdx;
     uint32_t srcIp;

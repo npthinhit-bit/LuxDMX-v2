@@ -1,13 +1,24 @@
 // Minimal smoke test for the v2 config engine.
+#include "Preferences.h"
 #include "config_core.h"
 #include "config_serial.h"
-#include "Preferences.h"
 #include <cstdio>
 
 static int g_pass = 0, g_fail = 0;
-#define CHECK(cond, msg) do { if (cond) g_pass++; else { g_fail++; printf("  FAIL: %s\n", msg); } } while (0)
+#define CHECK(cond, msg)                 \
+    do                                   \
+    {                                    \
+        if (cond)                        \
+            g_pass++;                    \
+        else                             \
+        {                                \
+            g_fail++;                    \
+            printf("  FAIL: %s\n", msg); \
+        }                                \
+    } while (0)
 
-int main() {
+int main()
+{
     // 1. Template resolution: neutral -> active template -> (no NVS) -> check a few values
     cfgcore::resetToTemplate();
     CHECK(cfg.hostname == "dmx-gateway", "hostname matches _base");
@@ -47,7 +58,7 @@ int main() {
     // 5. Serial console grammar
     {
         cfgserial::Hooks hooks;
-        String r = cfgserial::execute("dump");
+        String           r = cfgserial::execute("dump");
         CHECK(r.indexOf("hostname=testbox") >= 0, "dump shows hostname");
         CHECK(cfgserial::execute("get hostname") == "hostname=testbox", "get hostname");
         CHECK(cfgserial::execute("set ledtype 3") == "OK", "set ledtype");

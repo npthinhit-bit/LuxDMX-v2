@@ -1,7 +1,8 @@
 #pragma once
 #include <Arduino.h>
 
-static const char NAVBAR_CSS[] PROGMEM = R"=====(.site-nav { display:flex; align-items:center; gap:1rem; padding:.6rem 1rem; background:#161b22;
+static const char NAVBAR_CSS[] PROGMEM =
+    R"=====(.site-nav { display:flex; align-items:center; gap:1rem; padding:.6rem 1rem; background:#161b22;
             border-bottom:1px solid #30363d; flex-wrap:wrap; view-transition-name:site-nav;
             position:sticky; top:0; z-index:30; }
 .site-nav .brand { display:flex; align-items:center; gap:.75rem; text-decoration:none; }

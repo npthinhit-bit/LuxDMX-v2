@@ -40,7 +40,8 @@
 
 /** @brief Controllers and responders identify themselves with a 48-bit UID:
  * a 16-bit ESTA manufacturer ID (0x0001..0x7fff) plus a 32-bit device ID. */
-typedef struct __attribute__((packed)) rdm_uid_t {
+typedef struct __attribute__((packed)) rdm_uid_t
+{
     uint16_t man_id;
     uint32_t dev_id;
 } rdm_uid_t;
@@ -53,7 +54,8 @@ static const rdm_uid_t RDM_UID_BROADCAST_ALL = {0xffff, 0xffffffff};
  * seeding a DISC_UNIQUE_BRANCH binary search. */
 static const rdm_uid_t RDM_UID_MAX = {0xffff, 0xfffffffe};
 
-static inline bool rdm_uid_is_eq(const rdm_uid_t* a, const rdm_uid_t* b) {
+static inline bool rdm_uid_is_eq(const rdm_uid_t* a, const rdm_uid_t* b)
+{
     return a->man_id == b->man_id && a->dev_id == b->dev_id;
 }
 
@@ -65,10 +67,14 @@ static inline bool rdm_uid_is_eq(const rdm_uid_t* a, const rdm_uid_t* b) {
 
 /** @brief The root device, as opposed to one of its sub-devices. Every request
  * this firmware sends is addressed to the root. */
-enum { RDM_SUB_DEVICE_ROOT = 0 };
+enum
+{
+    RDM_SUB_DEVICE_ROOT = 0
+};
 
 /** @brief Command class: what kind of message this is. */
-typedef enum {
+typedef enum
+{
     RDM_CC_DISC_COMMAND          = 0x10,
     RDM_CC_DISC_COMMAND_RESPONSE = 0x11,
     RDM_CC_GET_COMMAND           = 0x20,
@@ -84,36 +90,38 @@ typedef enum {
  * controller sends or parses itself; the standard defines many more. */
 typedef uint16_t rdm_pid_t;
 
-enum {
-    RDM_PID_DISC_UNIQUE_BRANCH       = 0x0001,
-    RDM_PID_DISC_MUTE                = 0x0002,
-    RDM_PID_DISC_UN_MUTE             = 0x0003,
-    RDM_PID_STATUS_MESSAGE           = 0x0030,
-    RDM_PID_DEVICE_INFO              = 0x0060,
-    RDM_PID_DEVICE_MODEL_DESCRIPTION = 0x0080,
-    RDM_PID_MANUFACTURER_LABEL       = 0x0081,
-    RDM_PID_DEVICE_LABEL             = 0x0082,
-    RDM_PID_SOFTWARE_VERSION_LABEL   = 0x00c0,
-    RDM_PID_DMX_PERSONALITY          = 0x00e0,
+enum
+{
+    RDM_PID_DISC_UNIQUE_BRANCH          = 0x0001,
+    RDM_PID_DISC_MUTE                   = 0x0002,
+    RDM_PID_DISC_UN_MUTE                = 0x0003,
+    RDM_PID_STATUS_MESSAGE              = 0x0030,
+    RDM_PID_DEVICE_INFO                 = 0x0060,
+    RDM_PID_DEVICE_MODEL_DESCRIPTION    = 0x0080,
+    RDM_PID_MANUFACTURER_LABEL          = 0x0081,
+    RDM_PID_DEVICE_LABEL                = 0x0082,
+    RDM_PID_SOFTWARE_VERSION_LABEL      = 0x00c0,
+    RDM_PID_DMX_PERSONALITY             = 0x00e0,
     RDM_PID_DMX_PERSONALITY_DESCRIPTION = 0x00e1,
-    RDM_PID_DMX_START_ADDRESS        = 0x00f0,
-    RDM_PID_SENSOR_DEFINITION        = 0x0200,
-    RDM_PID_SENSOR_VALUE             = 0x0201,
-    RDM_PID_SENSOR_RECORD            = 0x0202,
-    RDM_PID_IDENTIFY_MODE            = 0x1011,
-    RDM_PID_DEVICE_HOURS             = 0x1010,
-    RDM_PID_DEVICE_POWER             = 0x1012,
-    RDM_PID_BURN_IN                  = 0x1013,
-    RDM_PID_IDENTIFY_DEVICE          = 0x1000,
-    RDM_PID_DEVICE_MODE              = 0x1101,
-    RDM_PID_DEVICE_MODES             = 0x1100,
-    RDM_PID_DEVICE_MODE_DESCRIPTION  = 0x1102,
+    RDM_PID_DMX_START_ADDRESS           = 0x00f0,
+    RDM_PID_SENSOR_DEFINITION           = 0x0200,
+    RDM_PID_SENSOR_VALUE                = 0x0201,
+    RDM_PID_SENSOR_RECORD               = 0x0202,
+    RDM_PID_IDENTIFY_MODE               = 0x1011,
+    RDM_PID_DEVICE_HOURS                = 0x1010,
+    RDM_PID_DEVICE_POWER                = 0x1012,
+    RDM_PID_BURN_IN                     = 0x1013,
+    RDM_PID_IDENTIFY_DEVICE             = 0x1000,
+    RDM_PID_DEVICE_MODE                 = 0x1101,
+    RDM_PID_DEVICE_MODES                = 0x1100,
+    RDM_PID_DEVICE_MODE_DESCRIPTION     = 0x1102,
 };
 
 /** @brief How a responder answered. INVALID and NONE are ours, not E1.20's:
  * they mark "the response was malformed" and "nothing came back at all", which
  * the standard has no code for because it only describes real responses. */
-typedef enum {
+typedef enum
+{
     RDM_RESPONSE_TYPE_ACK          = 0x00,
     RDM_RESPONSE_TYPE_ACK_TIMER    = 0x01,
     RDM_RESPONSE_TYPE_NACK_REASON  = 0x02,
@@ -128,12 +136,14 @@ typedef uint16_t rdm_nr_t;
 /** @brief Why a read failed, if it did. rdm_rmt.h reports failure through its
  * bool return, so in practice this is always DMX_OK; the field stays because
  * the ack struct is what the app layer reads. */
-typedef enum {
+typedef enum
+{
     DMX_OK = 0,
 } dmx_err_t;
 
 /** @brief What came back from a request. */
-typedef struct rdm_ack_t {
+typedef struct rdm_ack_t
+{
     /** @brief Non-zero if reading the response failed. */
     dmx_err_t err;
     /** @brief Size of the response packet in bytes. */
@@ -148,7 +158,8 @@ typedef struct rdm_ack_t {
     /** @brief Responder's queued-message count. Non-zero means it has status
      * messages waiting for collection. */
     int message_count;
-    union {
+    union
+    {
         /** @brief Parameter data length, when type is ACK. */
         size_t pdl;
         /** @brief Milliseconds until the responder is ready, when the type is
@@ -163,7 +174,8 @@ typedef struct rdm_ack_t {
 
 /** @brief The device's current DMX personality and how many it supports.
  * Personalities are numbered from 1. */
-typedef struct __attribute__((packed)) rdm_dmx_personality_t {
+typedef struct __attribute__((packed)) rdm_dmx_personality_t
+{
     uint8_t current;
     uint8_t count;
 } rdm_dmx_personality_t;
@@ -171,14 +183,15 @@ typedef struct __attribute__((packed)) rdm_dmx_personality_t {
 /** @brief GET DEVICE_INFO response. The two leading bytes are the RDM protocol
  * version (always 1.0); they are unnamed because nothing reads them, but they
  * must stay so the struct still matches the wire layout byte for byte. */
-typedef struct __attribute__((packed)) rdm_device_info_t {
-    uint8_t : 8;   // RDM major version, always 1
-    uint8_t : 8;   // RDM minor version, always 0
+typedef struct __attribute__((packed)) rdm_device_info_t
+{
+    uint8_t : 8;  // RDM major version, always 1
+    uint8_t : 8;  // RDM minor version, always 0
     uint16_t model_id;
     uint16_t product_category;
     uint32_t software_version_id;
     /** @brief Number of consecutive DMX slots the device occupies. */
-    uint16_t footprint;
+    uint16_t              footprint;
     rdm_dmx_personality_t personality;
     /** @brief 0xffff when the footprint is 0 (the device patches nowhere). */
     uint16_t dmx_start_address;
@@ -187,7 +200,8 @@ typedef struct __attribute__((packed)) rdm_device_info_t {
 } rdm_device_info_t;
 
 /** @brief GET SENSOR_DEFINITION response: what a sensor measures and its range. */
-typedef struct __attribute__((packed)) rdm_sensor_definition_t {
+typedef struct __attribute__((packed)) rdm_sensor_definition_t
+{
     /** @brief Sensor number, 0 to 0xfe. */
     uint8_t num;
     /** @brief What is being measured (temperature, voltage, ...). */
@@ -197,23 +211,26 @@ typedef struct __attribute__((packed)) rdm_sensor_definition_t {
     /** @brief Decimal prefix applied to the readings (kilo, milli, ...), as a
      * signed power of ten. */
     uint8_t prefix;
-    struct {
+    struct
+    {
         int16_t minimum;
         int16_t maximum;
     } range;
-    struct {
+    struct
+    {
         int16_t minimum;
         int16_t maximum;
     } normal;
     uint8_t recorded_value_support : 1;
     uint8_t lowest_highest_detected_value_support : 1;
-    uint8_t : 6;   // reserved, sent as 0
+    uint8_t : 6;  // reserved, sent as 0
     char description[RDM_ASCII_SIZE_MAX];
 } rdm_sensor_definition_t;
 
 /** @brief GET SENSOR_VALUE response. The lowest/highest/recorded fields are
  * optional in E1.20; a responder that does not track them sends 0. */
-typedef struct __attribute__((packed)) rdm_sensor_value_t {
+typedef struct __attribute__((packed)) rdm_sensor_value_t
+{
     uint8_t sensor_num;
     int16_t present_value;
     int16_t lowest_value;
@@ -223,7 +240,8 @@ typedef struct __attribute__((packed)) rdm_sensor_value_t {
 
 /** @brief What a sensor measures (E1.20 table A-12). Only the types the web UI
  * knows how to label are listed; anything else shows up as a bare number. */
-typedef enum {
+typedef enum
+{
     RDM_SENSOR_TYPE_TEMPERATURE      = 0x00,
     RDM_SENSOR_TYPE_VOLTAGE          = 0x01,
     RDM_SENSOR_TYPE_CURRENT          = 0x02,
@@ -236,7 +254,8 @@ typedef enum {
 
 /** @brief Sensor units (E1.20 table A-13). Only the ones the web UI knows how
  * to label are listed. */
-typedef enum {
+typedef enum
+{
     RDM_UNITS_NONE           = 0x00,
     RDM_UNITS_CENTIGRADE     = 0x01,
     RDM_UNITS_VOLTS_DC       = 0x02,

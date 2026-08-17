@@ -4,9 +4,20 @@
 #include <cstring>
 
 static int g_pass = 0, g_fail = 0;
-#define CHECK(cond, msg) do { if (cond) g_pass++; else { g_fail++; printf("  FAIL: %s\n", msg); } } while (0)
+#define CHECK(cond, msg)                 \
+    do                                   \
+    {                                    \
+        if (cond)                        \
+            g_pass++;                    \
+        else                             \
+        {                                \
+            g_fail++;                    \
+            printf("  FAIL: %s\n", msg); \
+        }                                \
+    } while (0)
 
-int main() {
+int main()
+{
     // 1. UID equality
     {
         rdm_uid_t a = {0x4C58, 0x12345678};

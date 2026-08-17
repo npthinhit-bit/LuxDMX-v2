@@ -1,7 +1,7 @@
 #pragma once
-#include <ESPAsyncWebServer.h>
-#include <Arduino.h>
 #include "rdm_types.h"
+#include <Arduino.h>
+#include <ESPAsyncWebServer.h>
 
 // Dynamic JSON / config / OTA / RDM / LED handlers.
 // These remain defined in the legacy main.cpp for now; forward declarations
@@ -23,8 +23,7 @@ void handleHealth(AsyncWebServerRequest* req);
 void handleConfigPost(AsyncWebServerRequest* req);
 void handleLabelsGet(AsyncWebServerRequest* req);
 void handleAutoUpdatePost(AsyncWebServerRequest* req);
-void handleLabelsBody(AsyncWebServerRequest* req, uint8_t* data, size_t len,
-                      size_t index, size_t total);
+void handleLabelsBody(AsyncWebServerRequest* req, uint8_t* data, size_t len, size_t index, size_t total);
 
 // Setup portal
 void handleSetupScan(AsyncWebServerRequest* req);

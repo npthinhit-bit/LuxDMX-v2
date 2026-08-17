@@ -1,6 +1,6 @@
 #pragma once
-#include <ETH.h>
 #include "config_enums.h"
+#include <ETH.h>
 
 // Ethernet bring-up for wired boards. Runtime-selected between SPI (W5500/DM9051)
 // and RMII (ESP32 internal EMAC). Both paths bring the link up from a core-0 task
@@ -42,9 +42,9 @@ bool startWiFiAP(bool requirePw);
 #endif
 
 // Wired PHY family selection (cfg.wiredPhy).
-#define WIRED_PHY_SPI  0
+#define WIRED_PHY_SPI 0
 #define WIRED_PHY_RMII 1
-#define ETH_SPI_PHY_W5500  0
+#define ETH_SPI_PHY_W5500 0
 #define ETH_SPI_PHY_DM9051 1
 
 // Link-loss fallback policy (cfg.linkLossMode) when wired Ethernet has no link.

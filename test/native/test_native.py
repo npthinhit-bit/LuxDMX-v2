@@ -13,7 +13,12 @@ TEST_DEPS = {
     "rdm_types_test": [],
 }
 
-COMMON_FLAGS = ["-std=c++17", "-DUNIT_TESTING"]
+# Coverage flags — only enabled when ENABLE_COVERAGE env var is set (CI only).
+# MSVC does not support --coverage, so this is g++/clang-only.
+ENABLE_COVERAGE = os.environ.get("ENABLE_COVERAGE", "").lower() in ("1", "true", "yes")
+COVERAGE_FLAGS = ["--coverage", "-fprofile-arcs", "-ftest-coverage"] if ENABLE_COVERAGE else []
+
+COMMON_FLAGS = ["-std=c++17", "-DUNIT_TESTING"] + COVERAGE_FLAGS
 
 # Source files that pull in the generated config_templates.gen.h header.
 # Tests whose deps intersect this set need the header generated first.
@@ -53,11 +58,19 @@ def build_cmd(test_name):
     os.makedirs(build_dir, exist_ok=True)
     exe_path = os.path.join(build_dir, test_name)
     cmd = ["g++"] + COMMON_FLAGS + INCLUDE_PATHS + sources + ["-o", exe_path]
+    # Direct coverage output to the build dir so lcov/gcovr can find it
+    if ENABLE_COVERAGE:
+        cmd.extend(["-fprofile-dir=build/test_native/coverage"])
     return cmd, exe_path
 
 
 def run_single_test(test_name):
     """Compile and run a single test suite. Returns True on PASS, False on FAIL."""
+    # Clean up stale .gcda files from previous runs to avoid stale coverage data
+    if ENABLE_COVERAGE:
+        import glob
+        for gcda in glob.glob(os.path.join(PROJECT_ROOT, "build", "test_native", "*.gcda")):
+            os.remove(gcda)
     # Generate config_templates.gen.h when this test compiles sources that
     # depend on it. PlatformIO normally does this via extra_scripts.py; the
     # standalone native runner must do it itself.

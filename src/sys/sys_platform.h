@@ -1,7 +1,7 @@
 #pragma once
-#include <stdint.h>
-#include <stdbool.h>
 #include <Arduino.h>
+#include <stdbool.h>
+#include <stdint.h>
 
 // NVS namespace and setup-portal constants.
 extern const char* PREF_NS;
@@ -23,13 +23,13 @@ static const uint32_t DMX_LIVE_MS = 1500;
 // ---------------------------------------------------------------------------
 extern uint32_t pendingRebootAt;
 // Clear WiFi creds before the next reboot (reset flow).
-extern bool     pendingWifiReset;
+extern bool pendingWifiReset;
 
 // Live OTA progress, polled by the update page via /ota/status. Written from
 // the HTTP OTA callbacks, read from the web handler; plain aligned bytes.
 extern volatile uint8_t otaProgPhase;     // 0 idle, 1 downloading+writing, 2 finalizing, 3 error
 extern volatile uint8_t otaProgPct;       // 0..100 over the streamed image
-extern bool     updateAvailable;          // a newer release is waiting (checked in setup)
+extern bool             updateAvailable;  // a newer release is waiting (checked in setup)
 
 // Current OTA target and latest available version (from GitHub releases check).
 extern String otaTarget;

@@ -5,7 +5,8 @@
 void setUp(void) {}
 void tearDown(void) {}
 
-void test_uid_equality(void) {
+void test_uid_equality(void)
+{
     rdm_uid_t a = {0x4C58, 0x12345678};
     rdm_uid_t b = {0x4C58, 0x12345678};
     rdm_uid_t c = {0x4C58, 0x12345679};
@@ -14,12 +15,14 @@ void test_uid_equality(void) {
     TEST_ASSERT_FALSE(rdm_uid_is_eq(&a, &RDM_UID_BROADCAST_ALL));
 }
 
-void test_uid_constants(void) {
+void test_uid_constants(void)
+{
     TEST_ASSERT_EQUAL_HEX16(0xFFFF, RDM_UID_BROADCAST_ALL.man_id);
     TEST_ASSERT_EQUAL_HEX32(0xFFFFFFFE, RDM_UID_MAX.dev_id);
 }
 
-void test_pid_constants(void) {
+void test_pid_constants(void)
+{
     TEST_ASSERT_EQUAL_HEX16(0x0001, RDM_PID_DISC_UNIQUE_BRANCH);
     TEST_ASSERT_EQUAL_HEX16(0x0002, RDM_PID_DISC_MUTE);
     TEST_ASSERT_EQUAL_HEX16(0x0030, RDM_PID_STATUS_MESSAGE);
@@ -33,20 +36,23 @@ void test_pid_constants(void) {
     TEST_ASSERT_EQUAL_HEX16(0x0201, RDM_PID_SENSOR_VALUE);
 }
 
-void test_response_type_enum(void) {
+void test_response_type_enum(void)
+{
     TEST_ASSERT_EQUAL(0, RDM_RESPONSE_TYPE_ACK);
     TEST_ASSERT_EQUAL(2, RDM_RESPONSE_TYPE_NACK_REASON);
     TEST_ASSERT_EQUAL(0xfe, RDM_RESPONSE_TYPE_INVALID);
     TEST_ASSERT_EQUAL(0xff, RDM_RESPONSE_TYPE_NONE);
 }
 
-void test_command_class_enum(void) {
+void test_command_class_enum(void)
+{
     TEST_ASSERT_EQUAL(0x10, RDM_CC_DISC_COMMAND);
     TEST_ASSERT_EQUAL(0x20, RDM_CC_GET_COMMAND);
     TEST_ASSERT_EQUAL(0x30, RDM_CC_SET_COMMAND);
 }
 
-void test_sensor_type_enum(void) {
+void test_sensor_type_enum(void)
+{
     TEST_ASSERT_EQUAL(0, RDM_SENSOR_TYPE_TEMPERATURE);
     TEST_ASSERT_EQUAL(1, RDM_SENSOR_TYPE_VOLTAGE);
     TEST_ASSERT_EQUAL(2, RDM_SENSOR_TYPE_CURRENT);
@@ -55,12 +61,14 @@ void test_sensor_type_enum(void) {
     TEST_ASSERT_EQUAL(0x1f, RDM_SENSOR_TYPE_HUMIDITY);
 }
 
-void test_dmx_packet_size(void) {
+void test_dmx_packet_size(void)
+{
     TEST_ASSERT_EQUAL(513, DMX_PACKET_SIZE);
     TEST_ASSERT_EQUAL(33, RDM_ASCII_SIZE_MAX);
 }
 
-int main(void) {
+int main(void)
+{
     UNITY_BEGIN();
     RUN_TEST(test_uid_equality);
     RUN_TEST(test_uid_constants);

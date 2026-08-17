@@ -37,9 +37,7 @@
 
 <p align="center">
   <a href="docs/locales/README.vi.md">🇻🇳 Tiếng Việt</a> &nbsp;·&nbsp;
-  <a href="docs/locales/README.en.md">🇬🇧 English</a> &nbsp;·&nbsp;
-  <a href="docs/locales/README.fr.md">🇫🇷 Français</a> &nbsp;·&nbsp;
-  <a href="docs/locales/README.ja.md">🇯🇵 日本語</a>
+  <a href="docs/locales/README.en.md">🇬🇧 English</a> 
 </p>
 
 | Status page | Settings page |
@@ -561,8 +559,20 @@ End-to-end Playwright tests drive a **live device** — real Art-Net/sACN packet
 
 | Workflow | Trigger | Description |
 |---|---|---|
-| **CI** (`.github/workflows/ci.yml`) | Push to `main`, PR to `main` | Builds all 5 environments + runs native unit tests + lint |
-| **Release** (`.github/workflows/release.yml`) | Push tag `v*` or manual dispatch | Builds all environments, creates GitHub Release with firmware binaries |
+| **CI** (`.github/workflows/ci.yml`) | Push to `main`, PR to `main` | 8 sequential stages: Static Analysis (clang-format, cppcheck, clang-tidy, MISRA) → Dependency Scan (pip-audit, PIO lib audit) → Build & Fingerprint (5 envs + memory thresholds + manifest) → Native Tests (4 suites + gcov/lcov coverage) → Unity Tests (`pio test -e unit-test`) → OTA Sign/Verify (Ed25519 round-trip) → Fuzz Test (AddressSanitizer) → Artifacts Summary |
+| **Release** (`.github/workflows/release.yml`) | Push tag `v*` or manual dispatch | Builds all environments, signs firmware (Ed25519), generates SHA256SUMS, manifest.json, creates GitHub Release with firmware binaries |
+
+### CI Pipeline Stages
+
+| Stage | Tools | What It Checks |
+|---|---|---|
+| Static Analysis | clang-format, cppcheck, clang-tidy, MISRA | Code formatting compliance, memory leaks, NULL pointers, MISRA C++ rule violations |
+| Dependency Scan | pip-audit, pio lib list | Vulnerable Python packages, outdated PlatformIO libraries |
+| Build & Fingerprint | pio run, extract_sizes.py | All 5 envs build; Flash ≤ 90%, RAM ≤ 85% thresholds; per-env manifest.json |
+| Native Tests | test_native.py, gcov, lcov | 4 host smoke tests; line coverage ≥ 70% threshold |
+| Unity Tests | pio test -e unit-test | 4 Unity test suites (config, merge, seqlock, RDM types) |
+| OTA Sign/Verify | sign_ota.py, cryptography | Ed25519 signing round-trip: sign → verify on host |
+| Fuzz Test | clang++, libFuzzer, ASan | Art-Net/sACN packet parsing with random/corrupt input (120s) |
 
 ### Local CI Runner
 
@@ -570,16 +580,11 @@ Run the same steps locally before pushing:
 
 ```bash
 # Linux/macOS
-./scripts/ci_local.sh [build|test|lint|all]
+./scripts/ci_local.sh [build|test|lint|static-analysis|dependency-scan|native-tests|unity-tests|ota-sign-verify|fuzz-test|all]
 
 # Windows PowerShell
-.\scripts\ci_local.ps1 [build|test|lint|all]
+.\scripts\ci_local.ps1 [build|test|lint|static-analysis|dependency-scan|native-tests|unity-tests|ota-sign-verify|fuzz-test|all]
 ```
-
-This runs:
-1. **Build** — compiles all 5 environments (`esp32dev`, `esp32s3dev`, `wt32eth01`, `esp32s3_psram`, `esp32s3_n16r8_eth`)
-2. **Test** — runs native unit tests via `python test/native/test_native.py all`
-3. **Lint** — runs `pio check` on source files
 
 ### Running Tests Manually
 

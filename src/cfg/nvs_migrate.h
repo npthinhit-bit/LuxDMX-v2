@@ -9,8 +9,9 @@
 // migrateNvsKeys() reads each old o<n>_<suffix> key, writes the new a/b_<suffix>
 // equivalent, and erases the old key. Returns the count of keys migrated.
 // Safe to call multiple times (no-op after the first pass).
-namespace nvs_migrate {
+namespace nvs_migrate
+{
 
 int migrateNvsKeys(const char* ns);
 
-} // namespace nvs_migrate
+}  // namespace nvs_migrate

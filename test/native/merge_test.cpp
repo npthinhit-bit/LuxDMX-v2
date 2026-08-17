@@ -1,28 +1,41 @@
 // Host test for the merge engine (src/core/).
 // Verifies HTP merge, LTP/off last-frame-wins, and signal-loss/zero behavior.
 // Note: mergeOutput() calls Arduino millis() and String — both are shimmed.
-#include "merge_engine.h"
-#include "dmx_buffer.h"
-#include "sender_tracker.h"
 #include "config_schema.h"
+#include "dmx_buffer.h"
+#include "merge_engine.h"
+#include "sender_tracker.h"
 #include <cstdio>
 #include <cstring>
 
 static int g_pass = 0, g_fail = 0;
-#define CHECK(cond, msg) do { if (cond) g_pass++; else { g_fail++; printf("  FAIL: %s\n", msg); } } while (0)
+#define CHECK(cond, msg)                 \
+    do                                   \
+    {                                    \
+        if (cond)                        \
+            g_pass++;                    \
+        else                             \
+        {                                \
+            g_fail++;                    \
+            printf("  FAIL: %s\n", msg); \
+        }                                \
+    } while (0)
 
-static void resetOutput(int i) {
-    cfg.outputs[i].enabled = true;
-    cfg.outputs[i].universe = 1;
+static void resetOutput(int i)
+{
+    cfg.outputs[i].enabled   = true;
+    cfg.outputs[i].universe  = 1;
     cfg.outputs[i].mergeMode = MERGE_OFF;
-    cfg.outputs[i].lossMode = LOSS_HOLD;
+    cfg.outputs[i].lossMode  = LOSS_HOLD;
 }
 
-static void clearSenders() {
+static void clearSenders()
+{
     memset(senderTracker().senders, 0, MAX_SENDERS * sizeof(Sender));
 }
 
-int main() {
+int main()
+{
     // --- HTP merge: multiple sources, per-channel max ---
     {
         clearSenders();
@@ -31,8 +44,10 @@ int main() {
         cfg.outputs[0].mergeMode = MERGE_HTP;
 
         // Two sources, same universe, different channels.
-        uint8_t f1[512]; memset(f1, 100, sizeof(f1));
-        uint8_t f2[512]; memset(f2, 200, sizeof(f2));
+        uint8_t f1[512];
+        memset(f1, 100, sizeof(f1));
+        uint8_t f2[512];
+        memset(f2, 200, sizeof(f2));
         updateSender(0xC0A80101, 0, 1, 100, f1, 512);
         updateSender(0xC0A80102, 0, 1, 100, f2, 512);
 
@@ -49,8 +64,10 @@ int main() {
         resetOutput(0);
         cfg.outputs[0].mergeMode = MERGE_OFF;
 
-        uint8_t f1[512]; memset(f1, 50, sizeof(f1));
-        uint8_t f2[512]; memset(f2, 200, sizeof(f2));
+        uint8_t f1[512];
+        memset(f1, 50, sizeof(f1));
+        uint8_t f2[512];
+        memset(f2, 200, sizeof(f2));
         updateSender(0xC0A80101, 0, 1, 100, f1, 512);
         updateSender(0xC0A80102, 0, 1, 100, f2, 512);
 
@@ -65,7 +82,7 @@ int main() {
         clearSenders();
         memset(&dmxBufferState().buffers[0].data[1], 0, 512);
         resetOutput(0);
-        cfg.outputs[0].lossMode = LOSS_ZERO;
+        cfg.outputs[0].lossMode  = LOSS_ZERO;
         cfg.outputs[0].mergeMode = MERGE_HTP;
 
         // No sources active -> buffer should be zeroed.
@@ -82,8 +99,9 @@ int main() {
         resetOutput(0);
         cfg.outputs[0].mergeMode = MERGE_OFF;
 
-        uint8_t f[512]; memset(f, 123, sizeof(f));
-        updateSender(0xC0A80101, 0, 2, 100, f, 512); // universe 2, output listens on 1
+        uint8_t f[512];
+        memset(f, 123, sizeof(f));
+        updateSender(0xC0A80101, 0, 2, 100, f, 512);  // universe 2, output listens on 1
 
         mergeOutput(0);
         uint8_t snap[DMX_PACKET_SIZE];
@@ -100,8 +118,10 @@ int main() {
 
         // Low-priority source sends 100, then high-priority sends 200.
         // Even if the low-priority source was "newest", high-prio should win.
-        uint8_t f1[512]; memset(f1, 100, sizeof(f1));
-        uint8_t f2[512]; memset(f2, 200, sizeof(f2));
+        uint8_t f1[512];
+        memset(f1, 100, sizeof(f1));
+        uint8_t f2[512];
+        memset(f2, 200, sizeof(f2));
         // Send low-priority first
         updateSender(0xC0A80103, 0, 1, 100, f1, 512);  // priority 100
         // Manually update lastMs to make it "newer" (simulate timing)
@@ -122,9 +142,12 @@ int main() {
         resetOutput(0);
         cfg.outputs[0].mergeMode = MERGE_PRIORITY;
 
-        uint8_t f1[512]; memset(f1, 100, sizeof(f1));  // priority 100
-        uint8_t f2[512]; memset(f2, 200, sizeof(f2));  // priority 200 (highest)
-        uint8_t f3[512]; memset(f3, 150, sizeof(f3));  // priority 150 (excluded)
+        uint8_t f1[512];
+        memset(f1, 100, sizeof(f1));  // priority 100
+        uint8_t f2[512];
+        memset(f2, 200, sizeof(f2));  // priority 200 (highest)
+        uint8_t f3[512];
+        memset(f3, 150, sizeof(f3));  // priority 150 (excluded)
         updateSender(0xC0A80101, 0, 1, 100, f1, 512);
         updateSender(0xC0A80102, 0, 1, 200, f2, 512);
         updateSender(0xC0A80103, 0, 1, 150, f3, 512);
@@ -141,10 +164,11 @@ int main() {
         memset(&dmxBufferState().buffers[0].data[1], 0, 512);
         resetOutput(0);
         cfg.outputs[0].failsafeTimeout = 0;  // should default to SOURCE_TIMEOUT_MS (2500)
-        cfg.outputs[0].lossMode = LOSS_ZERO;
+        cfg.outputs[0].lossMode        = LOSS_ZERO;
 
         // Send a frame — source is active (within timeout window).
-        uint8_t f[512]; memset(f, 255, sizeof(f));
+        uint8_t f[512];
+        memset(f, 255, sizeof(f));
         updateSender(0xC0A80101, 0, 1, 100, f, 512);
         mergeOutput(0);
         uint8_t snap[DMX_PACKET_SIZE];
@@ -158,9 +182,10 @@ int main() {
         memset(&dmxBufferState().buffers[0].data[1], 0, 512);
         resetOutput(0);
         cfg.outputs[0].failsafeTimeout = 10;  // 10-second timeout
-        cfg.outputs[0].lossMode = LOSS_ZERO;
+        cfg.outputs[0].lossMode        = LOSS_ZERO;
 
-        uint8_t f[512]; memset(f, 200, sizeof(f));
+        uint8_t f[512];
+        memset(f, 200, sizeof(f));
         updateSender(0xC0A80101, 0, 1, 100, f, 512);
         mergeOutput(0);
         uint8_t snap[DMX_PACKET_SIZE];
@@ -173,7 +198,7 @@ int main() {
         clearSenders();
         memset(&dmxBufferState().buffers[0].data[1], 0, 512);
         resetOutput(0);
-        cfg.outputs[0].lossMode = LOSS_PRESET;
+        cfg.outputs[0].lossMode   = LOSS_PRESET;
         cfg.outputs[0].lossPreset = 5;
 
         mergeOutput(0);

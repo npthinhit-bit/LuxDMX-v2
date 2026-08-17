@@ -1,6 +1,6 @@
 #pragma once
-#include <WiFi.h>
 #include <DNSServer.h>
+#include <WiFi.h>
 
 // Network interface accessors — abstract over WiFi STA/AP and wired Ethernet.
 // Returns true if the active interface has a live link.
@@ -14,8 +14,8 @@ bool netIsLocalSubnet(uint32_t ip);
 IPAddress netLocalIP();
 IPAddress netSubnetMask();
 IPAddress netGatewayIP();
-String netSSID();
-int netRSSI();
+String    netSSID();
+int       netRSSI();
 
 // Mark whether WiFi is in AP mode (standalone) or STA mode (joined a network).
 // Wired Ethernet, if enabled, overrides — use g_useEth to check.
@@ -26,7 +26,7 @@ extern bool g_ethFallback;
 
 // Setup portal is the active "network" (no real link) on first run.
 // When true, loop() pumps the captive DNS and onNotFound redirects to /.
-extern bool g_setupPortal;
+extern bool      g_setupPortal;
 extern DNSServer dnsServer;
 
 void startSetupPortal();

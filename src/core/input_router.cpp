@@ -1,26 +1,34 @@
 #include "input_router.h"
+#include "artnet.h"
+#include "config_schema.h"
 #include "dmx_input.h"
 #include "frame_router.h"
-#include "artnet.h"
+#include "output_init.h"
 #include "sacn.h"
 #include "sender_tracker.h"
-#include "config_schema.h"
-#include "output_init.h"
 #include <Arduino.h>
 
 extern DmxInFrame g_dmxInFrame;
 
-void inputRouterPoll() {
-    for (int i = 0; i < MAX_OUTPUTS; i++) {
+void inputRouterPoll()
+{
+    for (int i = 0; i < MAX_OUTPUTS; i++)
+    {
         const DmxOutput& out = cfg.outputs[i];
-        if (!out.enabled) continue;
-        if (out.inputMode == DMX_IN_OFF) continue;
-        if (out.port < 1 || out.port > 2) continue;
-        if (!outReady[i]) continue;
+        if (!out.enabled)
+            continue;
+        if (out.inputMode == DMX_IN_OFF)
+            continue;
+        if (out.port < 1 || out.port > 2)
+            continue;
+        if (!outReady[i])
+            continue;
 
-        if (dmxInPoll(out.port)) {
+        if (dmxInPoll(out.port))
+        {
             // DMX-in frame ready: retransmit to network
-            if (out.inputMode == DMX_IN_TO_NET) {
+            if (out.inputMode == DMX_IN_TO_NET)
+            {
                 int portAddr = (int)portAddress(out);
                 // Route the received DMX frame into the network pipeline
                 // with default priority 100, protocol Art-Net

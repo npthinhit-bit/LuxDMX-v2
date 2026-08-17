@@ -8,13 +8,17 @@
 
 static bool g_alertSent[MAX_OUTPUTS] = {false};
 
-void alertSourceLost(int outIdx, const char* sourceIp) {
-    if (!cfg.webhookAlerts || cfg.webhookUrl.length() == 0) return;
-    if (g_alertSent[outIdx]) return;
+void alertSourceLost(int outIdx, const char* sourceIp)
+{
+    if (!cfg.webhookAlerts || cfg.webhookUrl.length() == 0)
+        return;
+    if (g_alertSent[outIdx])
+        return;
     g_alertSent[outIdx] = true;
 
 #ifdef ESP32
-    if (WiFi.status() != WL_CONNECTED) return;
+    if (WiFi.status() != WL_CONNECTED)
+        return;
 
     HTTPClient http;
     http.setTimeout(3000);
@@ -22,7 +26,8 @@ void alertSourceLost(int outIdx, const char* sourceIp) {
     payload += "\"event\":\"dmx_loss\"";
     payload += ",\"output\":\"" + String(char('A' + outIdx)) + "\"";
     payload += ",\"universe\":" + String(cfg.outputs[outIdx].universe);
-    if (sourceIp) payload += ",\"source\":\"" + String(sourceIp) + "\"";
+    if (sourceIp)
+        payload += ",\"source\":\"" + String(sourceIp) + "\"";
     payload += ",\"uptime_s\":" + String((millis() - 1) / 1000);
     payload += "}";
 
@@ -36,13 +41,17 @@ void alertSourceLost(int outIdx, const char* sourceIp) {
 #endif
 }
 
-void alertSourceRestored(int outIdx) {
-    if (!cfg.webhookAlerts || cfg.webhookUrl.length() == 0) return;
-    if (!g_alertSent[outIdx]) return;
+void alertSourceRestored(int outIdx)
+{
+    if (!cfg.webhookAlerts || cfg.webhookUrl.length() == 0)
+        return;
+    if (!g_alertSent[outIdx])
+        return;
     g_alertSent[outIdx] = false;
 
 #ifdef ESP32
-    if (WiFi.status() != WL_CONNECTED) return;
+    if (WiFi.status() != WL_CONNECTED)
+        return;
 
     HTTPClient http;
     http.setTimeout(3000);
