@@ -1015,3 +1015,56 @@ CI workflows must reference source files at their actual repository paths, never
 ### Related Entries
 - BUG-017: Standalone test runner (test_native.py) had incorrect merge_test TEST_DEPS
 - BUG-018: Native test runner missing generated config_templates.gen.h
+
+---
+
+## BUG-020: CI Lint job fails — unquoted `+<src/> +<include/>` in `pio check` causes bash syntax error
+
+Date: 2026-08-17
+Subsystem: CI / lint
+Severity: Low (CI only; no firmware impact)
+Affected hardware: none (CI infrastructure only)
+Affected PlatformIO environment: none (CI lint job)
+
+### Symptom
+The GitHub Actions "Lint (PlatformIO check)" job fails with:
+```
+/home/runner/work/_temp/...sh: line 1: syntax error near unexpected token `newline'
+##[error]Process completed with exit code 2.
+```
+The `pio check` command never executes — bash aborts during parsing.
+
+### Root Cause
+`.github/workflows/ci.yml` line 92 had:
+```yaml
+run: pio check --skip-packages --src-filters=+<src/> +<include/>
+```
+The `+` and `<` / `>` characters in the `--src-filters` value are interpreted by bash as I/O redirection operators. Specifically, `<src/>` is parsed as input redirection from `src/`, and `> +<include` triggers output redirection — producing an unterminated redirect that yields `syntax error near unexpected token 'newline'`.
+
+The local scripts (`scripts/ci_local.sh:74`, `scripts/ci_local.ps1:80`) already used the correct quoted form `--src-filters="+<src/> +<include/>"`, but the CI workflow YAML did not.
+
+Additionally, `pio check` requires `cppcheck` to be installed on the runner — it was not installed in the CI lint job.
+
+### Fix
+Two changes to `.github/workflows/ci.yml`:
+1. Quoted the `--src-filters` value: `--src-filters=+<src/> +<include/>` → `--src-filters="+<src/> +<include/>"`
+2. Added an `Install cppcheck` step before the `pio check` step: `sudo apt-get update && sudo apt-get install -y cppcheck`
+
+### Incorrect Approaches
+- Removing `--src-filters` entirely: would cause `pio check` to attempt checking ALL source files including third-party libraries, greatly increasing runtime and producing noise from non-project code.
+- Using single quotes instead of double quotes: `--src-filters='+<src/> +<include/>'` would work in bash, but double quotes are more portable and consistent with the existing local scripts.
+
+### Files / Functions
+- `.github/workflows/ci.yml` — added `Install cppcheck` step (line 91-92), fixed `--src-filters` quoting (line 95)
+
+### Validation
+The `ci_local.sh` and `ci_local.ps1` scripts already use the identical quoted form `--src-filters="+<src/> +<include/>"` and have been validated locally. The YAML file was validated via `pyyaml`. The `cppcheck` package is available via `apt-get` on Ubuntu 24.04 runners.
+
+### Regression Risk
+None. Changes are isolated to the CI lint job configuration. No firmware source, build config, or PlatformIO environment behavior is modified.
+
+### Lesson
+When passing PlatformIO check filter strings containing `<` `>` characters through YAML `run:` steps, always quote the argument to prevent bash from interpreting them as I/O redirection operators. Always verify that `pio check` dependencies (e.g., `cppcheck`) are installed in the CI environment — PlatformIO does not auto-install them. Cross-check CI workflow shell commands against local scripts to catch quoting discrepancies.
+
+### Related Entries
+- BUG-019: CI native test step fails — `build/test_native.py` path does not exist and `all` argument unsupported

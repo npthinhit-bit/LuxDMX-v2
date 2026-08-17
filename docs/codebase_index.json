@@ -654,6 +654,10 @@
       "layer": "test",
       "purpose": "Batch wrapper: runs all 4 native test suites via test_native.py"
     },
+    ".github/workflows/ci.yml": {
+      "layer": "build",
+      "purpose": "GitHub Actions CI: 3 parallel jobs — Build (all 5 PlatformIO envs), Unit Tests (test/native/test_native.py all), Lint (pio check with cppcheck). Fixed: lint step now quotes --src-filters and installs cppcheck (BUG-020); test step uses correct path test/native/test_native.py with 'all' support (BUG-019)."
+    },
     "test/native/merge_test.cpp": {
       "layer": "test",
       "purpose": "Host test for merge engine: HTP, LTP, OFF, LOSS_ZERO, cross-universe isolation, priority merge, failsafe timeouts"
@@ -1425,6 +1429,7 @@
     "BUG-016: outSrcLost default initializer changed from {true,true,true,true} to {} without startup recovery",
     "BUG-017: Standalone test runner (test_native.py) had incorrect merge_test TEST_DEPS",
     "BUG-018: Native test runner (test_native.py) missing generated config_templates.gen.h \u2014 config_test/merge_test fail to compile because src/config_templates_gen.cpp includes the build-time-generated header that only extra_scripts.py creates during PlatformIO builds",
-    "BUG-019: CI native test step fails \u2014 build/test_native.py path does not exist and all argument unsupported (CI workflow + scripts used wrong path; test_native.py lacked 'all' support)"
+    "BUG-019: CI native test step fails \u2014 build/test_native.py path does not exist and all argument unsupported (CI workflow + scripts used wrong path; test_native.py lacked 'all' support)",
+    "BUG-020: CI Lint job fails — unquoted +<src/> +<include/> in pio check causes bash syntax error; cppcheck not installed"
   ]
 }
