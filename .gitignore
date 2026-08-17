@@ -57,6 +57,7 @@ tools/ota_private.pem
 tools/ota_public.bin
 
 # CI artifacts
+reports/
 ci_baseline.json
 memory-*.json
 manifest-*.json
