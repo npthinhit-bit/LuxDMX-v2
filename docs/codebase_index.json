@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "LuxDMX V2",
-  "last_updated": "2026-08-17T06:14:51+07:00",
+  "last_updated": "2026-08-17T11:30:00+07:00",
   "files": {
     "src/main.cpp": {
       "layer": "app",
@@ -160,7 +160,7 @@
     "src/frontend/pages/ota_done_page.h": {
       "layer": "net",
       "purpose": "OTA done page (PROGMEM): uses {{OTA_ICON}} etc template placeholders",
-      "notes": "Not currently served by any handler — dead code / WIP"
+      "notes": "Not currently served by any handler \u00e2\u20ac\u201d dead code / WIP"
     },
     "src/frontend/pages/config_saved_page.h": {
       "layer": "net",
@@ -588,7 +588,7 @@
         "_gen_bin",
         "_c_escape"
       ],
-      "notes": "Still generates old-style src/generated/*_html.h from src/pages/*.html — these are DEAD CODE (new frontend uses src/frontend/*.h directly. Does NOT process __FWVER__ in frontend files."
+      "notes": "Still generates old-style src/generated/*_html.h from src/pages/*.html \u00e2\u20ac\u201d these are DEAD CODE (new frontend uses src/frontend/*.h directly. Does NOT process __FWVER__ in frontend files."
     },
     "tools/gen_config_templates.py": {
       "layer": "build",
@@ -602,7 +602,7 @@
         "extract_body",
         "extract_scripts"
       ],
-      "notes": "extract_body regex strips trailing </div> — caused BUG-005 unclosed HTML in rdm_page.h"
+      "notes": "extract_body regex strips trailing </div> \u00e2\u20ac\u201d caused BUG-005 unclosed HTML in rdm_page.h"
     },
     "src/config_templates_gen.cpp": {
       "layer": "cfg",
@@ -1149,7 +1149,244 @@
     "platformio.ini",
     "templates/esp32s3_psram.ini",
     "src/frontend/base/navbar.h",
-    "test/native/test_native.py"
+    "test/native/test_native.py",
+    "docs/SYSTEM_SPECIFICATION/01-system-architecture-spec.md",
+    "docs/SYSTEM_SPECIFICATION/02-config-engine-spec.md",
+    "docs/SYSTEM_SPECIFICATION/03-dmx-buffer-spec.md",
+    "docs/SYSTEM_SPECIFICATION/04-merge-engine-spec.md",
+    "docs/SYSTEM_SPECIFICATION/05-sender-tracker-spec.md",
+    "docs/SYSTEM_SPECIFICATION/06-frame-router-spec.md",
+    "docs/SYSTEM_SPECIFICATION/07-output-init-spec.md",
+    "docs/SYSTEM_SPECIFICATION/08-scene-engine-spec.md",
+    "docs/SYSTEM_SPECIFICATION/09-rdm-engine-spec.md",
+    "docs/SYSTEM_SPECIFICATION/10-rdm-discovery-spec.md",
+    "docs/SYSTEM_SPECIFICATION/11-rdm-task-spec.md",
+    "docs/SYSTEM_SPECIFICATION/12-input-router-spec.md",
+    "docs/SYSTEM_SPECIFICATION/13-stats-spec.md",
+    "docs/SYSTEM_SPECIFICATION/14-dmx-rmt-tx-spec.md",
+    "docs/SYSTEM_SPECIFICATION/15-dmx-uart-rx-spec.md",
+    "docs/SYSTEM_SPECIFICATION/16-gpio-dir-spec.md",
+    "docs/SYSTEM_SPECIFICATION/17-artnet-protocol-spec.md",
+    "docs/SYSTEM_SPECIFICATION/18-sacn-protocol-spec.md",
+    "docs/SYSTEM_SPECIFICATION/19-artnet-bridge-spec.md",
+    "docs/SYSTEM_SPECIFICATION/20-art-packet-queue-spec.md",
+    "docs/SYSTEM_SPECIFICATION/21-art-rdm-resp-queue-spec.md",
+    "docs/SYSTEM_SPECIFICATION/22-sacn-packet-queue-spec.md",
+    "docs/SYSTEM_SPECIFICATION/23-websocket-protocol-spec.md",
+    "docs/SYSTEM_SPECIFICATION/24-websocket-handler-spec.md",
+    "docs/SYSTEM_SPECIFICATION/25-web-server-spec.md",
+    "docs/SYSTEM_SPECIFICATION/26-web-routes-spec.md",
+    "docs/SYSTEM_SPECIFICATION/27-web-frontend-spec.md",
+    "docs/SYSTEM_SPECIFICATION/28-rate-limiter-spec.md",
+    "docs/SYSTEM_SPECIFICATION/29-ota-spec.md",
+    "docs/SYSTEM_SPECIFICATION/30-ota-sign-spec.md",
+    "docs/SYSTEM_SPECIFICATION/31-ethernet-spec.md",
+    "docs/SYSTEM_SPECIFICATION/32-net-state-spec.md",
+    "docs/SYSTEM_SPECIFICATION/33-setup-portal-spec.md",
+    "docs/SYSTEM_SPECIFICATION/34-tasks-spec.md",
+    "docs/SYSTEM_SPECIFICATION/35-crash-guard-spec.md",
+    "docs/SYSTEM_SPECIFICATION/36-led-status-spec.md",
+    "docs/SYSTEM_SPECIFICATION/37-display-spec.md",
+    "docs/SYSTEM_SPECIFICATION/38-soak-monitor-spec.md",
+    "docs/SYSTEM_SPECIFICATION/39-firmware-version-spec.md",
+    "docs/SYSTEM_SPECIFICATION/40-syslog-spec.md",
+    "docs/SYSTEM_SPECIFICATION/41-alert-spec.md",
+    "docs/SYSTEM_SPECIFICATION/42-enc-decode-spec.md",
+    "docs/SYSTEM_SPECIFICATION/43-input-map-spec.md",
+    "docs/SYSTEM_SPECIFICATION/44-menu-spec.md",
+    "docs/SYSTEM_SPECIFICATION/45-include-headers-spec.md",
+    "docs/SYSTEM_SPECIFICATION/46-build-system-spec.md",
+    "docs/SYSTEM_SPECIFICATION/47-test-infrastructure-spec.md"
+  ],
+  "system_specs": [
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/01-system-architecture-spec.md",
+      "domain": "system.architecture"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/02-config-engine-spec.md",
+      "domain": "cfg.config-engine"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/03-dmx-buffer-spec.md",
+      "domain": "core.dmx-buffer"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/04-merge-engine-spec.md",
+      "domain": "core.merge-engine"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/05-sender-tracker-spec.md",
+      "domain": "core.sender-tracker"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/06-frame-router-spec.md",
+      "domain": "core.frame-router"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/07-output-init-spec.md",
+      "domain": "core.output-init"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/08-scene-engine-spec.md",
+      "domain": "core.scene-engine"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/09-rdm-engine-spec.md",
+      "domain": "core.rdm-engine"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/10-rdm-discovery-spec.md",
+      "domain": "core.rdm-discovery"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/11-rdm-task-spec.md",
+      "domain": "core.rdm-task"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/12-input-router-spec.md",
+      "domain": "core.input-router"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/13-stats-spec.md",
+      "domain": "core.stats"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/14-dmx-rmt-tx-spec.md",
+      "domain": "drv.dmx-rmt-tx"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/15-dmx-uart-rx-spec.md",
+      "domain": "drv.dmx-uart-rx"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/16-gpio-dir-spec.md",
+      "domain": "drv.gpio-dir"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/17-artnet-protocol-spec.md",
+      "domain": "net.artnet"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/18-sacn-protocol-spec.md",
+      "domain": "net.sacn"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/19-artnet-bridge-spec.md",
+      "domain": "net.artnet-bridge"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/20-art-packet-queue-spec.md",
+      "domain": "net.art-pkt-queue"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/21-art-rdm-resp-queue-spec.md",
+      "domain": "net.art-rdm-resp-queue"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/22-sacn-packet-queue-spec.md",
+      "domain": "net.sacn-pkt-queue"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/23-websocket-protocol-spec.md",
+      "domain": "net.websocket"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/24-websocket-handler-spec.md",
+      "domain": "net.websocket-handler"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/25-web-server-spec.md",
+      "domain": "net.web-server"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/26-web-routes-spec.md",
+      "domain": "net.web-routes"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/27-web-frontend-spec.md",
+      "domain": "net.web-frontend"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/28-rate-limiter-spec.md",
+      "domain": "net.rate-limiter"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/29-ota-spec.md",
+      "domain": "net.ota"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/30-ota-sign-spec.md",
+      "domain": "net.ota-sign"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/31-ethernet-spec.md",
+      "domain": "net.ethernet"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/32-net-state-spec.md",
+      "domain": "net.net-state"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/33-setup-portal-spec.md",
+      "domain": "net.setup-portal"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/34-tasks-spec.md",
+      "domain": "sys.tasks"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/35-crash-guard-spec.md",
+      "domain": "sys.crash-guard"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/36-led-status-spec.md",
+      "domain": "sys.led-status"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/37-display-spec.md",
+      "domain": "sys.display"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/38-soak-monitor-spec.md",
+      "domain": "sys.soak-monitor"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/39-firmware-version-spec.md",
+      "domain": "sys.firmware-version"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/40-syslog-spec.md",
+      "domain": "sys.syslog"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/41-alert-spec.md",
+      "domain": "sys.alert"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/42-enc-decode-spec.md",
+      "domain": "app.enc-decode"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/43-input-map-spec.md",
+      "domain": "app.input-map"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/44-menu-spec.md",
+      "domain": "app.menu"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/45-include-headers-spec.md",
+      "domain": "include"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/46-build-system-spec.md",
+      "domain": "system.build"
+    },
+    {
+      "file": "docs/SYSTEM_SPECIFICATION/47-test-infrastructure-spec.md",
+      "domain": "system.test"
+    }
   ],
   "bugs_fixed": [
     "BUG-001: __FWVER__ never substituted",
