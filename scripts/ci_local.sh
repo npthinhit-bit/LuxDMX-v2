@@ -60,7 +60,7 @@ run_build() {
 
 run_tests() {
     print_step "Running unit tests..."
-    if python build/test_native.py all; then
+    if python test/native/test_native.py all; then
         print_success "All unit tests passed"
         return 0
     else

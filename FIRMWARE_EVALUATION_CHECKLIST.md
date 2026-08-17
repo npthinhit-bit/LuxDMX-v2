@@ -64,7 +64,7 @@
 
 ### 10. Unit Test Infrastructure -- DONE
 - [x] **Fix**: Added Unity test framework via PlatformIO `[env:unit-test]` native environment; tests merge engine, config schema, seqlock, RDM types in `test/unit-test/`; kept existing `test/native/` shim tests as parallel suite
-- [x] **Acceptance**: 27 unit tests pass (0 failures); CI script `build/test_native.py` supports MSVC fallback when GCC host toolchain unavailable
+- [x] **Acceptance**: 27 unit tests pass (0 failures); CI script `test/native/test_native.py` supports MSVC fallback when GCC host toolchain unavailable
 
 ### 11. Error Handling Consistency -- DONE
 - [x] **Issue**: Config engine public APIs used `bool` return (`bool setValue`, `bool getValue`, `bool applyTemplate`, `bool resetTo`, `bool importJson`, `bool importXml`)
@@ -191,7 +191,7 @@
 | Soak Monitor | `src/sys/soak_monitor.cpp`, `src/sys/soak_monitor.h` |
 | Ethernet/WiFi | `src/net/ethernet.cpp`, `src/net/net_state.cpp` |
 | Build | `platformio.ini`, `templates/*.ini` |
-| Unit Tests | `test/unit-test/`, `src/test_stubs.cpp`, `test/native/shim/`, `build/test_native.py` |
+| Unit Tests | `test/unit-test/`, `src/test_stubs.cpp`, `test/native/shim/`, `test/native/test_native.py` |
 
 ---
 

@@ -25,9 +25,9 @@ def generateTemplates():
 
     This header is a build-time artifact produced by tools/gen_config_templates.py
     (invoked by extra_scripts.py during PlatformIO builds). The standalone native
-    test runner bypasses PlatformIO, so it must generate the header itself or
-    config_test/merge_test fail with a fatal 'No such file or directory' error
-    on the missing header.
+    test runner bypasses PlatformIO's build hooks, so it must generate the header
+    itself or config_test/merge_test fail with a fatal 'No such file or directory'
+    error on the missing header.
     """
     gen_script = os.path.join(PROJECT_ROOT, "tools", "gen_config_templates.py")
     if not os.path.isfile(gen_script):
@@ -56,11 +56,8 @@ def build_cmd(test_name):
     return cmd, exe_path
 
 
-def main():
-    if len(sys.argv) < 2:
-        print("Usage: python3 test/native/test_native.py <test_name>", file=sys.stderr)
-        sys.exit(2)
-    test_name = sys.argv[1]
+def run_single_test(test_name):
+    """Compile and run a single test suite. Returns True on PASS, False on FAIL."""
     # Generate config_templates.gen.h when this test compiles sources that
     # depend on it. PlatformIO normally does this via extra_scripts.py; the
     # standalone native runner must do it itself.
@@ -72,14 +69,41 @@ def main():
     result = subprocess.run(cmd, cwd=PROJECT_ROOT)
     if result.returncode != 0:
         print("COMPILATION FAILED for " + test_name)
-        sys.exit(1)
+        return False
     print("=== Running " + test_name + " ===")
     result = subprocess.run([exe_path], cwd=PROJECT_ROOT)
     if result.returncode == 0:
         print(test_name + ": PASS")
+        return True
     else:
         print(test_name + ": FAIL")
-    sys.exit(result.returncode)
+        return False
+
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: python3 test/native/test_native.py <test_name|all>", file=sys.stderr)
+        print("Available: " + ", ".join(sorted(TEST_DEPS)) + " or 'all'", file=sys.stderr)
+        sys.exit(2)
+    target = sys.argv[1]
+    if target == "all":
+        failures = 0
+        for t in sorted(TEST_DEPS):
+            ok = run_single_test(t)
+            print()
+            if not ok:
+                failures += 1
+        if failures:
+            print(str(failures) + " test suite(s) FAILED")
+            sys.exit(1)
+        print("ALL TESTS PASSED")
+        return
+    if target not in TEST_DEPS:
+        print("Unknown test: " + target, file=sys.stderr)
+        print("Tests: " + ", ".join(sorted(TEST_DEPS)) + " or 'all'", file=sys.stderr)
+        sys.exit(2)
+    ok = run_single_test(target)
+    sys.exit(0 if ok else 1)
 
 
 if __name__ == "__main__":

@@ -65,7 +65,7 @@ function Run-Build {
 function Run-Tests {
     Write-Step "Running unit tests..."
     try {
-        python build/test_native.py all
+        python test/native/test_native.py all
         Write-Success "All unit tests passed"
         return $true
     } catch {

@@ -592,7 +592,8 @@
     },
     "tools/gen_config_templates.py": {
       "layer": "build",
-      "purpose": "Generates src/generated/config_templates.gen.h from templates/*.ini"
+      "purpose": "Generates src/generated/config_templates.gen.h from templates/*.ini. Called by extra_scripts.py during PlatformIO builds and by test_native.py's generateTemplates() before compiling config_test/merge_test (BUG-018).",
+      "notes": "Docstring line 11 was fixed to reference test/native/test_native.py instead of the nonexistent test/native/run.bat"
     },
     "tools/extract_frontend.py": {
       "layer": "build",
@@ -629,6 +630,7 @@
       "purpose": "Standalone g++ test runner: compiles test_native/*.cpp + TEST_DEPS sources, runs the resulting binary. Matches PlatformIO [env:unit-test] build_src_filter. Calls generateTemplates() to produce src/generated/config_templates.gen.h before compiling tests that depend on src/config_templates_gen.cpp (BUG-018).",
       "key_functions": [
         "build_cmd",
+        "run_single_test",
         "main",
         "generateTemplates"
       ],
@@ -1422,6 +1424,7 @@
     "BUG-015: mbedtls 3.6.5 REMOVED the _ret suffix variants; BUG-011 fix was wrong",
     "BUG-016: outSrcLost default initializer changed from {true,true,true,true} to {} without startup recovery",
     "BUG-017: Standalone test runner (test_native.py) had incorrect merge_test TEST_DEPS",
-    "BUG-018: Native test runner (test_native.py) missing generated config_templates.gen.h — config_test/merge_test fail to compile because src/config_templates_gen.cpp includes the build-time-generated header that only extra_scripts.py creates during PlatformIO builds"
+    "BUG-018: Native test runner (test_native.py) missing generated config_templates.gen.h \u2014 config_test/merge_test fail to compile because src/config_templates_gen.cpp includes the build-time-generated header that only extra_scripts.py creates during PlatformIO builds",
+    "BUG-019: CI native test step fails \u2014 build/test_native.py path does not exist and all argument unsupported (CI workflow + scripts used wrong path; test_native.py lacked 'all' support)"
   ]
 }

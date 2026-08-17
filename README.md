@@ -578,20 +578,20 @@ Run the same steps locally before pushing:
 
 This runs:
 1. **Build** — compiles all 5 environments (`esp32dev`, `esp32s3dev`, `wt32eth01`, `esp32s3_psram`, `esp32s3_n16r8_eth`)
-2. **Test** — runs native unit tests via `python build/test_native.py all`
+2. **Test** — runs native unit tests via `python test/native/test_native.py all`
 3. **Lint** — runs `pio check` on source files
 
 ### Running Tests Manually
 
 ```bash
 # Native unit tests (no hardware required)
-python build/test_native.py all
+python test/native/test_native.py all
 
 # Or individual tests
-python build/test_native.py config_test
-python build/test_native.py seqlock_test
-python build/test_native.py merge_test
-python build/test_native.py rdm_types_test
+python test/native/test_native.py config_test
+python test/native/test_native.py seqlock_test
+python test/native/test_native.py merge_test
+python test/native/test_native.py rdm_types_test
 ```
 
 ---

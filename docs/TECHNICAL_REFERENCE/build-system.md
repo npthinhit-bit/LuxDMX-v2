@@ -192,13 +192,12 @@ No build-time timing constraints. Runtime timing is controlled by FreeRTOS task 
 ## 17. Limitations
 
 - Only `esp32s3_psram` is the validated build gate — other environments (esp32dev, esp32s3dev, wt32eth01, esp32s3_n16r8_eth) compile but are not in the CI gate.
-- The `test/native/run_all.sh` and `run_all.bat` reference `build/test_native.py` which does not exist in the repository (see [Test Infrastructure](./test-infrastructure.md) Section 17, Limitations).
-- The native test `gen_config_templates.py:11` references `test/native/run.bat` which also does not exist.
+- The native test runner `test/native/test_native.py` is correctly referenced by `run_all.sh` and `run_all.bat`. It supports the `all` argument and generates `config_templates.gen.h` before compiling.
+- `gen_config_templates.py` docstring now correctly references `test/native/test_native.py` as the caller.
 - From-source S3 builds lack `libatomic.a` — `std::shared_ptr`/`<atomic>` usage would fail (see `platformio.ini:56-60`).
 
 ## 18. Open Questions
 
-- Not determinable from the inspected source code — whether the `build/test_native.py` referenced by run scripts is generated elsewhere or is a known broken reference.
 - Not determinable from the inspected source code — the exact `min_spiffs.csv` partition layout values (defined in a file not inspected).
 
 ## 19. Testing

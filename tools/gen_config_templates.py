@@ -7,8 +7,7 @@ registry the config engine reads (CONFIG_TEMPLATES in config_core.h), so the
 defaults live in editable data files instead of -D macros in platformio.ini.
 
 Comment ('#') and blank lines are dropped — the engine ignores them anyway, and
-stripping keeps the embedded blob small. Run by extra_scripts.py at build time
-and by test/native/run.bat before the host test compiles.
+stripping keeps the embedded blob small. Run by extra_scripts.py at build time, and by test/native/test_native.py (generateTemplates()) before the host test compiles.
 
 Usage: gen_config_templates.py [<project_root>] [<out_header>]
 """

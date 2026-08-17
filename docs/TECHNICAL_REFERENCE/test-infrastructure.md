@@ -32,8 +32,8 @@ The native tests verify config engine, seqlock, merge engine, and RDM types with
 | `test/native/seqlock_test.cpp` | Seqlock smoke test (snapshot, retry, 100 cycles) |
 | `test/native/merge_test.cpp` | Merge engine smoke test (HTP, OFF, LOSS_ZERO, LTP-Takeover, priority, cross-universe) |
 | `test/native/rdm_types_test.cpp` | RDM types smoke test (UID, enums, PID constants) |
-| `test/native/run_all.sh` | Bash test runner: 4 tests via `python3 build/test_native.py` |
-| `test/native/run_all.bat` | Windows test runner: 4 tests via `python build\test_native.py` |
+| `test/native/run_all.sh` | Bash test runner: 4 tests via `python3 test/native/test_native.py` |
+| `test/native/run_all.bat` | Windows test runner: 4 tests via `python test/native/test_native.py` |
 | `test/native/shim/Arduino.h` | `String` class, `millis()`, `constrain()`, `__sync_synchronize`, `__attribute__` |
 | `test/native/shim/Preferences.h` | In-memory `Preferences` map for NVS round-trip |
 | `test/native/shim/esp_err.h` | `ESP_OK`, `ESP_ERR_*` constants |
@@ -111,8 +111,8 @@ No state machine. Tests are linear: setup → exercise → assert → teardown.
 ### Native Smoke Test Flow
 
 1. `run_all.sh:7` loops over 4 test names: `config_test seqlock_test merge_test rdm_types_test`
-2. For each: `python3 build/test_native.py "$t"` (run_all.sh:9)
-3. `test_native.py` (missing from repo — see Limitations) compiles the test with GCC, links against shim headers, and runs the binary
+2. For each: `python3 test/native/test_native.py "$t"` (run_all.sh:9)
+3. `test/native/test_native.py` (in repo, generates `config_templates.gen.h` via `generateTemplates()`) compiles the test with GCC, links against shim headers, and runs the binary
 4. Each test calls `cfgcore::resetToTemplate()` (config_test.cpp:12) to load defaults
 5. `CHECK` assertions verify behavior; test prints "N passed, M failed" and returns exit code
 
@@ -145,7 +145,7 @@ The native tests depend on the config template system:
 ## 11. Lifecycle
 
 1. **Pre-test:** `extra_scripts.py` generates `config_templates.gen.h` (needed by `config_templates_gen.cpp`)
-   - For native tests: `gen_config_templates.py:11` references `test/native/run.bat` (which does not exist — broken reference)
+   - For native tests: `test/native/test_native.py` calls `generateTemplates()` which invokes `tools/gen_config_templates.py` with the project root
    - For Unity: automatic via PlatformIO build system
 2. **Compile:** PlatformIO (`pio test`) or manual script (`test_native.py`)
 3. **Run:** Test binary executes `main()` → assertions → exit code
@@ -177,8 +177,8 @@ Tests are deterministic and single-threaded. The `millis()` shim returns increme
 |---|---|
 | Native tests use `CHECK` macro, no framework | `config_test.cpp:8` |
 | Unity tests use `TEST_ASSERT_*` macros | `test_unit_config.cpp:13-15` |
-| `run_all.sh` runs 4 tests via `python3 build/test_native.py` | `run_all.sh:6,9` |
-| `run_all.bat` runs 4 tests via `python build\test_native.py` | `run_all.bat:8,11` |
+| `run_all.sh` runs 4 tests via `python3 test/native/test_native.py` | `run_all.sh:6,9` |
+| `run_all.bat` runs 4 tests via `python test/native/test_native.py` | `run_all.bat:8,11` |
 | Unity `setUp` clears Preferences + resets template | `test_unit_config.cpp:7-10` |
 | `build_src_filter` selects specific source files | `platformio.ini:204-214` |
 | `test_stubs.cpp` provides stub `alertSourceLost`, `sceneRecall` | `src/test_stubs.cpp:6-17` |
@@ -186,8 +186,8 @@ Tests are deterministic and single-threaded. The `millis()` shim returns increme
 | `__sync_synchronize()` shim is no-op | `Arduino.h:72` |
 | Preferences shim uses `std::map` | `Preferences.h:15-17` |
 | Native tests compiled against `test/native/shim/` | `platformio.ini:200` |
-| `test_native.py` is referenced but NOT in the repo | `run_all.sh:9`, `run_all.bat:11` |
-| `gen_config_templates.py:11` references `test/native/run.bat` | `tools/gen_config_templates.py:11` |
+| `test/native/test_native.py` exists in the repo | `test/native/test_native.py` |
+| `gen_config_templates.py` docstring references `test/native/test_native.py` | `tools/gen_config_templates.py:11` |
 
 ## 16. Cross-References
 
@@ -200,8 +200,8 @@ Tests are deterministic and single-threaded. The `millis()` shim returns increme
 
 ## 17. Limitations
 
-- **Broken test runner reference:** `run_all.sh:9` and `run_all.bat:11` call `python3 build/test_native.py` / `python build\test_native.py`, but `build/test_native.py` does not exist in the repository. Native smoke tests cannot be run via the provided scripts.
-- **Broken template reference:** `gen_config_templates.py:11` references `test/native/run.bat` which does not exist (should be `run_all.bat`).
+- **Resolved:** The `build/test_native.py` path was a broken reference. Fixed: CI workflow (`.github/workflows/ci.yml`), local scripts (`scripts/ci_local.sh`, `scripts/ci_local.ps1`), README, and checklist now use `test/native/test_native.py`. The runner supports `all` as an argument and generates `config_templates.gen.h` via `generateTemplates()` before compiling tests that need it.
+- **Resolved:** `gen_config_templates.py:11` referenced `test/native/run.bat` which does not exist. The docstring was updated to reference `test/native/test_native.py`.
 - **No native test for core/RDM modules:** `rdm_engine.cpp`, `rdm_disc.cpp`, `rdm_task.cpp`, `scene_engine.cpp`, `input_router.cpp`, `output_init.cpp`, `sender_tracker.cpp`, `frame_router.cpp` have no native or Unity tests.
 - **Unity `test_stubs.cpp` is minimal:** Only stubs `alertSourceLost`, `alertSourceRestored`, `sceneRecall`, `sceneRecallHome` — any test that exercises code calling other un-stubbed symbols will fail to link.
 - **`build_src_filter` only includes 8 source files** (platformio.ini:204-214) — modules like `artnet.cpp`, `ethernet.cpp`, `web_server.cpp` are excluded from Unity tests.

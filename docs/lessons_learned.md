@@ -954,3 +954,64 @@ When a standalone test runner mirrors a PlatformIO native test environment, it m
 
 ### Related Entries
 - BUG-017: Standalone test runner (test_native.py) had incorrect merge_test TEST_DEPS
+
+---
+
+## BUG-019: CI native test step fails — `build/test_native.py` path does not exist and `all` argument unsupported
+
+Date: 2026-08-17
+Subsystem: CI / test/native
+Severity: Low (host tests only; no firmware impact)
+Affected hardware: none (host-only test infrastructure)
+Affected PlatformIO environment: none (CI test job)
+
+### Symptom
+The GitHub Actions CI "Unit Tests" job fails with:
+```
+python: can't open file '/home/runner/work/LuxDMX-v2/LuxDMX-v2/build/test_native.py': [Errno 2] No such file or directory
+##[error]Process completed with exit code 2.
+```
+The PlatformIO build jobs (all 5 environments) succeed, but the native test job always fails.
+
+### Root Cause
+The CI workflow (`.github/workflows/ci.yml:71`), local CI scripts (`scripts/ci_local.sh:63`, `scripts/ci_local.ps1:68`), README (`README.md:588`), and `FIRMWARE_EVALUATION_CHECKLIST.md:67,194` all reference `python build/test_native.py all`. Two problems:
+
+1. **Wrong path:** `build/test_native.py` does not exist in the repository. The script is at `test/native/test_native.py`. The `build/` directory is PlatformIO's output directory, not a source location.
+
+2. **Unsupported `all` argument:** `test_native.py` only accepted specific test names (config_test, seqlock_test, merge_test, rdm_types_test). Passing `all` would trigger an "Unknown test" error even if the path were correct.
+
+The `docs/TECHNICAL_REFERENCE/test-infrastructure.md` (Section 17, Limitations) already documented this as a known broken reference, but the CI workflow was never updated.
+
+### Fix
+1. Fixed all path references: `build/test_native.py` → `test/native/test_native.py` across 7 files:
+   - `.github/workflows/ci.yml:71`
+   - `scripts/ci_local.sh:63`
+   - `scripts/ci_local.ps1:68`
+   - `README.md:581,588-594`
+   - `FIRMWARE_EVALUATION_CHECKLIST.md:67,194`
+2. Added `all` argument support to `test_native.py`: refactored test-running logic into `run_single_test()` (returns True/False instead of calling sys.exit), then added an `all` branch in `main()` that iterates over all 4 test suites.
+
+### Incorrect Approaches
+- Creating a copy/symlink at `build/test_native.py`: this would put a source file in PlatformIO's output directory, which is `.gitignore`d and would be overwritten on each `pio run`. The correct fix is to use the real source path.
+- Only fixing the CI workflow path without adding `all` support: the CI calls `test_native.py all`, so `all` must be a supported argument.
+
+### Files / Functions
+- `.github/workflows/ci.yml` — line 71: path fix
+- `scripts/ci_local.sh` — line 63: path fix
+- `scripts/ci_local.ps1` — line 68: path fix
+- `README.md` — lines 581, 588-594: path fixes
+- `FIRMWARE_EVALUATION_CHECKLIST.md` — lines 67, 194: path fixes
+- `test/native/test_native.py` — added `run_single_test()` function, `all` target in `main()`
+
+### Validation
+The CI workflow step is now: `python test/native/test_native.py all` (correct path + supported argument). The `test_native.py all` command was verified: all 4 test suites pass (368 tests, 0 failures). `run_all.sh`/`run_all.bat` already used the correct path — only the CI workflow, local scripts, README, and checklist had the wrong `build/` prefix.
+
+### Regression Risk
+None. Changes are isolated to CI configuration, local scripts, documentation, and test runner argument parsing. No firmware source code, build configuration, or PlatformIO environments are modified.
+
+### Lesson
+CI workflows must reference source files at their actual repository paths, never in PlatformIO's `build/` output directory (which is `.gitignore`d and regenerated on each build). When the CI calls a script with a specific argument (like `all`), that argument must be supported. Always cross-check CI workflow steps against the actual repository file layout. When documentation identifies a known broken reference, the fix must propagate to all call sites.
+
+### Related Entries
+- BUG-017: Standalone test runner (test_native.py) had incorrect merge_test TEST_DEPS
+- BUG-018: Native test runner missing generated config_templates.gen.h

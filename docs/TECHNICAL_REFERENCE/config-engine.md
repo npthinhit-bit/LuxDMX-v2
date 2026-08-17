@@ -318,7 +318,7 @@ All data structures are **static**:
 
 ## 19. Testing
 
-- **Native smoke test**: `test/native/config_test.cpp` — tests template resolution (`resetToTemplate()` → hostname/protocol checks), luxdmx_4uni template, setValue/getValue round-trip, save/load NVS round-trip, and serial console grammar via `cfgserial::execute()` (`config_test.cpp:11–55`). Invoked by `python build/test_native.py config_test`.
+- **Native smoke test**: `test/native/config_test.cpp` — tests template resolution (`resetToTemplate()` → hostname/protocol checks), luxdmx_4uni template, setValue/getValue round-trip, save/load NVS round-trip, and serial console grammar via `cfgserial::execute()` (`config_test.cpp:11–55`). Invoked by `python test/native/test_native.py config_test`.
 - **Unity unit tests**: `test/unit-test/test_config/test_unit_config.cpp` — 8 tests covering template defaults, set/get, NVS round-trip, luxdmx_4uni template (RDM-full vs DMX-only outputs), and all serial commands (set, get, dump, invalid) (`test_unit_config.cpp:13–87`). Run via `pio test -e unit-test`.
 - **Unity env** (`platformio.ini:184–214`) builds with `build_src_filter` that includes only `cfg/config_core.cpp`, `cfg/config_schema.cpp`, `cfg/config_serial.cpp`, `config_templates_gen.cpp` (`platformio.ini:210–213`) plus `test_stubs.cpp` and `shim/` headers.
 - **Native seqlock test**: `test/native/seqlock_test.cpp` — tests `SeqLock::snapshot` under concurrent write (validates the seqlock in [include-headers](./include-headers.md), not the config engine itself).

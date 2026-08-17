@@ -68,7 +68,7 @@ jobs:
 
       - name: Run native unit tests
         run: |
-          python build/test_native.py all
+          python test/native/test_native.py all
         shell: bash
 
   lint:
