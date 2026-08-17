@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "LuxDMX V2",
-  "last_updated": "2026-08-17T11:30:00+07:00",
+  "last_updated": "2026-08-17T17:30:00+07:00",
   "files": {
     "src/main.cpp": {
       "layer": "app",
@@ -626,7 +626,23 @@
     },
     "test/native/test_native.py": {
       "layer": "test",
-      "purpose": "Standalone g++ test runner: compiles test_native/*.cpp + TEST_DEPS sources, runs the resulting binary. Matches PlatformIO [env:unit-test] build_src_filter."
+      "purpose": "Standalone g++ test runner: compiles test_native/*.cpp + TEST_DEPS sources, runs the resulting binary. Matches PlatformIO [env:unit-test] build_src_filter. Calls generateTemplates() to produce src/generated/config_templates.gen.h before compiling tests that depend on src/config_templates_gen.cpp (BUG-018).",
+      "key_functions": [
+        "build_cmd",
+        "main",
+        "generateTemplates"
+      ],
+      "variables": [
+        "INCLUDE_PATHS",
+        "TEST_DEPS",
+        "TEMPLATE_DEPS",
+        "COMMON_FLAGS"
+      ],
+      "deps_on": [
+        "tools/gen_config_templates.py",
+        "src/config_templates_gen.cpp",
+        "src/generated/config_templates.gen.h"
+      ]
     },
     "test/native/run_all.sh": {
       "layer": "test",
@@ -1405,6 +1421,7 @@
     "BUG-014: wt32eth01 missing CONFIG_LUXDMX_MAX_OUTPUTS=2 override",
     "BUG-015: mbedtls 3.6.5 REMOVED the _ret suffix variants; BUG-011 fix was wrong",
     "BUG-016: outSrcLost default initializer changed from {true,true,true,true} to {} without startup recovery",
-    "BUG-017: Standalone test runner (test_native.py) had incorrect merge_test TEST_DEPS"
+    "BUG-017: Standalone test runner (test_native.py) had incorrect merge_test TEST_DEPS",
+    "BUG-018: Native test runner (test_native.py) missing generated config_templates.gen.h — config_test/merge_test fail to compile because src/config_templates_gen.cpp includes the build-time-generated header that only extra_scripts.py creates during PlatformIO builds"
   ]
 }
