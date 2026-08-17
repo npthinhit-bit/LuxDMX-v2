@@ -463,8 +463,6 @@ jobs:
         with:
           name: firmware-esp32s3_psram
           path: /tmp/ota_test/firmware
-          # Also download esp32s3_n16r8_eth (production-signed build)
-        merge-multiple: true
 
       - name: Sign firmware image
         run: |
