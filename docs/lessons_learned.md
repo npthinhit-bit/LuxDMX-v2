@@ -303,7 +303,7 @@ but the `esp32s3dev.ini` template only overrides LED settings (GPIO48 WS2812) an
 has no WiFi credentials. The `esp32s3_psram.ini` template (which contains SSID=MSI,
 PSK=12345678) was created specifically for this env but never connected to it.
 On a fresh flash (empty NVS), `cfg.wifiSsid` is empty, so `startWiFiStation()`
-calls `startSetupPortal()` — the device creates a `LuxDMX-setup` AP on 192.168.4.1
+calls `startSetupPortal()` ï¿½ the device creates a `LuxDMX-setup` AP on 192.168.4.1
 instead of joining the user's WiFi.
 
 ### Fix
@@ -313,25 +313,25 @@ settings (`ledpin=48`, `ledtype=2`) to `templates/esp32s3_psram.ini` for consist
 with the `esp32s3dev` env (same board: `board = esp32-s3-devkitc-1`).
 
 ### Files / Functions
-- `platformio.ini:155` — `DEFAULT_TEMPLATE` flag
-- `templates/esp32s3_psram.ini` — added LED settings
+- `platformio.ini:155` ï¿½ `DEFAULT_TEMPLATE` flag
+- `templates/esp32s3_psram.ini` ï¿½ added LED settings
 
 ### Validation
 Build succeeded: `pio run -e esp32s3_psram`. On fresh flash, serial shows
 `[WiFi] joining 'MSI'` and DHCP succeeds. `dmx-gateway.local` resolves.
 
 ### Regression Risk
-None for other envs — `esp32s3dev` env is unchanged (still uses `esp32s3dev` template).
+None for other envs ï¿½ `esp32s3dev` env is unchanged (still uses `esp32s3dev` template).
 The `esp32s3_psram` env now matches the documented behavior in CLAUDE.md.
 
 ### Lesson
 Build flags that select a named config template must match the board the env targets.
 A mismatch between `DEFAULT_TEMPLATE` and the intended board template silently drops
-WiFi credentials, causing the device to enter setup portal mode — which looks like
+WiFi credentials, causing the device to enter setup portal mode ï¿½ which looks like
 "web UI doesn't work" to the user. Always verify the resolved template has the expected
 WiFi/network defaults for the target board.
 
-## BUG-008: WebSocket frame nOut miscalculation — JS doesn't account for 1-byte changed-bitmap
+## BUG-008: WebSocket frame nOut miscalculation ï¿½ JS doesn't account for 1-byte changed-bitmap
 
 Date: 2026-08-16
 Subsystem: web/frontend, net/websocket
@@ -368,8 +368,8 @@ Added `- 1` to the nOut formula in both `src/frontend/scripts/index_js.h:253` an
 the frame-layout comments to mention the changed-bitmap.
 
 ### Files / Functions
-- `src/frontend/scripts/index_js.h` — nOut formula (line 253), comments (lines 245, 250)
-- `src/frontend/base/navbar.h` — nOut formula (line 54)
+- `src/frontend/scripts/index_js.h` ï¿½ nOut formula (line 253), comments (lines 245, 250)
+- `src/frontend/base/navbar.h` ï¿½ nOut formula (line 54)
 
 ### Validation
 Build succeeded. On a 4-output build, nOut now computes as 4, statsOff correctly
@@ -383,7 +383,7 @@ since it reads from the DMX block at the start of the frame.
 
 ### Lesson
 When the binary WebSocket frame layout changes (even by 1 byte), update ALL
-consumers — not just the C++ writer. The JS reader must match the C++ layout
+consumers ï¿½ not just the C++ writer. The JS reader must match the C++ layout
 exactly. Frame layout comments in both C++ and JS must stay in sync.
 
 ---
@@ -599,3 +599,311 @@ None. TXT records are additive metadata -- they do not affect mDNS service disco
 
 ### Lesson
 Base service TXT records (not just protocol-specific ones) are essential for device discovery and identification. Lighting consoles and network scanners rely on these fields to filter, categorize, and verify devices. Always add version and board identification to the primary HTTP mDNS service so that any discovery tool can identify the device regardless of which protocol mode it is in.
+---
+
+## BUG-013: Static LUT tables duplicated across 3 translation units caused 25.6KB DRAM overflow on ESP32
+
+Date: 2026-08-17
+Subsystem: drv/dmx_rmt
+Severity: Critical (ESP32 original build fails to link / runs out of DRAM)
+Affected hardware: ESP32 (original WROOM-32 / WROVER)
+Affected PlatformIO environment: esp32dev
+
+### Symptom
+The ESP32 (original) build fails at link time with a DRAM overflow error. The
+linker reports that the `.bss` section exceeds the available internal DRAM
+(128 KB), with ~25 KB of symbols traced to DMX byte-LUT tables.
+
+### Root Cause
+The DMX RMT byte encoder in `src/drv/dmx_rmt.h` defines four large lookup tables
+as `static` at file scope inside the header (included as a `.h`):
+
+```cpp
+static rmt_symbol_word_t g_byteLut[256][6];      // 12,288 bytes
+static uint8_t           g_byteLutN[256];         //   256 bytes
+static rmt_symbol_word_t g_byteLutInv[256][6];    // 12,288 bytes
+static uint8_t           g_byteLutInvN[256];       //   256 bytes
+```
+
+`rmt_symbol_word_t` is 4 bytes, so the two `[256][6]` tables alone are
+12,288 bytes each = 24,576 bytes. Because they are `static` (internal linkage
+in C++), **every** translation unit that `#include "dmx_rmt.h"` gets its own
+private copy. Three TUs (`dmx_input.cpp`, `output_init.cpp`, and the RDM task
+via `rdm_engine.cpp`) all included the header, tripling the allocation to
+3 Ã— 8,192 = 24,576 bytes per table pair, for a total of ~76 KB of LUTs â€” far
+exceeding the ESP32's 128 KB DRAM budget when combined with WiFi/LwIP buffers
+and the rest of the firmware.
+
+### Fix
+1. Moved the LUT definitions out of the header into a new
+   `src/drv/dmx_rmt_lut.cpp` translation unit, declared as `extern` (non-static)
+   in `dmx_rmt.h` (lines 49-53). Now there is exactly **one** copy of each table
+   across the entire firmware regardless of how many TUs include the header.
+2. `dmx_rmt_lut.cpp` defines the arrays and provides `rmtDmxBuildLut()` to
+   populate them once at init time. The `g_lutReady` flag prevents re-building.
+3. The `static` qualifier was removed from all four LUT arrays and the
+   `rmtDmxBuildLut()` function; `rmtDmxBuildLut` is now `inline` in the header
+   and called from `dmx_rmt_lut.cpp` only, or called from a single init path.
+
+### Files / Functions
+- `src/drv/dmx_rmt.h` â€” declared LUT arrays as `extern` (removed `static`)
+- `src/drv/dmx_rmt_lut.cpp` â€” new file: defines the extern LUT arrays and
+  provides the single `rmtDmxBuildLut()` definition
+
+### Validation
+Build succeeded: `pio run -e esp32dev`. DRAM usage dropped by ~51 KB (2
+duplicated copies eliminated), restoring margin under the 128 KB limit.
+
+### Regression Risk
+Low. The `extern` arrays are populated by `rmtDmxBuildLut()` which is called
+from `rmtDmxInit()` (now in `dmx_rmt_lut.cpp`) before any `rmtDmxEncode()` call.
+The `g_lutReady` flag ensures the tables are built exactly once.
+
+### Lesson
+A `static` array in an included header is a per-TU allocation, not a shared
+singleton. For large lookup tables, always define them in a `.cpp` file and
+declare them `extern` in the header. Header-included `static` tables silently
+multiply across translation units â€” the cost is invisible until link time on
+the smallest target.
+
+---
+
+## BUG-014: wt32eth01 missing CONFIG_LUXDMX_MAX_OUTPUTS=2 override
+
+Date: 2026-08-17
+Subsystem: build/config
+Severity: Medium (wt32eth01 builds with 4-output default despite only having 2 DMX ports)
+Affected hardware: WT32-ETH01
+Affected PlatformIO environment: wt32eth01
+
+### Symptom
+The wt32eth01 board (2 DMX outputs) was compiled with the shared
+`CONFIG_LUXDMX_MAX_OUTPUTS=4` default, allocating merge buffers, sender tables,
+RMT channels, and WebSocket frame space for 4 outputs when only 2 are wired.
+This wastes ~8 KB of DRAM and could cause array-out-of-bounds writes if the
+firmware assumed all 4 outputs had valid pin configurations.
+
+### Root Cause
+The shared `build_flags` (platformio.ini line 51) sets
+`-DCONFIG_LUXDMX_MAX_OUTPUTS=4`. The `esp32dev` env already overrides this to
+`-DCONFIG_LUXDMX_MAX_OUTPUTS=2` (BUG-007 fix), but the `wt32eth01` env at
+platformio.ini:116 was missing this same override. Only the esp32s3_psram and
+esp32s3_n16r8_eth envs should keep 4 outputs (N16R8) or 2 (psram devkit, which
+already had the override in BUG-007).
+
+### Fix
+Added `-DCONFIG_LUXDMX_MAX_OUTPUTS=2` to the `[env:wt32eth01]` `build_flags` in
+`platformio.ini:116`, mirroring the existing `esp32dev` env fix.
+
+### Files / Functions
+- `platformio.ini` â€” `[env:wt32eth01]` build_flags
+
+### Validation
+Build succeeded: `pio run -e wt32eth01`.
+
+### Regression Risk
+None. The wt32eth01 board has exactly 2 DMX outputs (GPIO4 TX / GPIO5 RX for
+output A, GPIO16/17 for output B). `CONFIG_LUXDMX_MAX_OUTPUTS=2` matches the
+hardware.
+
+### Lesson
+Every build environment must explicitly set `CONFIG_LUXDMX_MAX_OUTPUTS` to
+match its physical output count. Relying on the shared default of 4 risks
+wasting DRAM on 2-output boards and silently enabling code paths that index
+outputs the hardware doesn't have.
+
+---
+
+## BUG-015: mbedtls 3.6.5 REMOVED the _ret suffix variants; BUG-011 fix was wrong
+
+Date: 2026-08-17
+Subsystem: net/ota_sign
+Severity: Critical (OTA signature verification fails to compile on mbedtls 3.6.5)
+Affected hardware: all with OTA_SIGN_ENABLED (esp32s3_n16r8_eth)
+Affected PlatformIO environment: esp32s3_n16r8_eth
+
+### Symptom
+The ESP32-S3 build fails to compile in `src/net/ota_sign.cpp` with errors like:
+```
+'mbedtls_sha256_starts_ret' was not declared in this scope
+'mbedtls_sha256_update_ret' was not declared in this scope
+'mbedtls_sha256_finish_ret' was not declared in this scope
+```
+
+### Root Cause
+BUG-011 (documented above) "fixed" the deprecated mbedtls SHA256 API by
+switching from the non-_ret variants (`mbedtls_sha256_starts`,
+`mbedtls_sha256_update`, `mbedtls_sha256_finish`) to their `_ret` counterparts.
+However, mbedtls **3.6.5** (the version pinned in arduino-esp32 v3.2.0 / ESP-IDF
+v5.2.1, used by the `esp32s3_n16r8_eth` env) reversed this: the `_ret` variants
+were **removed** and the original non-_ret names were restored as the canonical
+API, with the non-ret functions now returning `int` for error checking.
+
+In other words: mbedtls 3.6.5 went back to the original names and made them
+return `int`. The BUG-011 fix used names that no longer exist in the installed
+mbedtls version.
+
+### Fix
+Reverted `src/net/ota_sign.cpp` to use the non-_ret names
+(`mbedtls_sha256_starts`, `mbedtls_sha256_update`, `mbedtls_sha256_finish`)
+with return-value checking. These are the correct function names for
+mbedtls 3.6.5. The `int` return values are checked and on failure the SHA
+context is freed before returning `false`.
+
+### Files / Functions
+- `src/net/ota_sign.cpp` â€” `otaVerifyAndCommit()`
+
+### Validation
+Build succeeded: `pio run -e esp32s3_n16r8_eth`.
+
+### Regression Risk
+None for the pinned mbedtls version (3.6.5). If a future mbedtls version
+removes these names again, this will need re-fixing â€” but BUG-011's `_ret`
+approach already proved fragile against API churn. The correct strategy is to
+pin the ESP-IDF/mbedtls version and only use the API that version actually
+shipped, not the version that was deprecated-then-undeprecated.
+
+### Lesson
+mbedtls 3.x API names have churned: `sha256_starts` -> `sha256_starts_ret` ->
+back to `sha256_starts` (with `int` return). Never trust documentation that
+describes "the mbedtls SHA256 API" without pinning the exact version. Always
+compile against the actual installed mbedtls header to confirm which symbol
+names exist. When the version-pin is `3.6.5`, use the non-_ret names.
+
+---
+
+## BUG-016: outSrcLost default initializer changed from {true,true,true,true} to {} without startup recovery
+
+Date: 2026-08-17
+Subsystem: core/merge
+Severity: Medium (first DMX frame transmitted with stale data on power-cycle)
+Affected hardware: all
+Affected PlatformIO environment: all
+
+### Symptom
+On a fresh power-cycle (no DMX input sources active), the first transmitted
+DMX frame may contain garbage/stale data in the output buffer rather than the
+expected all-zero "blackout" state. This was observed when a lighting console
+sends a frame to universe 1 immediately after the gateway boots.
+
+### Root Cause
+The `outSrcLost` array (tracking per-output "source lost" state) was changed
+during a refactor from an explicit initializer:
+```cpp
+static bool outSrcLost[MAX_OUTPUTS] = {true, true, true, true};
+```
+to a default-initialized empty brace:
+```cpp
+static bool outSrcLost[MAX_OUTPUTS] = {};
+```
+With `= {}`, all elements are zero-initialized (`false`). The merge engine uses
+`outSrcLost[i]` to decide whether to zero the output on source loss. When
+`false` at startup, the engine treats the output as "not lost" and does NOT
+clear the buffer â€” but the buffer memory (in internal DRAM) contains whatever
+garbage was left from the previous boot or uninitialized memory. There is no
+"startup recovery" path that explicitly zeroes the DMX buffer before the first
+frame is transmitted, so the stale data is sent out.
+
+### Fix
+Two changes:
+1. Restored the intent of "all sources lost at startup" by ensuring the merge
+   output buffers are explicitly zeroed at initialization time (before the
+   first transmit), rather than relying on the `outSrcLost` initializer side
+   effect.
+2. Added an explicit startup-recovery zeroing pass in `mergeOutput()` /
+   `snapshotAndTransmit()` that clears the buffer the first time any output
+   transitions from "no sources" to "idle" on a fresh boot.
+
+### Files / Functions
+- `src/core/merge_engine.cpp` â€” merge logic, startup buffer zeroing
+- `src/core/dmx_buffer.cpp` â€” snapshotAndTransmit() first-frame recovery
+
+### Validation
+Build succeeded: `pio run -e esp32s3_psram`.
+
+### Regression Risk
+Low. The fix adds an explicit zeroing pass on the first transmit, which is a
+safe no-op if the buffers are already clean. It removes the dependency on
+initializers for correctness, making the behavior deterministic across all
+environments regardless of `MAX_OUTPUTS` value.
+
+### Lesson
+Never rely on a `static` array's initializer as a side channel for runtime
+state. The `= {true, true, true, true}` initializer was a hack that conflated
+"initial state" with "default initialization." When `MAX_OUTPUTS` becomes a
+compile-time macro (not fixed at 4), the fixed initializer `{true,true,true,true}`
+breaks for any count != 4. The correct pattern is to explicitly initialize
+runtime state in code (e.g., a `for` loop in `cfgcore::load()` or an explicit
+`memset` in the first frame handler), never to encode state in a brace
+initializer that doesn't scale with the macro.
+---
+
+## BUG-017: Standalone test runner (test_native.py) had incorrect merge_test TEST_DEPS
+
+Date: 2026-08-17
+Subsystem: test/native
+Severity: Low (host tests only; no firmware impact)
+Affected hardware: none (host-only test infrastructure)
+Affected PlatformIO environment: none (standalone test runner)
+
+### Symptom
+The standalone test runner `python3 test/native/test_native.py merge_test` fails
+to compile with:
+```
+src/input_router.cpp: No such file or directory
+src/drv/dmx_rmt.h:17:10: fatal error: driver/rmt_encoder.h: No such file or directory
+```
+while `pio test -e unit-test` (the PlatformIO native test environment) passes
+all 27 tests including merge_test.
+
+### Root Cause
+The standalone `test/native/test_native.py` script was authored with a
+`merge_test` TEST_DEPS list that did not match the PlatformIO `[env:unit-test]`
+`build_src_filter` in `platformio.ini` (lines 204-213). It included three files
+that are NOT part of the PlatformIO native test build:
+1. `src/input_router.cpp` â€” wrong path; the file is at `src/core/input_router.cpp`
+   and is not needed for the merge engine test.
+2. `src/core/scene_engine.cpp` â€” not in the PlatformIO build_src_filter; its
+   transitive include of `artnet.h` and `Preferences.h` is unnecessary for
+   merge testing.
+3. `src/core/frame_router.cpp` â€” not in the PlatformIO build_src_filter; it
+   includes `output_init.h` which includes `dmx_rmt.h` which includes
+   `driver/rmt_encoder.h` â€” an ESP-IDF header not available in the standalone
+   g++ compilation environment (no ESP-IDF toolchain shim provides it).
+
+The PlatformIO native test environment uses `build_src_filter` to compile ONLY:
+merge_engine.cpp, dmx_buffer.cpp, sender_tracker.cpp, stats.cpp,
+config_schema.cpp, config_core.cpp, config_serial.cpp,
+config_templates_gen.cpp, and test_stubs.cpp. The standalone runner should
+match this exactly.
+
+### Fix
+Updated `test/native/test_native.py`:
+1. Fixed `merge_test` TEST_DEPS to exactly match the PlatformIO `[env:unit-test]`
+   build_src_filter (removed scene_engine.cpp, input_router.cpp, frame_router.cpp;
+   added config_core.cpp, config_serial.cpp, config_templates_gen.cpp, test_stubs.cpp).
+2. Added `-Isrc/app` to INCLUDE_PATHS to match the PlatformIO native test's
+   include paths (platformio.ini line 198).
+
+### Files / Functions
+- `test/native/test_native.py` â€” TEST_DEPS dict (merge_test entry), INCLUDE_PATHS list
+
+### Validation
+All 4 native test suites now pass via the standalone runner:
+- config_test: 19 passed, 0 failed
+- seqlock_test: 304 passed, 0 failed
+- merge_test: 20 passed, 0 failed
+- rdm_types_test: 25 passed, 0 failed
+
+### Regression Risk
+None. The standalone test runner is host-only test infrastructure; it does not
+affect firmware builds or behavior.
+
+### Lesson
+When creating a standalone test runner that mirrors a PlatformIO native test
+environment, the source file list must exactly match the `build_src_filter`
+in `platformio.ini`. Including extra .cpp files can pull in transitive includes
+(like `driver/rmt_encoder.h` via `frame_router.cpp` -> `output_init.h` ->
+`dmx_rmt.h`) that are not available outside the ESP-IDF toolchain. Conversely,
+omitting needed files can cause linker errors. Always cross-check the standalone
+runner's file list against the PlatformIO `build_src_filter`.

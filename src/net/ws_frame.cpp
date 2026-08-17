@@ -16,7 +16,7 @@ uint16_t wsClientSub[WS_MAX_CLIENTS] = {0};
 
 // Last-sent DMX per output, for delta detection.
 // Only 512 slots (data[1..512]) are compared, NOT the start code at data[0].
-static uint8_t wsLastDmx[4][WS_CHANS_PER_OUT] = {0};
+static uint8_t wsLastDmx[MAX_OUTPUTS][WS_CHANS_PER_OUT] = {0};
 
 void wsBuildFrame() {
     wsFrameSeq++;

@@ -51,7 +51,7 @@ void wsInit(AsyncWebServer& srv) {
         uint32_t slot = id % WS_MAX_CLIENTS;
         if (type == WS_EVT_CONNECT) {
             wsClients[slot] = client;
-            wsClientSub[slot] = 0x000F;       // all 4 universes by default
+            wsClientSub[slot] = (1 << MAX_OUTPUTS) - 1;       // all universes by default
             wsClientFrameSeq[slot] = 0;        // forces initial frame send
             Serial.printf("[WS] client %u connected (slot %u, sub 0x%04x)\n", id, slot, wsClientSub[slot]);
         } else if (type == WS_EVT_DISCONNECT) {

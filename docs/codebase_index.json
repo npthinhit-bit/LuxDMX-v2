@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "LuxDMX V2",
-  "last_updated": "2026-08-16T23:30:00+00:00",
+  "last_updated": "2026-08-17T06:14:51+07:00",
   "files": {
     "src/main.cpp": {
       "layer": "app",
@@ -257,7 +257,7 @@
     },
     "src/net/ota_sign.cpp": {
       "layer": "net",
-      "purpose": "Ed25519 signature verification for release firmware. Uses mbedtls 3.x _ret API (mbedtls_sha256_starts_ret/update_ret/finish_ret) with return-value checking. Computes SHA-256 of firmware image, verifies 64-byte Ed25519 signature suffix using MBEDTLS_MD_NONE (hash-as-message)."
+      "purpose": "Ed25519 signature verification for release firmware. Uses mbedtls 3.6.5 non-_ret API (mbedtls_sha256_starts/update/finish) with return-value checking (BUG-015: mbedtls 3.6.5 removed the _ret variants and restored non-_ret names as canonical, now returning int). Computes SHA-256 of firmware image, verifies 64-byte Ed25519 signature suffix using MBEDTLS_MD_NONE (hash-as-message)."
     },
     "src/net/ota_sign.h": {
       "layer": "net",
@@ -531,7 +531,7 @@
     "src/drv/dmx_rmt.h": {
       "layer": "drv",
       "purpose": "DMX TX via RMT peripheral (hardware waveform, CPU only refills buffer). Protect BREAK integrity under network load",
-      "notes": "Not UART — RMT clocks (level,duration) symbols in hardware"
+      "notes": "Not UART. RMT clocks (level,duration) symbols in hardware. LUT arrays (g_byteLut, g_byteLutN, g_byteLutInv, g_byteLutInvN) are extern declarations; definitions live in src/drv/dmx_rmt_lut.cpp"
     },
     "src/drv/dmx_input.cpp": {
       "layer": "drv",
@@ -619,6 +619,42 @@
     "docs/ota-key-management.md": {
       "layer": "build",
       "purpose": "Documentation for OTA signing key generation, distribution, and rotation workflow"
+    },
+    "src/drv/dmx_rmt_lut.cpp": {
+      "layer": "drv",
+      "purpose": "Definitions of the extern LUT arrays (g_byteLut, g_byteLutN, g_byteLutInv, g_byteLutInvN, g_lutReady) for the RMT DMX byte encoder; built once at init time by rmtDmxBuildLut()"
+    },
+    "test/native/test_native.py": {
+      "layer": "test",
+      "purpose": "Standalone g++ test runner: compiles test_native/*.cpp + TEST_DEPS sources, runs the resulting binary. Matches PlatformIO [env:unit-test] build_src_filter."
+    },
+    "test/native/run_all.sh": {
+      "layer": "test",
+      "purpose": "Bash wrapper: runs all 4 native test suites via test_native.py"
+    },
+    "test/native/run_all.bat": {
+      "layer": "test",
+      "purpose": "Batch wrapper: runs all 4 native test suites via test_native.py"
+    },
+    "test/native/merge_test.cpp": {
+      "layer": "test",
+      "purpose": "Host test for merge engine: HTP, LTP, OFF, LOSS_ZERO, cross-universe isolation, priority merge, failsafe timeouts"
+    },
+    "test/native/config_test.cpp": {
+      "layer": "test",
+      "purpose": "Host test for config engine: template resolution, setValue/getValue, NVS save/load, serial console grammar"
+    },
+    "test/native/rdm_types_test.cpp": {
+      "layer": "test",
+      "purpose": "Host test for RDM types: UID pack/unpack, enums, PID constants"
+    },
+    "test/native/seqlock_test.cpp": {
+      "layer": "test",
+      "purpose": "Host test for seqlock: snapshot during write, stable copy, 100 write-read cycles"
+    },
+    "test/native/shim/driver/__note__": {
+      "layer": "test",
+      "purpose": "Shim dir provides driver/rmt_tx.h and driver/uart.h but NOT driver/rmt_encoder.h - must avoid pulling dmx_rmt.h into native builds"
     }
   },
   "functions": {
@@ -1051,6 +1087,14 @@
       "wt32eth01": "wt32eth01",
       "esp32s3_psram": "esp32s3_psram",
       "esp32s3_n16r8_eth": "luxdmx_4uni"
+    },
+    "env_overrides": {
+      "esp32dev": [
+        "-DCONFIG_LUXDMX_MAX_OUTPUTS=2"
+      ],
+      "wt32eth01": [
+        "-DCONFIG_LUXDMX_MAX_OUTPUTS=2"
+      ]
     }
   },
   "timing_sensitive": [
@@ -1095,9 +1139,17 @@
     "src/net/web_routes.cpp",
     "src/net/web_routes.h",
     "src/net/web_server.cpp",
+    "src/net/artnet_bridge.cpp",
+    "src/net/ota_sign.cpp",
+    "src/main.cpp",
+    "src/drv/dmx_rmt.h",
+    "src/drv/dmx_rmt_lut.cpp",
+    "src/core/merge_engine.cpp",
+    "src/core/dmx_buffer.cpp",
     "platformio.ini",
     "templates/esp32s3_psram.ini",
-    "src/frontend/base/navbar.h"
+    "src/frontend/base/navbar.h",
+    "test/native/test_native.py"
   ],
   "bugs_fixed": [
     "BUG-001: __FWVER__ never substituted",
@@ -1107,6 +1159,15 @@
     "BUG-005: Unclosed HTML divs in rdm_page.h",
     "BUG-006: /logo.png vs /logo.webp in setup_page.h",
     "BUG-007: esp32s3_psram env DEFAULT_TEMPLATE=esp32s3dev instead of esp32s3_psram (no WiFi creds)",
-    "BUG-008: WebSocket frame nOut miscalculation (JS didn't account for 1-byte changed-bitmap)"
+    "BUG-008: WebSocket frame nOut miscalculation (JS didn't account for 1-byte changed-bitmap)",
+    "BUG-009: Config page missing save bar and board picker modal HTML elements",
+    "BUG-010: ArtPollReply field offsets wrong, ESTA code missing, NodeType inverted, GoodOutput values reversed",
+    "BUG-011: OTA signature verification used deprecated mbedtls SHA256 API",
+    "BUG-012: mDNS base service TXT records missing (api-version, fw-version, distro, board)",
+    "BUG-013: Static LUT tables duplicated across 3 translation units caused 25.6KB DRAM overflow on ESP32",
+    "BUG-014: wt32eth01 missing CONFIG_LUXDMX_MAX_OUTPUTS=2 override",
+    "BUG-015: mbedtls 3.6.5 REMOVED the _ret suffix variants; BUG-011 fix was wrong",
+    "BUG-016: outSrcLost default initializer changed from {true,true,true,true} to {} without startup recovery",
+    "BUG-017: Standalone test runner (test_native.py) had incorrect merge_test TEST_DEPS"
   ]
 }

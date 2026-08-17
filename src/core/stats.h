@@ -30,7 +30,7 @@ struct StatsState {
     float    outFps[MAX_OUTPUTS]         = {};
     volatile uint32_t txFrames[MAX_OUTPUTS] = {};
     float    outTxFps[MAX_OUTPUTS]       = {};
-    bool     outSrcLost[MAX_OUTPUTS]     = {true, true, true, true};
+    bool     outSrcLost[MAX_OUTPUTS]     = {};
     uint32_t rxFrameCount[MAX_OUTPUTS] = {};
     uint32_t rxLossCount[MAX_OUTPUTS]  = {};
     bool     manualMode = false;

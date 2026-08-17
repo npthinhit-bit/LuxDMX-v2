@@ -40,6 +40,7 @@ void setup() {
     while (!Serial && millis() < 3000);   // wait for serial monitor (debug builds)
 
     stats().startMs = millis();
+    for (int i = 0; i < MAX_OUTPUTS; i++) stats().outSrcLost[i] = true;
 
     // 1. NVS migration + config load
     nvs_migrate::migrateNvsKeys(PREF_NS_PTR);

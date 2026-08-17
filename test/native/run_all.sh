@@ -6,7 +6,7 @@ FAILURES=0
 for t in config_test seqlock_test merge_test rdm_types_test; do
     echo ""
     echo "=== $t ==="
-    if python3 build/test_native.py "$t"; then
+    if python3 test/native/test_native.py "$t"; then
         echo "$t: PASS"
     else
         echo "$t: FAIL"

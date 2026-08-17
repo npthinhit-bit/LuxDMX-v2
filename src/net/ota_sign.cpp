@@ -87,7 +87,7 @@ bool otaVerifyAndCommit() {
     mbedtls_sha256_context shaCtx;
     mbedtls_sha256_init(&shaCtx);
 
-    if (mbedtls_sha256_starts_ret(&shaCtx, 0) != 0) {
+    if (mbedtls_sha256_starts(&shaCtx, 0) != 0) {
         mbedtls_sha256_free(&shaCtx);
         return false;
     }
@@ -101,14 +101,14 @@ bool otaVerifyAndCommit() {
             mbedtls_sha256_free(&shaCtx);
             return false;
         }
-        if (mbedtls_sha256_update_ret(&shaCtx, buf, toRead) != 0) {
+        if (mbedtls_sha256_update(&shaCtx, buf, toRead) != 0) {
             mbedtls_sha256_free(&shaCtx);
             return false;
         }
         offset += toRead;
     }
 
-    if (mbedtls_sha256_finish_ret(&shaCtx, hash) != 0) {
+    if (mbedtls_sha256_finish(&shaCtx, hash) != 0) {
         mbedtls_sha256_free(&shaCtx);
         return false;
     }

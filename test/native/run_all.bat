@@ -8,7 +8,7 @@ set "FAILURES=0"
 for %%T in (config_test seqlock_test merge_test rdm_types_test) do (
     echo.
     echo === %%T ===
-    python build\test_native.py %%T
+    python test/native/test_native.py %%T
     if errorlevel 1 (
         set /a FAILURES+=1
         echo *** %%T FAILED ***

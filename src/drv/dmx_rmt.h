@@ -1,4 +1,4 @@
-// RMT-based DMX512 transmit (issue #64 hard-zero-under-load path).
+﻿// RMT-based DMX512 transmit (issue #64 hard-zero-under-load path).
 //
 // Why: esp_dmx clocks DMX with the UART + a GPTimer ISR for the break/MAB. Under heavy
 // core-0 network DMA the timer ISR can be delayed and a frame's break comes out malformed
@@ -46,11 +46,11 @@ struct RmtDmx {
 // of rmt_symbol_word_t (2 runs each) -- independent of the neighbouring bytes. So we precompute
 // each byte value's words once and just memcpy them per slot at encode time (no per-bit loop).
 #define RMT_MAX_WORDS_PER_BYTE 6
-static rmt_symbol_word_t g_byteLut[256][RMT_MAX_WORDS_PER_BYTE];
-static uint8_t           g_byteLutN[256];
-static rmt_symbol_word_t g_byteLutInv[256][RMT_MAX_WORDS_PER_BYTE];
-static uint8_t           g_byteLutInvN[256];
-static bool              g_lutReady = false;
+extern rmt_symbol_word_t g_byteLut[256][RMT_MAX_WORDS_PER_BYTE];
+extern uint8_t           g_byteLutN[256];
+extern rmt_symbol_word_t g_byteLutInv[256][RMT_MAX_WORDS_PER_BYTE];
+extern uint8_t           g_byteLutInvN[256];
+extern bool              g_lutReady;
 
 static void rmtDmxBuildLut() {
     for (int v = 0; v < 256; v++) {
@@ -166,7 +166,7 @@ static bool rmtDmxInit(RmtDmx* rd, int gpio, int rmtChannel = -1) {
     return true;
 }
 
-// Encode this frame and KICK the transmission (async — the RMT driver streams it out in the
+// Encode this frame and KICK the transmission (async â€” the RMT driver streams it out in the
 // background from rd->sym). Returns immediately, so multiple channels can be started back-to-back
 // and then all run CONCURRENTLY. rd->sym must stay valid until rmtDmxWait() returns.
 static void rmtDmxKick(RmtDmx* rd, const uint8_t* data, int nslots) {
@@ -197,3 +197,4 @@ static bool rmtDmxIdle(RmtDmx* rd) {
 static inline void rmtDmxSend(RmtDmx* rd, const uint8_t* data, int nslots) {
     rmtDmxKick(rd, data, nslots); rmtDmxWait(rd);
 }
+

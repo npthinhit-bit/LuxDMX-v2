@@ -16,8 +16,8 @@ bool         outReady[MAX_OUTPUTS] = {false};
 bool         dmxReady = false;
 int          monitorOut = 0;
 int          rdmOut = -1;
-int          rdmLineForOut[MAX_OUTPUTS] = {-1, -1, -1, -1};
-int          rdmOutForLine[MAX_OUTPUTS] = {-1, -1, -1, -1};
+int          rdmLineForOut[MAX_OUTPUTS] = {};
+int          rdmOutForLine[MAX_OUTPUTS] = {};
 
 int viewOutput() {
     if (monitorOut >= 0 && monitorOut < MAX_OUTPUTS && cfg.outputs[monitorOut].enabled)
