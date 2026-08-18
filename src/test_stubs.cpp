@@ -1,4 +1,4 @@
-﻿#ifdef UNIT_TESTING
+﻿#if defined(UNIT_TESTING) || defined(EMBEDDED_TESTING)
 
 #include "alert.h"
 #include "scene_engine.h"

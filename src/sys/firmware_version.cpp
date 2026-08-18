@@ -20,6 +20,19 @@ void versionCheck()
     if (WiFi.status() != WL_CONNECTED)
         return;
 
+    // HTTPS (WiFiClientSecure / NetworkClientSecure) allocates a large mbedTLS
+    // SSL context from internal DRAM (~20 KB+). On the ESP32-S3 with PSRAM,
+    // internal DRAM can be fragmented after extended runtime, causing
+    // MBEDTLS_ERR_SSL_ALLOC_FAILED (-32512 in start_ssl_client). Guard the
+    // attempt — skip rather than flood the serial log with SSL alloc errors
+    // every 60 s. Mirrors the heap gate already used in wsPushMeta().
+    if (ESP.getFreeHeap() < 60000 || ESP.getMaxAllocHeap() < 20000)
+    {
+        Serial.printf("[VER] skip version check: free_heap=%u max_alloc=%u\n",
+                      (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getMaxAllocHeap());
+        return;
+    }
+
     HTTPClient http;
     http.setTimeout(8000);
     http.begin(GH_RELEASES_URL);
@@ -27,6 +40,7 @@ void versionCheck()
     int code = http.GET();
     if (code != 200)
     {
+        Serial.printf("[VER] version check HTTP %d\n", code);
         http.end();
         return;
     }

@@ -69,6 +69,7 @@ static void sendAppPage(AsyncWebServerRequest* req, const __FlashStringHelper* p
             memcpy(data, sp->c_str() + index, n);
             return n;
         });
+    r->addHeader("Content-Encoding", "gzip");
     r->addHeader("Cache-Control", "no-cache");
     req->send(r);
 }

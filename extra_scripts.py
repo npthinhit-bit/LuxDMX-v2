@@ -3,7 +3,10 @@
 1. Fix toolchain PATH for toolchain-xtensa-esp-elf 14.2.0+ where binaries
    live in a nested subdirectory (xtensa-esp-elf/bin/) instead of the
    top-level bin/ the ESP-IDF CMake builder expects.
-2. Generate PROGMEM header files from src/pages/*.html and src/assets/*
+2. Set srctree env var so ESP-IDF kconfgen resolves relative component
+   Kconfig paths in kconfigs.in (kconfiglib reads os.getenv("srctree")
+   during Kconfig init; PlatformIO's builder never sets it).
+3. Generate PROGMEM header files from src/pages/*.html and src/assets/*
    into src/generated/*.h at build time.
 """
 import os
@@ -143,6 +146,10 @@ try:
     Import("env")  # noqa: F821 — SCons builtin
     _project_dir = env.subst("$PROJECT_DIR")
     _pioenv = env.subst("$PIOENV")
+    # Allow multiple definitions for esp32s3_test: the Arduino framework generates a
+    # .dummy/sketch.cpp with setup()/loop(), which conflicts with test_integration.cpp.
+    if _pioenv == 'esp32s3_test':
+        env.Append(LINKFLAGS=['-Wl,--allow-multiple-definition'])
 except Exception:
     # Standalone or native env — find project root by walking up from CWD.
     _p = os.getcwd()
@@ -153,4 +160,6 @@ except Exception:
         _p = os.path.dirname(_p)
 
 if _project_dir:
+    if "srctree" not in os.environ:
+        os.environ["srctree"] = _project_dir
     _generate_headers(_project_dir)

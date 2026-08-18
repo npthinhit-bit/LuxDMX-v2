@@ -1163,3 +1163,256 @@ Low. AsyncCallbackResponse is standard ESPAsyncWebServer. shared_ptr is triviall
 Never pass a large String by value to beginResponse in ESPAsyncWebServer - AsyncBasicResponse deep-copies it via String operator=(const char*), doubling peak DRAM. For callback-based responses, the AwsResponseFiller (std::function) parameter is copied by value in beginResponse and again in the AsyncCallbackResponse constructor - a lambda capturing a String deep-copies the String on every std::function copy. Use shared_ptr<T> capture (8 bytes, trivially copyable) so the std::function copy only increments the refcount. Always account for dram_largest_block: free heap bytes are misleading if fragmentation prevents contiguous allocation. Runtime psram_total=0 (despite Kconfig CONFIG_SPIRAM=y) proves runtime PSRAM presence cannot be assumed - single-buffer path is safe regardless. ESP-IDF v5.x uses CONFIG_ESP32S3_SPIRAM_SUPPORT not CONFIG_SPIRAM_SUPPORT.
 
 ---
+
+## BUG-023: Periodic HTTPS version-check floods log with MBEDTLS_ERR_SSL_ALLOC_FAILED (-32512)
+
+Date: 2026-08-18
+Subsystem: sys/firmware_version
+Severity: Low (cosmetic; version check is non-critical)
+Affected hardware: all with HTTPS version check active (esp32s3_psram, esp32s3_n16r8_eth)
+Affected PlatformIO environment: all
+
+### Symptom
+Every 60 seconds, the serial log shows:
+```
+[2057412][E][ssl_client.cpp:41] _handle_error(): [start_ssl_client():318]: (-32512) SSL - Memory allocation failed
+[2057422][E][NetworkClientSecure.cpp:159] connect(): start_ssl_client: connect failed: -32512
+```
+The device otherwise functions normally (Art-Net/sACN/DMX, web UI, WebSocket all work). The sACN
+"Universe Discovery" messages interleaved in the log are normal (10s interval via `SACN_DISC_INTERVAL_MS`).
+
+### Root Cause
+`versionCheck()` in `src/sys/firmware_version.cpp` calls `http.begin(GH_RELEASES_URL)` with an
+HTTPS URL (`https://api.github.com/...`). Arduino-ESP32's `HTTPClient` internally creates a
+`WiFiClientSecure`/`NetworkClientSecure`, which allocates a large mbedTLS SSL context (~20 KB+)
+from **internal DRAM** — not from PSRAM, even when `CONFIG_SPIRAM_USE_MALLOC=y` is configured.
+After extended runtime, internal DRAM (~40 KB free, fragmented) cannot satisfy the contiguous
+allocation, so `start_ssl_client()` fails with `MBEDTLS_ERR_SSL_ALLOC_FAILED` (-32512 = -0x7F00).
+
+The `versionCheckTask` runs every 60 s, so this error recurs indefinitely.
+
+### Fix
+Two changes in `src/sys/firmware_version.cpp`:
+1. **Heap gate** — Before the HTTPS attempt, check `ESP.getFreeHeap() >= 60000` and
+   `ESP.getMaxAllocHeap() >= 20000`. If either threshold is breached, log a concise
+   `[VER] skip ...` line and return early. This mirrors the existing gate in
+   `wsPushMeta()` (`websocket.cpp:54`).
+2. **Error log for non-200 responses** — Added `Serial.printf("[VER] version check HTTP %d\n", code)`
+   so any future HTTPS failures are identifiable by HTTP status code rather than raw SSL error.
+
+### Files / Functions
+- `src/sys/firmware_version.cpp` — `versionCheck()`
+
+### Validation
+Build succeeded: `pio run -e esp32s3_psram`. No new warnings.
+
+### Regression Risk
+None. The version check is a best-effort background task (60 s interval, priority 1). Skipping
+it when DRAM is too tight is strictly better than flooding the log with unrecoverable SSL alloc
+errors. When DRAM is healthy, the check proceeds exactly as before.
+
+### Lesson
+Always heap-gate periodic HTTPS connections on DRAM-constrained MCUs (ESP32-S3). The SSL context
+is allocated from internal DRAM regardless of PSRAM configuration — `ESP.getMaxAllocHeap()` (largest
+contiguous block) is the correct metric, not `ESP.getFreeHeap()` alone. Reuse the gate pattern
+already established in the codebase rather than inventing per-module thresholds.
+
+---
+
+## BUG-022: Blank web UI on esp32s3_psram - double-buffered HTML response exhausts contiguous DRAM
+
+---
+
+## BUG-024: Blank web page in browser â€” sendAppPage() missing Content-Encoding: gzip header
+
+Date: 2026-08-18
+Subsystem: net/web_frontend
+Severity: Critical (index/config/RDM pages render blank in browser)
+Affected hardware: all (browser-side symptom)
+Affected PlatformIO environment: all
+
+### Symptom
+After flashing the device, navigating to `http://<device-ip>/` (index page),
+`/config`, or `/rdm` in a browser results in a completely blank page. Other
+endpoints (`/setup`, `/reset`, `/ota`, `/version.json`, `/info.json`, static
+assets like `/bootstrap.min.css`) render or respond correctly.
+
+### Root Cause
+HTML pages (`index.html`, `config.html`, `rdm.html`) are pre-gzipped at build
+time by `extra_scripts.py` (lines 98-102), which runs `_gen_gz_header()` to
+produce gzip-compressed binary data. These gzipped binary blobs are served via
+`sendAppPage()` in `src/frontend/web_frontend.cpp`. However, `sendAppPage()`
+sets the response `Content-Type` to `"text/html"` but **never** adds the
+`Content-Encoding: gzip` response header. Without this header, the browser
+treats the gzipped binary payload as plain text â€” the gzipped bytes are not
+valid HTML, so the browser renders nothing (blank page).
+
+Contrast: `src/net/web_pages.cpp:27` correctly adds
+`r->addHeader("Content-Encoding", "gzip")` for the gzipped `bootstrap.min.css`
+asset, proving the pattern exists in the codebase.
+
+### Incorrect Approaches
+- Trying to make the browser auto-detect gzip encoding: browsers only attempt
+  transparent decompression when the server explicitly signals
+  `Content-Encoding: gzip`. There is no content-inspection fallback.
+- Adding a `Vary: Accept-Encoding` header without `Content-Encoding`: this
+  does not solve the problem because the content is already pre-gzipped at
+  build time â€” the server must tell the browser the encoding it is sending.
+
+### Fix
+Added `r->addHeader("Content-Encoding", "gzip");` in `sendAppPage()` in
+`src/frontend/web_frontend.cpp`, immediately after the `beginResponse()` call
+and before the `Cache-Control` header. This matches the existing working
+pattern in `web_pages.cpp:27` for the bootstrap CSS asset.
+
+`sendRawPage()` was intentionally **not** modified â€” it serves raw (non-gzipped)
+HTML for the setup, reset, OTA-progress, and config-saved pages. Adding the
+gzip header to those would break them.
+
+### Files / Functions
+- `src/frontend/web_frontend.cpp` â€” `sendAppPage()` (added line 72:
+  `r->addHeader("Content-Encoding", "gzip");`)
+
+### Validation
+The build gate (`pio run -e esp32s3_psram`) must pass before this change is
+considered complete. The plan's validation steps include a curl test:
+```bash
+curl -v http://<device-ip>/       # Expect Content-Encoding: gzip + HTML body
+curl -v http://<device-ip>/setup  # Expect NO Content-Encoding: gzip
+```
+
+### Regression Risk
+Low. Only affects the 3 gzipped page handlers (`handleRoot`, `handleConfigGet`,
+`handleRdmPage`). Raw pages served by `sendRawPage()` are unchanged. The header
+addition matches the existing working pattern in `web_pages.cpp:27`. No
+timing-critical DMX/RDM/TTL paths are touched â€” this is purely an HTTP response
+header in the web server task on core 0.
+
+### Lesson
+When serving pre-compressed content (gzip at build time), the server **must**
+signal the encoding with a `Content-Encoding: gzip` response header. Omitting
+it causes the browser to interpret compressed binary as plain text, producing
+a silent blank page â€” a particularly insidious failure mode because the HTTP
+status is 200 and the Content-Length matches, making it look like a successful
+response in logs. Always verify that every gzipped response includes the
+correct `Content-Encoding` header by cross-referencing the build-time gzip
+generation (`extra_scripts.py`) with the response handler.
+
+---
+
+## BUG-025: From-source ESP-IDF builds fail kconfgen — missing srctree environment variable
+
+Date: 2026-08-18
+Subsystem: build (extra_scripts.py)
+Severity: Low (build infrastructure; firmware is unaffected if pre-built binaries used)
+Affected hardware: ESP32-S3 from-source builds (esp32s3_psram, esp32s3dev, esp32s3_n16r8_eth)
+Affected PlatformIO environment: esp32s3_n16r8_eth (first observed), all from-source S3 envs
+
+### Symptom
+The `esp32s3_n16r8_eth` environment fails during the ESP-IDF CMake configuration step:
+```
+KconfigError: kconfigs.in:80: 'managed_components/espressif__cjson/Kconfig' not found
+```
+Subsequent component resolution fails with cascading errors (missing `dl_image_process.hpp`,
+`dl_image_color_rgb5652gray.hpp`, etc.) as version-locked managed components
+(`espressif__esp-dl` + `espressif__dl_fft`) end up in incompatible states.
+
+### Root Cause
+The ESP-IDF CMake build system invokes `kconfgen` (via `idf_kconfig.py`) during configuration.
+kconfiglib, which kconfgen uses, reads `os.getenv("srctree", "")` in `Kconfig.__init__` to resolve
+relative `source` directives in `kconfigs.in`. PlatformIO's ESP-IDF builder never sets the `srctree`
+environment variable, so kconfiglib defaults to an empty string and resolves relative paths
+against the current working directory (the build output directory) instead of the project root.
+The `managed_components/` directory lives at the project root, so kconfiglib cannot find the
+component Kconfig files.
+
+### Fix
+Added two lines to `extra_scripts.py` (at module level, after `_project_dir` is resolved) to set
+the `srctree` environment variable before the ESP-IDF CMake configure step runs:
+
+```python
+if "srctree" not in os.environ:
+    os.environ["srctree"] = _project_dir
+```
+
+The `"srctree" not in os.environ` guard preserves any pre-existing value. The `_project_dir`
+variable is already resolved by the module-level code (which falls back to filesystem search
+when not running under SCons). This matches the existing module-level env-var injection pattern
+used for the toolchain PATH fix (lines 22-32).
+
+### Files / Functions
+- `extra_scripts.py` — module-level env-var block (added lines 159-160; updated docstring lines 6-8)
+
+### Validation
+Build succeeded: `pio run -e esp32s3_n16r8_eth`. The `Reading CMake configuration...` step
+now completes without the `Kconfig not found` error. All managed components are resolved
+correctly. The `esp32s3_psram` build gate was re-verified and still passes.
+
+### Regression Risk
+Very low. The `srctree` env var is only set if not already present. For pre-built (Arduino
+core) environments that don't use ESP-IDF CMake, the variable is set but harmless (it's just
+an env var that nothing reads). For from-source S3 builds, it provides the correct project
+root path that kconfiglib needs.
+
+### Lesson
+When using PlatformIO with ESP-IDF from-source builds, always set the `srctree` environment
+variable to the project root directory. kconfiglib (used by ESP-IDF's kconfgen) reads this
+variable to resolve relative component Kconfig/source paths. PlatformIO's builder does not set
+it automatically, so build scripts must inject it at module level (before any `Import("env")`
+or `_generate_headers()` call) to ensure it's available during CMake configuration.
+---
+
+## BUG-026: esp32s3_test embedded test build fails with multiple-definition linker errors
+
+Date: 2026-08-18
+Subsystem: test/embedded (extra_scripts.py)
+Severity: Low (test infrastructure only; no firmware impact)
+Affected hardware: none (host/embedded test environment)
+Affected PlatformIO environment: esp32s3_test
+
+### Symptom
+`pio test -e esp32s3_test --target build` fails at the link stage with:
+```
+multiple definition of `setup()`
+multiple definition of `loop()`
+```
+
+### Root Cause
+The Arduino framework for ESP32-S3 from-source builds automatically generates
+a dummy sketch file (in `.dummy/sketch.cpp`) containing `setup()` and `loop()`
+stubs. When `test_build_src = yes` is enabled (so the test sources are compiled
+into the main firmware image), the Unity test's `test_integration.cpp` also
+defines `setup()` (which calls `UNITY_BEGIN`/`UNITY_END`) and `loop()`. This
+produces duplicate symbol definitions at link time.
+
+### Fix
+Added a conditional linker flag in `extra_scripts.py` (inside the `try:`
+block where `env` is available, lines 149-152):
+
+```python
+if _pioenv == 'esp32s3_test':
+    env.Append(LINKFLAGS=['-Wl,--allow-multiple-definition'])
+```
+
+This tells the linker to allow multiple definitions (first definition wins)
+only for the `esp32s3_test` environment, without affecting any production
+build environments.
+
+### Files / Functions
+- `extra_scripts.py` — lines 149-152 (inside `try: Import("env")` block)
+
+### Validation
+`pio test -e esp32s3_test --target build` completes successfully (exit code 0).
+All production builds (esp32s3_psram, esp32dev, esp32s3dev, wt32eth01,
+esp32s3_n16r8_eth) are unaffected — the flag is scoped to `esp32s3_test` only.
+
+### Regression Risk
+None. The `-Wl,--allow-multiple-definition` flag is only applied when
+`_pioenv == 'esp32s3_test'`. No production environment is affected.
+
+### Lesson
+When using `test_build_src = yes` with the ESP32 Arduino framework's
+from-source build (which generates a `.dummy/sketch.cpp` with `setup()`/`loop()`),
+the linker will encounter duplicate symbols against the test framework's own
+`setup()`/`loop()`. Always scope the `--allow-multiple-definition` linker flag
+to the test environment only via `env.Append` in extra_scripts.py.
