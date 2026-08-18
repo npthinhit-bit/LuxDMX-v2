@@ -1,0 +1,185 @@
+{
+  "version": 1,
+  "skills": {
+    "arduino-cli-skill": {
+      "source": "wedsamuel1230/arduino-skills",
+      "sourceType": "github",
+      "skillPath": "skills/arduino-cli-skill/SKILL.md",
+      "computedHash": "c95b64a4ea02b366d84ca8105a707ff71bf10c62e6c9a8e530749b785baedaa9"
+    },
+    "arduino-code-generator": {
+      "source": "wedsamuel1230/arduino-skills",
+      "sourceType": "github",
+      "skillPath": "skills/arduino-code-generator/SKILL.md",
+      "computedHash": "b1eaec0d2da9dd8d16fde28fb35fa85965306b99d91158b92c6c03b297405698"
+    },
+    "arduino-project-builder": {
+      "source": "wedsamuel1230/arduino-skills",
+      "sourceType": "github",
+      "skillPath": "skills/arduino-project-builder/SKILL.md",
+      "computedHash": "d26cd86778221467bccd16ac7d4cca6c60c079175485cb4e8739ef7ecae632cb"
+    },
+    "arduino-serial-monitor": {
+      "source": "wedsamuel1230/arduino-skills",
+      "sourceType": "github",
+      "skillPath": "skills/arduino-serial-monitor/SKILL.md",
+      "computedHash": "70b7608260e1fa8fab6a7f34d18e10248e77e053abcf865185e5c22d02966cb3"
+    },
+    "arduino-workflow-router": {
+      "source": "wedsamuel1230/arduino-skills",
+      "sourceType": "github",
+      "skillPath": "skills/arduino-workflow-router/SKILL.md",
+      "computedHash": "45a54018cdbcffbf8d51534ddad5274f1788becba5395262e6c3dc5c8c60429d"
+    },
+    "battery-selector": {
+      "source": "wedsamuel1230/arduino-skills",
+      "sourceType": "github",
+      "skillPath": "skills/battery-selector/SKILL.md",
+      "computedHash": "725ef0bdb139efe9792f75b559b4db74b0212255c0f570445e327957aefad76e"
+    },
+    "board-selection": {
+      "source": "wedsamuel1230/arduino-skills",
+      "sourceType": "github",
+      "skillPath": "skills/board-selection/SKILL.md",
+      "computedHash": "79cab28da208f8d8e0ccc1ad5a97d2873e5953a5cb6a8208f250876f1d0a9c65"
+    },
+    "board-support": {
+      "source": "wedsamuel1230/arduino-skills",
+      "sourceType": "github",
+      "skillPath": "skills/board-support/SKILL.md",
+      "computedHash": "94f0ea1f5f8af9759efb539b41e06fac6fef60ea80d8be2401f3130452fd790e"
+    },
+    "bom-generator": {
+      "source": "wedsamuel1230/arduino-skills",
+      "sourceType": "github",
+      "skillPath": "skills/bom-generator/SKILL.md",
+      "computedHash": "fd29c6f1d4d55f9e624bd932a5e8019afe16707418c66f94990772c72f89cc29"
+    },
+    "circuit-debugger": {
+      "source": "wedsamuel1230/arduino-skills",
+      "sourceType": "github",
+      "skillPath": "skills/circuit-debugger/SKILL.md",
+      "computedHash": "ac0e82e31fa02baba4bcf9c1836976ae606ff39374ef4f1dc9296c894f054e71"
+    },
+    "code-review-facilitator": {
+      "source": "wedsamuel1230/arduino-skills",
+      "sourceType": "github",
+      "skillPath": "skills/code-review-facilitator/SKILL.md",
+      "computedHash": "efbcbaaa7f0a99807dde8a3bfe1ac0729c7731aafafd87cc77233cae80e487f0"
+    },
+    "datasheet-interpreter": {
+      "source": "wedsamuel1230/arduino-skills",
+      "sourceType": "github",
+      "skillPath": "skills/datasheet-interpreter/SKILL.md",
+      "computedHash": "c944118061e6ca1a85d3a86e3413d3c002021b1dcc6c902f2b53c1b6ae0cbd2c"
+    },
+    "embedded-project-loop": {
+      "source": "wedsamuel1230/arduino-skills",
+      "sourceType": "github",
+      "skillPath": "skills/embedded-project-loop/SKILL.md",
+      "computedHash": "d4b38ad4894edabc525006c2c7f92bdcd15da4c306ec2097670c361907656198"
+    },
+    "enclosure-designer": {
+      "source": "wedsamuel1230/arduino-skills",
+      "sourceType": "github",
+      "skillPath": "skills/enclosure-designer/SKILL.md",
+      "computedHash": "916e64c3664e92f8c04c0caa2e716560b15f359ce2b5b9a65be376aba5291461"
+    },
+    "error-message-explainer": {
+      "source": "wedsamuel1230/arduino-skills",
+      "sourceType": "github",
+      "skillPath": "skills/error-message-explainer/SKILL.md",
+      "computedHash": "dcd6b2d1aebb0bc6028da0f189e9acf76e3b3e25e629db94270b28a5d5a3a5d0"
+    },
+    "field-power-and-connectivity-triager": {
+      "source": "wedsamuel1230/arduino-skills",
+      "sourceType": "github",
+      "skillPath": "skills/field-power-and-connectivity-triager/SKILL.md",
+      "computedHash": "bf4352f1daf81d1d40ca6c5c3a4680b8452d08ccc2a663bad1f03ef54fd3b5b5"
+    },
+    "freertos-patterns": {
+      "source": "wedsamuel1230/arduino-skills",
+      "sourceType": "github",
+      "skillPath": "skills/freertos-patterns/SKILL.md",
+      "computedHash": "a47993e50cd4aaa627208d657ac35d00d47602f0dbc9e3f95bcc2d4fe6edec53"
+    },
+    "golioth-firmware": {
+      "source": "goliothlabs/golioth-firmware-skill",
+      "sourceType": "github",
+      "skillPath": "skills/golioth-firmware/SKILL.md",
+      "computedHash": "731e7b27d21a7de6e7a41cb485e28fb12f689328eaa2a623cf7221c6a98f22a5"
+    },
+    "hardware-tdd": {
+      "source": "wedsamuel1230/arduino-skills",
+      "sourceType": "github",
+      "skillPath": "skills/hardware-tdd/SKILL.md",
+      "computedHash": "d0226657a72549a76db087acea4804fbef2008d9eb0178ce39d0c936c6bb02f6"
+    },
+    "i2c-bringup-diagnostician": {
+      "source": "wedsamuel1230/arduino-skills",
+      "sourceType": "github",
+      "skillPath": "skills/i2c-bringup-diagnostician/SKILL.md",
+      "computedHash": "751ac40d89744c0211f2097a46bb51bd56e0007ec18648d62f750afe750041fb"
+    },
+    "library-selection": {
+      "source": "wedsamuel1230/arduino-skills",
+      "sourceType": "github",
+      "skillPath": "skills/library-selection/SKILL.md",
+      "computedHash": "0431ab39e6c9f6305b5cadaa9332fb685af272a1322ed84cb769afb67c901513"
+    },
+    "memory-budgeting": {
+      "source": "wedsamuel1230/arduino-skills",
+      "sourceType": "github",
+      "skillPath": "skills/memory-budgeting/SKILL.md",
+      "computedHash": "653ff16ee60ec316c450f2aa5407de51033dc2da318b496a7c7b4c1c20ee2af7"
+    },
+    "mermaid-diagram-generator": {
+      "source": "wedsamuel1230/arduino-skills",
+      "sourceType": "github",
+      "skillPath": "skills/mermaid-diagram-generator/SKILL.md",
+      "computedHash": "7c2fcb27e5d351c2359bccc2517edbac424b098040e538201559c1272e39d283"
+    },
+    "non-blocking-patterns": {
+      "source": "wedsamuel1230/arduino-skills",
+      "sourceType": "github",
+      "skillPath": "skills/non-blocking-patterns/SKILL.md",
+      "computedHash": "e993caa0e7f51c029553ff86d1f51e1f49072c1481503a8da9f461e7d514f28d"
+    },
+    "ota-deployment-guardian": {
+      "source": "wedsamuel1230/arduino-skills",
+      "sourceType": "github",
+      "skillPath": "skills/ota-deployment-guardian/SKILL.md",
+      "computedHash": "20fd1eb1d934261df19f3f4fd31613c5ca6c1ff4564925b7f9de0c985b900e57"
+    },
+    "pin-assignment": {
+      "source": "wedsamuel1230/arduino-skills",
+      "sourceType": "github",
+      "skillPath": "skills/pin-assignment/SKILL.md",
+      "computedHash": "e52473013938e758af77a2f0398309db869838b2eeff0e276486558c4516790c"
+    },
+    "power-budget-calculator": {
+      "source": "wedsamuel1230/arduino-skills",
+      "sourceType": "github",
+      "skillPath": "skills/power-budget-calculator/SKILL.md",
+      "computedHash": "04a17a4525a63954da9439d3b7e4d55e81f25c5d58d74ac46fe3dd59bcce4ef7"
+    },
+    "readme-generator": {
+      "source": "wedsamuel1230/arduino-skills",
+      "sourceType": "github",
+      "skillPath": "skills/readme-generator/SKILL.md",
+      "computedHash": "aba016f4c0cc7e0b3801afd9610cb93329a68744e51fb0c5384535de10c5b219"
+    },
+    "sensor-calibration-workbench": {
+      "source": "wedsamuel1230/arduino-skills",
+      "sourceType": "github",
+      "skillPath": "skills/sensor-calibration-workbench/SKILL.md",
+      "computedHash": "82e51d3ba6d7e83d65eee003ab2520f1d86819ad6569540040944be3ad0fecb1"
+    },
+    "wiring-safety-check": {
+      "source": "wedsamuel1230/arduino-skills",
+      "sourceType": "github",
+      "skillPath": "skills/wiring-safety-check/SKILL.md",
+      "computedHash": "e2db9d2cc0650b526c1d21f11729706153e5a822a1a87bd9b71af9e8cade4609"
+    }
+  }
+}

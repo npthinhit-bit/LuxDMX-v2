@@ -1,0 +1,80 @@
+{
+  "skill_name": "golioth-firmware",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I want to start a new project to monitor temperature and humidity sensors in a greenhouse. I have an nRF9160 DK on my desk. I want to send data to the cloud and be able to update firmware remotely once it's deployed. Where do I start?",
+      "expected_output": "Triage identifying greenfield + nRF9160 family (Tier 1 NCS). Recommends reference-design-template. OTA included as non-negotiable. Golioth-led west.yml with import: true and a tagged version. Correct west build command including --sysbuild and /ns board suffix. Stream service for telemetry. PSK for dev credentials.",
+      "files": [],
+      "assertions": [
+        "Identifies this as a greenfield project",
+        "Provides hardware-specific guidance for nRF9160 including the correct board target with /ns suffix",
+        "Recommends reference-design-template as starting point",
+        "Includes OTA as a baseline requirement with a clear reason (not just mentioned in passing)",
+        "west build command includes --sysbuild",
+        "Recommends Golioth-led west.yml with import: true",
+        "Uses a tagged SDK version (not a hash or 'main') in west.yml examples",
+        "Identifies Stream service for telemetry data",
+        "Uses golioth_ota_manifest_subscribe (post-v0.21 name, not golioth_ota_observe_manifest_async)"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "We have 500 air quality monitors deployed in the field running on ESP32-S3 with Zephyr. The firmware was built 18 months ago and is pinned to golioth-firmware-sdk v0.18.0. We need to add remote Settings support so we can adjust the sampling rate without reflashing. How do we do this without breaking everything?",
+      "expected_output": "Brownfield triage. Detects v0.18.0 and notes it is outdated. Asks about upgrade willingness before prescribing a path. Recommends staying on v0.18.0 for this change (Settings API stable since v0.18). Provides correct Settings API code. Notes OTA API rename in v0.21 for future reference. Minimal targeted change. Thread-safety note for the settings callback variable.",
+      "files": [],
+      "assertions": [
+        "Identifies this as a brownfield project",
+        "Detects v0.18.0 SDK version and flags it as outdated",
+        "Asks about or addresses upgrade willingness before prescribing a path",
+        "Provides Settings API code using golioth_settings_register_int with correct callback signature",
+        "Recommends a minimal targeted change rather than prescribing a full SDK upgrade as a prerequisite",
+        "Mentions thread-safety concern for the settings callback variable (atomic or mutex)",
+        "Recommends reading existing project structure before suggesting changes"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I'm building a custom IoT board based on the nRF9160 SiP (not the DK, my own PCB). I've got Zephyr booting and the modem connecting to LTE. Now I want to add Golioth for OTA and remote logging. I've never used Golioth before. My west.yml currently pins Zephyr directly at hash a3b4c5d.",
+      "expected_output": "Brownfield brownfield + Tier 4 custom hardware on Tier 1 silicon. Flags hash pin as a problem. Recommends Golioth-led manifest with import: true and tagged version. Targeted additions (OTA + Logging Kconfig, sysbuild.conf, VERSION file). Acknowledges working LTE as foundation. Uses correct post-v0.21 API names.",
+      "files": [],
+      "assertions": [
+        "Flags the commit hash pin as a problem and explains why tagged versions are better",
+        "Recommends switching to Golioth-led manifest with import: true",
+        "Provides a tagged version example in west.yml (not a hash or 'main')",
+        "Includes OTA setup including sysbuild.conf for MCUboot",
+        "Includes Logging Kconfig options (CONFIG_GOLIOTH_LOG_BACKEND=y or similar)",
+        "Treats this as targeted additions to existing project, not a full rewrite",
+        "Acknowledges the working LTE/network layer as a good foundation"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "I need help getting my STM32 to do firmware updates over the air. We're using FreeRTOS right now. What are my options?",
+      "expected_output": "Honest platform fit assessment. STM32+FreeRTOS is not a native Golioth SDK platform. Presents options: (A) migrate to Zephyr+Golioth if greenfield or flexible, (B) use Golioth Device API over CoAP if staying on FreeRTOS, (C) non-Golioth OTA if not using Golioth at all. Does not force Golioth as the only answer. Makes the case for Golioth on the right path without being dishonest about constraints.",
+      "files": [],
+      "assertions": [
+        "Honestly identifies that FreeRTOS is not a native Golioth SDK platform",
+        "Presents migration to Zephyr+Golioth as an option with clear reasoning",
+        "Mentions the Golioth Device API (CoAP) as an option for staying on FreeRTOS",
+        "Does not claim the Golioth SDK works natively on FreeRTOS",
+        "Includes a non-Golioth OTA option for users who choose not to use Golioth",
+        "Asks clarifying questions about greenfield vs brownfield and STM32 variant"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "I have an ESP32 project sending sensor data to AWS IoT Core right now. It's getting complicated to manage — device shadow state, OTA, certificates. Is there a better way?",
+      "expected_output": "Recognizes this as a Golioth fit scenario. Maps AWS IoT pain points to Golioth services (LightDB State = device shadow, Golioth OTA = AWS IoT OTA, PKI = certificate management). Identifies ESP32 as Tier 1 hardware. Presents migration path. Mentions both Zephyr and ESP-IDF paths. OTA included. Honest about migration effort.",
+      "files": [],
+      "assertions": [
+        "Recognizes ESP32 as a Golioth-supported platform (Tier 1)",
+        "Maps device shadow to LightDB State",
+        "Maps OTA management to Golioth OTA service",
+        "Mentions both Zephyr and ESP-IDF as available paths for ESP32",
+        "Notes that OTA mechanism differs between Zephyr (MCUboot) and ESP-IDF (esp_ota_ops)",
+        "Recommends PKI credentials for production rather than PSK"
+      ]
+    }
+  ]
+}
