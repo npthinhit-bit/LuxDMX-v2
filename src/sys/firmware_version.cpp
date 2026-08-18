@@ -28,8 +28,8 @@ void versionCheck()
     // every 60 s. Mirrors the heap gate already used in wsPushMeta().
     if (ESP.getFreeHeap() < 60000 || ESP.getMaxAllocHeap() < 20000)
     {
-        Serial.printf("[VER] skip version check: free_heap=%u max_alloc=%u\n",
-                      (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getMaxAllocHeap());
+        Serial.printf("[VER] skip version check: free_heap=%u max_alloc=%u\n", (unsigned)ESP.getFreeHeap(),
+                      (unsigned)ESP.getMaxAllocHeap());
         return;
     }
 

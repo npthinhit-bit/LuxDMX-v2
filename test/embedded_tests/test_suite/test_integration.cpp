@@ -1,11 +1,11 @@
 // Master test runner for the embedded Unity suite on ESP32-S3.
 // Provides the ONLY setUp()/tearDown()/setup()/loop() — all other test
 // TUs forward-declare their test functions here and register them in setup().
+#include "Preferences.h"
 #include "config_core.h"
 #include "config_types.h"
 #include "rdm_engine.h"
 #include "rdm_types.h"
-#include "Preferences.h"
 
 #include <string.h>
 #include <unity.h>
@@ -59,9 +59,7 @@ void setUp(void)
     prefs.end();
 }
 
-void tearDown(void)
-{
-}
+void tearDown(void) {}
 
 // --- Integration tests ----------------------------------------------------------
 
@@ -156,6 +154,4 @@ void setup()
     UNITY_END();
 }
 
-void loop()
-{
-}
+void loop() {}

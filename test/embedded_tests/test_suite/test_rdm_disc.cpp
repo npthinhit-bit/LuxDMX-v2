@@ -15,8 +15,8 @@ void test_uid_pack_roundtrip(void)
 
 void test_uid_pack_order(void)
 {
-    rdm_uid_t u = {0x0102, 0x03040506};
-    uint64_t  v = uidPack(u);
+    rdm_uid_t u        = {0x0102, 0x03040506};
+    uint64_t  v        = uidPack(u);
     uint64_t  expected = ((uint64_t)0x0102 << 32) | 0x03040506;
     TEST_ASSERT_EQUAL_UINT64(expected, v);
 }

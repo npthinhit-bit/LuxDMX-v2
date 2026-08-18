@@ -28,7 +28,7 @@
 static void sendAppPage(AsyncWebServerRequest* req, const __FlashStringHelper* pageBody,
                         const __FlashStringHelper* pageCss, const __FlashStringHelper* pageJs)
 {
-    auto sp = std::make_shared<String>();
+    auto    sp   = std::make_shared<String>();
     String& html = *sp;
     html.reserve(20000);
     html += F("<!DOCTYPE html><html lang=\"en\" data-bs-theme=\"dark\"><head>");
@@ -60,15 +60,17 @@ static void sendAppPage(AsyncWebServerRequest* req, const __FlashStringHelper* p
     }
     html += F("</body></html>");
     html.replace("__FWVER__", String(FIRMWARE_VERSION));
-    const size_t htmlLen = html.length();
-    AsyncWebServerResponse* r = req->beginResponse("text/html", htmlLen,
-        [sp](uint8_t* data, size_t maxlen, size_t index) -> size_t {
-            if (index >= sp->length()) return 0;
-            const size_t avail = sp->length() - index;
-            const size_t n = (maxlen < avail) ? maxlen : avail;
-            memcpy(data, sp->c_str() + index, n);
-            return n;
-        });
+    const size_t            htmlLen = html.length();
+    AsyncWebServerResponse* r       = req->beginResponse("text/html", htmlLen,
+                                                         [sp](uint8_t* data, size_t maxlen, size_t index) -> size_t
+                                                         {
+                                                       if (index >= sp->length())
+                                                           return 0;
+                                                       const size_t avail = sp->length() - index;
+                                                       const size_t n     = (maxlen < avail) ? maxlen : avail;
+                                                       memcpy(data, sp->c_str() + index, n);
+                                                       return n;
+                                                         });
     r->addHeader("Content-Encoding", "gzip");
     r->addHeader("Cache-Control", "no-cache");
     req->send(r);
@@ -76,19 +78,21 @@ static void sendAppPage(AsyncWebServerRequest* req, const __FlashStringHelper* p
 
 static void sendRawPage(AsyncWebServerRequest* req, const __FlashStringHelper* pageHtml)
 {
-    auto sp = std::make_shared<String>();
+    auto    sp   = std::make_shared<String>();
     String& html = *sp;
-    html = String(pageHtml);
+    html         = String(pageHtml);
     html.replace("__FWVER__", String(FIRMWARE_VERSION));
-    const size_t htmlLen = html.length();
-    AsyncWebServerResponse* r = req->beginResponse("text/html", htmlLen,
-        [sp](uint8_t* data, size_t maxlen, size_t index) -> size_t {
-            if (index >= sp->length()) return 0;
-            const size_t avail = sp->length() - index;
-            const size_t n = (maxlen < avail) ? maxlen : avail;
-            memcpy(data, sp->c_str() + index, n);
-            return n;
-        });
+    const size_t            htmlLen = html.length();
+    AsyncWebServerResponse* r       = req->beginResponse("text/html", htmlLen,
+                                                         [sp](uint8_t* data, size_t maxlen, size_t index) -> size_t
+                                                         {
+                                                       if (index >= sp->length())
+                                                           return 0;
+                                                       const size_t avail = sp->length() - index;
+                                                       const size_t n     = (maxlen < avail) ? maxlen : avail;
+                                                       memcpy(data, sp->c_str() + index, n);
+                                                       return n;
+                                                         });
     r->addHeader("Cache-Control", "no-cache");
     req->send(r);
 }

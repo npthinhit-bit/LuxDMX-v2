@@ -10,7 +10,7 @@ static rmt_symbol_word_t test_sym[RMT_DMX_MAX_SYM];
 void test_rmt_dmx_encode_break_mab(void)
 {
     RmtDmx rd = {};
-    rd.sym = test_sym;
+    rd.sym    = test_sym;
     memset(test_sym, 0xFF, sizeof(test_sym));
 
     const uint8_t data[1] = {0x00};
@@ -18,15 +18,15 @@ void test_rmt_dmx_encode_break_mab(void)
 
     // First symbol word: break=low(176) + MAB=high(12)
     TEST_ASSERT_EQUAL_INT(RMT_DMX_BREAK_DEFAULT, rd.sym[0].duration0);
-    TEST_ASSERT_EQUAL_INT(0, rd.sym[0].level0);   // break = low
+    TEST_ASSERT_EQUAL_INT(0, rd.sym[0].level0);  // break = low
     TEST_ASSERT_EQUAL_INT(RMT_DMX_MAB_DEFAULT, rd.sym[0].duration1);
-    TEST_ASSERT_EQUAL_INT(1, rd.sym[0].level1);   // MAB = high
+    TEST_ASSERT_EQUAL_INT(1, rd.sym[0].level1);  // MAB = high
 }
 
 void test_rmt_dmx_encode_byte_0x00(void)
 {
     RmtDmx rd = {};
-    rd.sym = test_sym;
+    rd.sym    = test_sym;
     memset(test_sym, 0, sizeof(test_sym));
 
     const uint8_t data[1] = {0x00};
@@ -44,7 +44,7 @@ void test_rmt_dmx_encode_byte_0x00(void)
 void test_rmt_dmx_encode_byte_0xff(void)
 {
     RmtDmx rd = {};
-    rd.sym = test_sym;
+    rd.sym    = test_sym;
     memset(test_sym, 0, sizeof(test_sym));
 
     const uint8_t data[1] = {0xFF};
@@ -61,7 +61,7 @@ void test_rmt_dmx_encode_byte_0xff(void)
 void test_rmt_dmx_encode_invert(void)
 {
     RmtDmx rd = {};
-    rd.sym = test_sym;
+    rd.sym    = test_sym;
     rd.invert = true;
     memset(test_sym, 0, sizeof(test_sym));
 
@@ -70,27 +70,27 @@ void test_rmt_dmx_encode_invert(void)
 
     // Inverted break word: MAB(12, high) + break(176, low)
     TEST_ASSERT_EQUAL_INT(RMT_DMX_MAB_DEFAULT, rd.sym[0].duration0);
-    TEST_ASSERT_EQUAL_INT(1, rd.sym[0].level0);   // MAB inverted = high
+    TEST_ASSERT_EQUAL_INT(1, rd.sym[0].level0);  // MAB inverted = high
     TEST_ASSERT_EQUAL_INT(RMT_DMX_BREAK_DEFAULT, rd.sym[0].duration1);
-    TEST_ASSERT_EQUAL_INT(0, rd.sym[0].level1);   // break inverted = low
+    TEST_ASSERT_EQUAL_INT(0, rd.sym[0].level1);  // break inverted = low
 
     // Inverted data byte: levels swapped (0→1, 1→0) but durations preserved
     TEST_ASSERT_EQUAL_INT(36, rd.sym[1].duration0);
-    TEST_ASSERT_EQUAL_INT(1, rd.sym[1].level0);      // was 0, swapped to 1
+    TEST_ASSERT_EQUAL_INT(1, rd.sym[1].level0);  // was 0, swapped to 1
     TEST_ASSERT_EQUAL_INT(8, rd.sym[1].duration1);
-    TEST_ASSERT_EQUAL_INT(0, rd.sym[1].level1);      // was 1, swapped to 0
+    TEST_ASSERT_EQUAL_INT(0, rd.sym[1].level1);  // was 1, swapped to 0
 }
 
 void test_rmt_dmx_encode_length(void)
 {
     RmtDmx rd = {};
-    rd.sym = test_sym;
+    rd.sym    = test_sym;
     memset(test_sym, 0, sizeof(test_sym));
 
     // 3-byte frame: [0x00, 0xFF, 0x00] — each byte is 1 word, plus break word
     const uint8_t data[3] = {0x00, 0xFF, 0x00};
-    int           nsym = rmtDmxEncode(&rd, data, 3);
+    int           nsym    = rmtDmxEncode(&rd, data, 3);
 
-    TEST_ASSERT_EQUAL_INT(4, nsym);       // 1 (break) + 3 (data bytes)
+    TEST_ASSERT_EQUAL_INT(4, nsym);  // 1 (break) + 3 (data bytes)
     TEST_ASSERT_EQUAL_INT(4, rd.nsym);
 }

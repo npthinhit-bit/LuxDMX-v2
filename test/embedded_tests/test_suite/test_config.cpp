@@ -1,7 +1,7 @@
 // Unity tests for config_core.h — template resolution, setValue/getValue
 // round-trip, and NVS save/load persistence.
-#include "config_core.h"
 #include "Preferences.h"
+#include "config_core.h"
 #include <unity.h>
 
 // NVS namespace used by cfgcore (must match CFG_PREF_NS in config_core.cpp).

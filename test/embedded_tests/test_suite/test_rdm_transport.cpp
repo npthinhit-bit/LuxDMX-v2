@@ -11,9 +11,9 @@ void test_rdm_build_layout(void)
 {
     uint8_t buf[64];
     memset(buf, 0xEE, sizeof(buf));
-    rdm_uid_t dest = {0x1234, 0xDEADBEEF};
+    rdm_uid_t dest  = {0x1234, 0xDEADBEEF};
     uint8_t   pd[2] = {0xAB, 0xCD};
-    int       len = rdmBuild(buf, dest, RDM_CC_GET_COMMAND, 0x0060, pd, 2);
+    int       len   = rdmBuild(buf, dest, RDM_CC_GET_COMMAND, 0x0060, pd, 2);
 
     // Length = RDM_HDR_LEN(24) + pdl(2) = 26, plus 2-byte checksum = 28 total
     TEST_ASSERT_EQUAL_INT(28, len);
@@ -65,9 +65,9 @@ void test_rdm_build_layout(void)
 
 void test_rdm_build_checksum(void)
 {
-    uint8_t buf[64];
+    uint8_t   buf[64];
     rdm_uid_t dest = {0x1234, 0xBEEFCAFE};
-    int       len = rdmBuild(buf, dest, RDM_CC_GET_COMMAND, 0x0090, nullptr, 0);
+    int       len  = rdmBuild(buf, dest, RDM_CC_GET_COMMAND, 0x0090, nullptr, 0);
 
     // Compute additive 8-bit checksum over all bytes except the checksum itself
     uint16_t ck = 0;
@@ -80,10 +80,10 @@ void test_rdm_build_checksum(void)
 
 void test_rdm_build_transaction_increments(void)
 {
-    uint8_t buf[64];
+    uint8_t   buf[64];
     rdm_uid_t dest = {0x4321, 0x11223344};
 
-    savedTn = g_rdm.tn;
+    savedTn  = g_rdm.tn;
     g_rdm.tn = 254;
 
     int len1 = rdmBuild(buf, dest, RDM_CC_GET_COMMAND, 0x0060, nullptr, 0);
@@ -105,9 +105,9 @@ void test_rdm_build_transaction_increments(void)
 
 void test_rdm_build_no_param_data(void)
 {
-    uint8_t buf[64];
+    uint8_t   buf[64];
     rdm_uid_t dest = {0xABCD, 0x00112233};
-    int       len = rdmBuild(buf, dest, RDM_CC_GET_COMMAND, 0x00F0, nullptr, 0);
+    int       len  = rdmBuild(buf, dest, RDM_CC_GET_COMMAND, 0x00F0, nullptr, 0);
 
     // No parameter data: length = RDM_HDR_LEN(24) + 0 = 24, total = 26
     TEST_ASSERT_EQUAL_INT(26, len);
