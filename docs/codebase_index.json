@@ -684,14 +684,14 @@
       "file": "src/frontend/web_frontend.cpp",
       "params": "AsyncWebServerRequest* req, const __FlashStringHelper* pageBody, const __FlashStringHelper* pageCss, const __FlashStringHelper* pageJs",
       "return_type": "void (static)",
-      "notes": "Assembles full HTML via String concat. Replaces __FWVER__ with FIRMWARE_VERSION at runtime. Uses AsyncCallbackResponse with std::move(html) to stream from a single buffer, avoiding the double-buffer (~30KB peak) that AsyncBasicResponse would impose (BUG-022)."
+      "notes": "Assembles full HTML into shared_ptr<String> then streams via AsyncCallbackResponse whose lambda captures shared_ptr<String> (8 bytes, trivially copyable). beginResponse copies std::function by value, but shared_ptr copy only increments refcount - never duplicates the ~15KB buffer. The std::move approach still deep-copied the String via std::function copy (BUG-022)."
     },
     "sendRawPage": {
       "file": "src/frontend/web_frontend.cpp",
       "params": "AsyncWebServerRequest* req, const __FlashStringHelper* pageHtml",
       "return_type": "void (static)",
       "changed_in_fix": true,
-      "notes": "Converts PROGMEM to String, replaces __FWVER__ with FIRMWARE_VERSION, sends response. Uses AsyncCallbackResponse with std::move(html) for single-buffer streaming (BUG-022)."
+      "notes": "Converts PROGMEM to String inside shared_ptr<String>, replaces __FWVER__ with FIRMWARE_VERSION, streams via AsyncCallbackResponse with shared_ptr capture (BUG-022)."
     },
     "handleOtaStatus": {
       "file": "src/frontend/web_frontend.cpp",
@@ -1432,6 +1432,6 @@
     "BUG-019: CI native test step fails — build/test_native.py path does not exist and all argument unsupported (CI workflow + scripts used wrong path; test_native.py lacked 'all' support)",
     "BUG-020: CI Lint job fails — unquoted +<src/> +<include/> in pio check causes bash syntax error; cppcheck not installed",
     "BUG-021: CI native-tests job fails coverage artifact upload - GCOV_PREFIX_STRIP no-op and missing continue-on-error",
-    "BUG-022: Blank web UI on esp32s3_psram — double-buffered AsyncBasicResponse HTML response (~30KB) exceeded 31KB DRAM contiguous block when PSRAM not detected at runtime; fixed via AsyncCallbackResponse with std::move (single ~15KB buffer)"
+    "BUG-022: Blank web UI on esp32s3_psram — beginResponse copies std::function by value, deep-copying lambda-captured String (~30KB peak) exceeding 31KB contiguousDRAM block when PSRAM absent; fixed via shared_ptr<String> capture so std::function copy only increments refcount (no data duplication)"
   ]
 }

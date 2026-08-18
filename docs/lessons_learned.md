@@ -1121,24 +1121,45 @@ None. Changes are isolated to CI workflow configuration and the host-side test r
 
 ---
 
-## BUG-022: Blank web UI on esp32s3_psram - double-buffered HTML exhausts contiguous DRAM
+## BUG-022: Blank web UI on esp32s3_psram - double-buffered HTML response exhausts contiguous DRAM
 
 Date: 2026-08-18
-Subsystem: net/web_frontend
-Severity: Critical
-Affected: ESP32-S3 esp32s3_psram (runtime); all envs (code change)
+Subsystem: net/web_frontend, net/web_server
+Severity: Critical (index/config/RDM/OTA pages return HTTP 200 with Content-Length: 0, then ERR_CONTENT_LENGTH_MISMATCH after first attempt)
+Affected hardware: ESP32-S3 (esp32s3_psram env, boards without detected PSRAM at runtime)
+Affected PlatformIO environment: esp32s3_psram (runtime); all envs (code change)
 
-Symptom: dmx-gateway.local blank. HTTP 200, Content-Length: 0. /config /rdm /ota /index all empty. sendJson works. Soak-stats: dram_free=43220 dram_largest_block=31732 psram_total=0.
+### Symptom
+After flashing esp32s3_psram, dmx-gateway.local returns a blank page. Browser dev tools show HTTP 200 with Content-Length: 0. /config, /rdm, /ota, /index all serve empty bodies. sendJson and /ota/status work. Soak-stats: dram_free=43220, dram_largest_block=31732, psram_total=0.
 
-Root Cause: sendAppPage builds ~15KB HTML into String html, then beginResponse(200,"text/html",html) creates AsyncBasicResponse which deep-copies via _content = content (String assignment). Peak DRAM ~30KB. dram_largest_block only 31KB. Second malloc fails (NULL), Arduino String swallows failure, length=0, Content-Length:0. Runtime psram_total=0 despite CONFIG_ESP32S3_SPIRAM_SUPPORT=y (PSRAM not physically detected at boot, CONFIG_SPIRAM_IGNORE_NOTFOUND=y). NOTE: soak_monitor.cpp guards with CONFIG_SPIRAM_SUPPORT (IDF v4.x symbol) but S3 uses CONFIG_ESP32S3_SPIRAM_SUPPORT. Latent reporting bug, separate from this fix.
+### Root Cause
+Two compounding issues:
 
-Fix: Replaced AsyncBasicResponse with AsyncCallbackResponse in sendAppPage and sendRawPage. String MOVED into callback via std::move - only ONE ~15KB allocation. Framework _fillBuffer copies chunks (~MSS) from the moved buffer.
+1. Double-buffering: sendAppPage() builds ~15KB HTML into a local String html (html.reserve(20000)), then passes it to req->beginResponse(200, "text/html", html). The AsyncBasicResponse constructor deep-copies via String operator=(const char*), creating a SECOND ~15KB copy. Peak DRAM: ~30KB, exceeding dram_largest_block=31KB. When the copy malloc fails, Arduino String silently swallows the failure, length stays 0, Content-Length: 0.
 
-Files: src/frontend/web_frontend.cpp (sendAppPage, sendRawPage: AsyncCallbackResponse+std::move; added cstring+utility includes), docs/codebase_index.json (notes+BUG-022)
+2. std::function copy (ERR_CONTENT_LENGTH_MISMATCH after first fix attempt): Replacing AsyncBasicResponse with AsyncCallbackResponse, the lambda captured the String via [content = std::move(html)]. However, beginResponse takes AwsResponseFiller (= std::function) BY VALUE, and the AsyncCallbackResponse constructor also receives it by value. The std::function copy clones the target lambda, which invokes String::String(const String&) - another ~15KB deep copy. Under the 31KB constraint, this copy can fail, leaving the lambda's captured String empty (length 0). The Content-Length header was already set to htmlLen, but the callback returns 0 bytes - hence ERR_CONTENT_LENGTH_MISMATCH.
 
-Validation: esp32s3_psram SUCCESS (RAM 38.7% Flash 85.8%). esp32dev SUCCESS (37.3%/87.6%). esp32s3dev SUCCESS (38.7%/85.9%). wt32eth01 SUCCESS (37.3%/85.8%). esp32s3_n16r8_eth SUCCESS (38.7%/85.9%). No warnings in web_frontend.cpp across 5 targets.
+Runtime psram_total=0 despite sdkconfig defining CONFIG_ESP32S3_SPIRAM_SUPPORT=y, CONFIG_SPIRAM=y, CONFIG_SPIRAM_IGNORE_NOTFOUND=y. PSRAM not physically detected at boot, CONFIG_SPIRAM_IGNORE_NOTFOUND=y boots anyway, all allocations fall back to DRAM. NOTE: soak_monitor.cpp guards PSRAM queries with #ifdef CONFIG_SPIRAM_SUPPORT (IDF v4.x symbol) but S3 uses CONFIG_ESP32S3_SPIRAM_SUPPORT. Latent reporting bug, separate from this fix.
 
-Regression Risk: Low. AsyncCallbackResponse is standard. std::move safe (lambda outlives handler). Only behavioral change: peak heap halved (~30KB to ~15KB). html.reserve(20000) retained.
+### Fix
+Use AsyncCallbackResponse with a shared_ptr<String> capture instead of a String capture. The lambda captures std::shared_ptr<String> sp (8 bytes). When beginResponse copies the std::function by value, it only copies the shared_ptr (trivial refcount increment), never deep-copying the ~15KB String buffer. Only ONE ~15KB allocation exists throughout the response lifetime.
 
-Lesson: Never pass large String by value to beginResponse in ESPAsyncWebServer - AsyncBasicResponse deep-copies, doubling peak DRAM. For pages over ~15KB use AsyncCallbackResponse to stream from single buffer. Always account for dram_largest_block: free heap is misleading if fragmentation prevents contiguous allocation. Runtime psram_total=0 (despite Kconfig) proves PSRAM presence cannot be assumed - single-buffer path is safe regardless. ESP-IDF v5.x uses CONFIG_ESP32S3_SPIRAM_SUPPORT not CONFIG_SPIRAM_SUPPORT.
+### Files / Functions
+- src/frontend/web_frontend.cpp - sendAppPage(), sendRawPage(): converted to AsyncCallbackResponse with shared_ptr<String> capture; added #include <cstring>, #include <memory>
+- docs/codebase_index.json - updated sendAppPage/sendRawPage notes; updated BUG-022 entry
 
+### Validation
+pio run -e esp32s3_psram: SUCCESS (RAM 38.7%, Flash 85.8%)
+pio run -e esp32dev: SUCCESS (RAM 37.3%, Flash 87.6%)
+pio run -e esp32s3dev: SUCCESS (RAM 38.6%, Flash 85.7%)
+pio run -e wt32eth01: SUCCESS (RAM 37.3%, Flash 85.8%)
+pio run -e esp32s3_n16r8_eth: SUCCESS (RAM 38.7%, Flash 85.9%)
+No warnings in web_frontend.cpp or AsyncCallbackResponse across all 5 targets.
+
+### Regression Risk
+Low. AsyncCallbackResponse is standard ESPAsyncWebServer. shared_ptr is trivially copyable and the lambda outlives the beginResponse call. Only behavioral change: peak heap halved (~30KB to ~15KB). html.reserve(20000) retained as assembly hint.
+
+### Lesson
+Never pass a large String by value to beginResponse in ESPAsyncWebServer - AsyncBasicResponse deep-copies it via String operator=(const char*), doubling peak DRAM. For callback-based responses, the AwsResponseFiller (std::function) parameter is copied by value in beginResponse and again in the AsyncCallbackResponse constructor - a lambda capturing a String deep-copies the String on every std::function copy. Use shared_ptr<T> capture (8 bytes, trivially copyable) so the std::function copy only increments the refcount. Always account for dram_largest_block: free heap bytes are misleading if fragmentation prevents contiguous allocation. Runtime psram_total=0 (despite Kconfig CONFIG_SPIRAM=y) proves runtime PSRAM presence cannot be assumed - single-buffer path is safe regardless. ESP-IDF v5.x uses CONFIG_ESP32S3_SPIRAM_SUPPORT not CONFIG_SPIRAM_SUPPORT.
+
+---
