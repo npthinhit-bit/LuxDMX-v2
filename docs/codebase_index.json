@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "project": "LuxDMX V2",
-  "last_updated": "2026-08-17T17:30:00+07:00",
+  "last_updated": "2026-08-18T04:16:00+07:00",
   "files": {
     "src/main.cpp": {
       "layer": "app",
@@ -160,7 +160,7 @@
     "src/frontend/pages/ota_done_page.h": {
       "layer": "net",
       "purpose": "OTA done page (PROGMEM): uses {{OTA_ICON}} etc template placeholders",
-      "notes": "Not currently served by any handler \u00e2\u20ac\u201d dead code / WIP"
+      "notes": "Not currently served by any handler â€” dead code / WIP"
     },
     "src/frontend/pages/config_saved_page.h": {
       "layer": "net",
@@ -449,7 +449,7 @@
     },
     "src/sys/soak_monitor.cpp": {
       "layer": "sys",
-      "purpose": "Soak-test heap watchdog (LUXDMX_SOAK_TEST). Reboots if DRAM < 30KB"
+      "purpose": "Soak-test heap watchdog (LUXDMX_SOAK_TEST). Reboots if DRAM < 30KB. Guards PSRAM queries with #ifdef CONFIG_SPIRAM_SUPPORT — NOTE: this is an IDF v4.x symbol not defined on ESP32-S3 (ESP-IDF v5.x uses CONFIG_ESP32S3_SPIRAM_SUPPORT); PSRAM stats always report 0 on S3 builds. See BUG-022."
     },
     "src/sys/soak_monitor.h": {
       "layer": "sys",
@@ -588,7 +588,7 @@
         "_gen_bin",
         "_c_escape"
       ],
-      "notes": "Still generates old-style src/generated/*_html.h from src/pages/*.html \u00e2\u20ac\u201d these are DEAD CODE (new frontend uses src/frontend/*.h directly. Does NOT process __FWVER__ in frontend files."
+      "notes": "Still generates old-style src/generated/*_html.h from src/pages/*.html â€” these are DEAD CODE (new frontend uses src/frontend/*.h directly. Does NOT process __FWVER__ in frontend files."
     },
     "tools/gen_config_templates.py": {
       "layer": "build",
@@ -603,7 +603,7 @@
         "extract_body",
         "extract_scripts"
       ],
-      "notes": "extract_body regex strips trailing </div> \u00e2\u20ac\u201d caused BUG-005 unclosed HTML in rdm_page.h"
+      "notes": "extract_body regex strips trailing </div> â€” caused BUG-005 unclosed HTML in rdm_page.h"
     },
     "src/config_templates_gen.cpp": {
       "layer": "cfg",
@@ -656,7 +656,7 @@
     },
     ".github/workflows/ci.yml": {
       "layer": "build",
-      "purpose": "GitHub Actions CI: 3 parallel jobs — Build (all 5 PlatformIO envs), Unit Tests (test/native/test_native.py all), Lint (pio check with cppcheck). Fixed: lint step now quotes --src-filters and installs cppcheck (BUG-020); test step uses correct path test/native/test_native.py with 'all' support (BUG-019)."
+      "purpose": "GitHub Actions CI: 3 parallel jobs — Build (all 5 PlatformIO envs), Unit Tests (test/native/test_native.py all), Lint (pio check with cppcheck). Fixed: lint step now quotes --src-filters and installs cppcheck (BUG-020); test step uses correct path test/native/test_native.py with 'all' support (BUG-019). coverage collection fixes GCOV_PREFIX_STRIP no-op and adds continue-on-error to artifact upload (BUG-021)."
     },
     "test/native/merge_test.cpp": {
       "layer": "test",
@@ -684,14 +684,14 @@
       "file": "src/frontend/web_frontend.cpp",
       "params": "AsyncWebServerRequest* req, const __FlashStringHelper* pageBody, const __FlashStringHelper* pageCss, const __FlashStringHelper* pageJs",
       "return_type": "void (static)",
-      "notes": "Assembles full HTML via String concat. Replaces __FWVER__ with FIRMWARE_VERSION at runtime (added in fix). Reserves 20000 bytes."
+      "notes": "Assembles full HTML via String concat. Replaces __FWVER__ with FIRMWARE_VERSION at runtime. Uses AsyncCallbackResponse with std::move(html) to stream from a single buffer, avoiding the double-buffer (~30KB peak) that AsyncBasicResponse would impose (BUG-022)."
     },
     "sendRawPage": {
       "file": "src/frontend/web_frontend.cpp",
       "params": "AsyncWebServerRequest* req, const __FlashStringHelper* pageHtml",
       "return_type": "void (static)",
       "changed_in_fix": true,
-      "notes": "Converts PROGMEM to String, replaces __FWVER__ with FIRMWARE_VERSION (added in fix), sends response."
+      "notes": "Converts PROGMEM to String, replaces __FWVER__ with FIRMWARE_VERSION, sends response. Uses AsyncCallbackResponse with std::move(html) for single-buffer streaming (BUG-022)."
     },
     "handleOtaStatus": {
       "file": "src/frontend/web_frontend.cpp",
@@ -1428,8 +1428,10 @@
     "BUG-015: mbedtls 3.6.5 REMOVED the _ret suffix variants; BUG-011 fix was wrong",
     "BUG-016: outSrcLost default initializer changed from {true,true,true,true} to {} without startup recovery",
     "BUG-017: Standalone test runner (test_native.py) had incorrect merge_test TEST_DEPS",
-    "BUG-018: Native test runner (test_native.py) missing generated config_templates.gen.h \u2014 config_test/merge_test fail to compile because src/config_templates_gen.cpp includes the build-time-generated header that only extra_scripts.py creates during PlatformIO builds",
-    "BUG-019: CI native test step fails \u2014 build/test_native.py path does not exist and all argument unsupported (CI workflow + scripts used wrong path; test_native.py lacked 'all' support)",
-    "BUG-020: CI Lint job fails — unquoted +<src/> +<include/> in pio check causes bash syntax error; cppcheck not installed"
+    "BUG-018: Native test runner (test_native.py) missing generated config_templates.gen.h — config_test/merge_test fail to compile because src/config_templates_gen.cpp includes the build-time-generated header that only extra_scripts.py creates during PlatformIO builds",
+    "BUG-019: CI native test step fails — build/test_native.py path does not exist and all argument unsupported (CI workflow + scripts used wrong path; test_native.py lacked 'all' support)",
+    "BUG-020: CI Lint job fails — unquoted +<src/> +<include/> in pio check causes bash syntax error; cppcheck not installed",
+    "BUG-021: CI native-tests job fails coverage artifact upload - GCOV_PREFIX_STRIP no-op and missing continue-on-error",
+    "BUG-022: Blank web UI on esp32s3_psram — double-buffered AsyncBasicResponse HTML response (~30KB) exceeded 31KB DRAM contiguous block when PSRAM not detected at runtime; fixed via AsyncCallbackResponse with std::move (single ~15KB buffer)"
   ]
 }

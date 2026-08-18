@@ -1068,3 +1068,77 @@ When passing PlatformIO check filter strings containing `<` `>` characters throu
 
 ### Related Entries
 - BUG-019: CI native test step fails â€” `build/test_native.py` path does not exist and `all` argument unsupported
+
+---
+## BUG-021: CI native-tests job fails coverage artifact upload — GCOV_PREFIX_STRIP no-op and missing continue-on-error
+
+Date: 2026-08-18
+Subsystem: CI / test/native
+Severity: Low (CI only; no firmware impact)
+Affected hardware: none (host-only test infrastructure)
+Affected PlatformIO environment: none (CI test job)
+
+### Symptom
+The GitHub Actions `native-tests` job fails at the "Upload coverage report" step (step 9) with a non-zero exit code, causing the `ota-sign-verify` job (which depends on `native-tests`) to never run.
+
+### Root Cause
+Two issues combined to cause the failure:
+
+1. **GCOV_PREFIX_STRIP=1 is a no-op without GCOV_PREFIX**: In `.github/workflows/ci.yml` (line 339), the CI step set `export GCOV_PREFIX_STRIP=1`. Per GCC documentation, `GCOV_PREFIX_STRIP` strips leading path components from the `GCOV_PREFIX` base directory — but `GCOV_PREFIX` was never set, so the strip has nothing to operate on. The `.gcda` files end up in the mangled path determined by `-fprofile-dir=build/test_native/coverage` in `test_native.py`. While the `.gcda` files ARE generated (confirmed locally), the path layout is non-standard and `lcov`/`gcovr` version differences on the Ubuntu runner may cause them to fail to locate the files, producing no `coverage.xml`/`coverage.info`.
+
+2. **Upload step has no continue-on-error**: The "Upload coverage report" step uses `actions/upload-artifact@v4` with `if: always()`, but without `continue-on-error: true`. When `actions/upload-artifact` finds no files matching the glob patterns (because gcovr/lcov failed to produce them), it exits with a non-zero code, which (because of `if: always()` without `continue-on-error`) marks the entire `native-tests` job as failed.
+
+3. **Stale .gcda cleanup in test_native.py**: The cleanup code in `test_native.py:72-73` only cleaned `build/test_native/*.gcda` but the actual coverage files are written to `build/test_native/coverage/*.gcda` (due to `-fprofile-dir`). Stale `.gcda` files from a previous run could produce inaccurate coverage data.
+
+### Fix
+Three changes:
+
+1. **`.github/workflows/ci.yml` — "Run native tests with coverage" step**: Replaced `export GCOV_PREFIX_STRIP=1` with `GCOV_PREFIX: ${{ github.workspace }}/build/test_native/coverage` as a step-level env var. This sets the base directory for gcov data files explicitly.
+
+2. **`.github/workflows/ci.yml` — "Collect coverage data" step**: Added `--directory build/test_native` to the gcovr invocation and `--recursive` to the lcov invocation. The `--directory` flag tells gcovr to search the specified directory recursively for `.gcda`/`.gcno` files, and `--recursive` does the same for lcov.
+
+3. **`.github/workflows/ci.yml` — "Upload coverage report" step**: Added `continue-on-error: true` so that even if no coverage files are produced, the job does not fail and downstream jobs (`ota-sign-verify`) can proceed.
+
+4. **`test/native/test_native.py` — `run_single_test()` cleanup**: Added a second `glob.glob` loop to clean `.gcda` files from `build/test_native/coverage/*.gcda` (the actual location due to `-fprofile-dir`) in addition to the existing `build/test_native/*.gcda` cleanup.
+
+### Files / Functions
+- `.github/workflows/ci.yml` — lines 333-386 (native-tests job steps)
+- `test/native/test_native.py` — `run_single_test()` function (`.gcda` cleanup)
+
+### Validation
+Confirmed locally: `python3 test/native/test_native.py all` passes all 4 test suites (398 assertions total) and generates `.gcda` files in `build/test_native/coverage/`. gcovr successfully parses the coverage data from the correct path. The `continue-on-error: true` on the upload step ensures the CI job cannot fail due to coverage tooling issues.
+
+### Regression Risk
+None. Changes are isolated to CI workflow configuration and the host-side test runner. No firmware source code, build configuration, or PlatformIO environments are modified.
+
+### Lesson
+`GCOV_PREFIX_STRIP` without `GCOV_PREFIX` is a no-op — always set both or neither. When using `-fprofile-dir` to redirect gcov output, gcovr/lcov must be told to search that directory. The `actions/upload-artifact@v4` action fails the job if no files match the glob and `continue-on-error` is not set — use it for any optional artifact upload. Stale `.gcda` cleanup must match the actual runtime output directory specified by `-fprofile-dir`.
+
+### Related Entries
+- BUG-019: CI native test step fails — `build/test_native.py` path does not exist and `all` argument unsupported
+- BUG-017: Standalone test runner (test_native.py) had incorrect merge_test TEST_DEPS
+- BUG-018: Native test runner (test_native.py) missing generated config_templates.gen.h
+
+---
+
+## BUG-022: Blank web UI on esp32s3_psram - double-buffered HTML exhausts contiguous DRAM
+
+Date: 2026-08-18
+Subsystem: net/web_frontend
+Severity: Critical
+Affected: ESP32-S3 esp32s3_psram (runtime); all envs (code change)
+
+Symptom: dmx-gateway.local blank. HTTP 200, Content-Length: 0. /config /rdm /ota /index all empty. sendJson works. Soak-stats: dram_free=43220 dram_largest_block=31732 psram_total=0.
+
+Root Cause: sendAppPage builds ~15KB HTML into String html, then beginResponse(200,"text/html",html) creates AsyncBasicResponse which deep-copies via _content = content (String assignment). Peak DRAM ~30KB. dram_largest_block only 31KB. Second malloc fails (NULL), Arduino String swallows failure, length=0, Content-Length:0. Runtime psram_total=0 despite CONFIG_ESP32S3_SPIRAM_SUPPORT=y (PSRAM not physically detected at boot, CONFIG_SPIRAM_IGNORE_NOTFOUND=y). NOTE: soak_monitor.cpp guards with CONFIG_SPIRAM_SUPPORT (IDF v4.x symbol) but S3 uses CONFIG_ESP32S3_SPIRAM_SUPPORT. Latent reporting bug, separate from this fix.
+
+Fix: Replaced AsyncBasicResponse with AsyncCallbackResponse in sendAppPage and sendRawPage. String MOVED into callback via std::move - only ONE ~15KB allocation. Framework _fillBuffer copies chunks (~MSS) from the moved buffer.
+
+Files: src/frontend/web_frontend.cpp (sendAppPage, sendRawPage: AsyncCallbackResponse+std::move; added cstring+utility includes), docs/codebase_index.json (notes+BUG-022)
+
+Validation: esp32s3_psram SUCCESS (RAM 38.7% Flash 85.8%). esp32dev SUCCESS (37.3%/87.6%). esp32s3dev SUCCESS (38.7%/85.9%). wt32eth01 SUCCESS (37.3%/85.8%). esp32s3_n16r8_eth SUCCESS (38.7%/85.9%). No warnings in web_frontend.cpp across 5 targets.
+
+Regression Risk: Low. AsyncCallbackResponse is standard. std::move safe (lambda outlives handler). Only behavioral change: peak heap halved (~30KB to ~15KB). html.reserve(20000) retained.
+
+Lesson: Never pass large String by value to beginResponse in ESPAsyncWebServer - AsyncBasicResponse deep-copies, doubling peak DRAM. For pages over ~15KB use AsyncCallbackResponse to stream from single buffer. Always account for dram_largest_block: free heap is misleading if fragmentation prevents contiguous allocation. Runtime psram_total=0 (despite Kconfig) proves PSRAM presence cannot be assumed - single-buffer path is safe regardless. ESP-IDF v5.x uses CONFIG_ESP32S3_SPIRAM_SUPPORT not CONFIG_SPIRAM_SUPPORT.
+

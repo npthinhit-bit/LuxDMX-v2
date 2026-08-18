@@ -22,11 +22,14 @@
 #include "scripts/shared_js.h"
 #include "web_server.h"
 #include <Arduino.h>
+#include <cstring>
+#include <memory>
 
 static void sendAppPage(AsyncWebServerRequest* req, const __FlashStringHelper* pageBody,
                         const __FlashStringHelper* pageCss, const __FlashStringHelper* pageJs)
 {
-    String html;
+    auto sp = std::make_shared<String>();
+    String& html = *sp;
     html.reserve(20000);
     html += F("<!DOCTYPE html><html lang=\"en\" data-bs-theme=\"dark\"><head>");
     html += F("<meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
@@ -57,16 +60,34 @@ static void sendAppPage(AsyncWebServerRequest* req, const __FlashStringHelper* p
     }
     html += F("</body></html>");
     html.replace("__FWVER__", String(FIRMWARE_VERSION));
-    AsyncWebServerResponse* r = req->beginResponse(200, "text/html", html);
+    const size_t htmlLen = html.length();
+    AsyncWebServerResponse* r = req->beginResponse("text/html", htmlLen,
+        [sp](uint8_t* data, size_t maxlen, size_t index) -> size_t {
+            if (index >= sp->length()) return 0;
+            const size_t avail = sp->length() - index;
+            const size_t n = (maxlen < avail) ? maxlen : avail;
+            memcpy(data, sp->c_str() + index, n);
+            return n;
+        });
     r->addHeader("Cache-Control", "no-cache");
     req->send(r);
 }
 
 static void sendRawPage(AsyncWebServerRequest* req, const __FlashStringHelper* pageHtml)
 {
-    String html = String(pageHtml);
+    auto sp = std::make_shared<String>();
+    String& html = *sp;
+    html = String(pageHtml);
     html.replace("__FWVER__", String(FIRMWARE_VERSION));
-    AsyncWebServerResponse* r = req->beginResponse(200, "text/html", html);
+    const size_t htmlLen = html.length();
+    AsyncWebServerResponse* r = req->beginResponse("text/html", htmlLen,
+        [sp](uint8_t* data, size_t maxlen, size_t index) -> size_t {
+            if (index >= sp->length()) return 0;
+            const size_t avail = sp->length() - index;
+            const size_t n = (maxlen < avail) ? maxlen : avail;
+            memcpy(data, sp->c_str() + index, n);
+            return n;
+        });
     r->addHeader("Cache-Control", "no-cache");
     req->send(r);
 }

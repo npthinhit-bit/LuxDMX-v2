@@ -69,7 +69,10 @@ def run_single_test(test_name):
     # Clean up stale .gcda files from previous runs to avoid stale coverage data
     if ENABLE_COVERAGE:
         import glob
+        # Clean .gcda files from both the test_native dir and the coverage subdirectory
         for gcda in glob.glob(os.path.join(PROJECT_ROOT, "build", "test_native", "*.gcda")):
+            os.remove(gcda)
+        for gcda in glob.glob(os.path.join(PROJECT_ROOT, "build", "test_native", "coverage", "*.gcda")):
             os.remove(gcda)
     # Generate config_templates.gen.h when this test compiles sources that
     # depend on it. PlatformIO normally does this via extra_scripts.py; the
