@@ -428,3 +428,20 @@ bool wifi_should_enter_portal(void) {
     }
     return false;
 }
+
+#ifdef UNIT_TEST
+int wifi_backoff_ms_test(int retry) {
+    return compute_backoff_ms(retry);
+}
+void wifi_manager_reset_state_test(void) {
+    memset(&ctx, 0, sizeof(ctx));
+    ctx.state = NET_STATE_INIT;
+    ctx.mutex = NULL;
+    ctx.sta_netif = NULL;
+    ctx.ap_netif = NULL;
+    ctx.retry_count = 0;
+    ctx.softap_active = false;
+    ctx.portal_forced = false;
+    ctx.event_callback = NULL;
+}
+#endif

@@ -48,6 +48,7 @@ add_library(lux_wifi_test STATIC
     ${CMAKE_SOURCE_DIR}/../components/lux_wifi/src/wifi_manager.c
     ${CMAKE_SOURCE_DIR}/../components/lux_wifi/src/wifi_config.c
 )
+target_compile_definitions(lux_wifi_test PUBLIC UNIT_TEST)
 
 # Test executables
 add_executable(logger_test ${CMAKE_SOURCE_DIR}/tests/test_logger.c)
@@ -62,9 +63,17 @@ target_link_libraries(portal_test lux_wifi_test lux_config_test lux_log_test lux
 add_executable(boards_test ${CMAKE_SOURCE_DIR}/tests/test_boards.c)
 target_link_libraries(boards_test lux_common_test lux_log_test shim ${CMAKE_SOURCE_DIR}/../components/cjson/cJSON.c)
 
+add_executable(net_baseline_test ${CMAKE_SOURCE_DIR}/tests/test_net_baseline.c)
+target_link_libraries(net_baseline_test lux_wifi_test lux_config_test lux_log_test lux_common_test shim ${CMAKE_SOURCE_DIR}/../components/cjson/cJSON.c)
+
+add_executable(led_math_test ${CMAKE_SOURCE_DIR}/tests/test_led_math.c)
+target_link_libraries(led_math_test shim)
+
 enable_testing()
 
 add_test(logger_test logger_test)
 add_test(config_serial_test config_serial_test)
 add_test(portal_test portal_test)
 add_test(boards_test boards_test)
+add_test(net_baseline_test net_baseline_test)
+add_test(led_math_test led_math_test)

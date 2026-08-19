@@ -43,6 +43,11 @@ esp_err_t wifi_get_ip_info(char* ip, char* netmask, char* gateway);
 net_state_t wifi_get_net_state(void);
 bool wifi_should_enter_portal(void);
 
+#ifdef UNIT_TEST
+int wifi_backoff_ms_test(int retry);
+void wifi_manager_reset_state_test(void);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

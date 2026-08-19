@@ -1,8 +1,8 @@
-# LuxDMX-v2 ESP-IDF Codebase Index
+﻿# LuxDMX-v2 ESP-IDF Codebase Index
 
 ## Project Overview
 
-LuxDMX-v2 is an Art-Net/sACN → DMX512 gateway firmware for ESP32/ESP32-S3 with full RDM support, OTA updates, and web configuration interface. This version is a **pure ESP-IDF implementation** with PlatformIO integration, replacing the previous hybrid Arduino/ESP-IDF approach.
+LuxDMX-v2 is an Art-Net/sACN â†’ DMX512 gateway firmware for ESP32/ESP32-S3 with full RDM support, OTA updates, and web configuration interface. This version is a **pure ESP-IDF implementation** with PlatformIO integration, replacing the previous hybrid Arduino/ESP-IDF approach.
 
 **Target Hardware:**
 - ESP32-S3-WROOM-2 N16R8
@@ -21,16 +21,16 @@ LuxDMX-v2 is an Art-Net/sACN → DMX512 gateway firmware for ESP32/ESP32-S3 with
 
 ```
 components/
-├── lux_common/      # Common utilities and base classes
-├── lux_hw/          # Hardware abstraction layer
-├── lux_wifi/        # WiFi and network management
-├── lux_led/         # LED drivers and status indication
-├── lux_config/      # Configuration engine
-├── lux_core/        # DMX/RDM core logic (Phase 2+)
-├── lux_net/         # Network protocols (Phase 2+)
-├── lux_web/         # Web server and frontend
-├── lux_log/         # Structured logging
-└── lux_test/        # Test utilities and shims
+â”œâ”€â”€ lux_common/      # Common utilities and base classes
+â”œâ”€â”€ lux_hw/          # Hardware abstraction layer
+â”œâ”€â”€ lux_wifi/        # WiFi and network management
+â”œâ”€â”€ lux_led/         # LED drivers and status indication
+â”œâ”€â”€ lux_config/      # Configuration engine
+â”œâ”€â”€ lux_core/        # DMX/RDM core logic (Phase 2+)
+â”œâ”€â”€ lux_net/         # Network protocols (Phase 2+)
+â”œâ”€â”€ lux_web/         # Web server and frontend
+â”œâ”€â”€ lux_log/         # Structured logging
+â””â”€â”€ lux_test/        # Test utilities and shims
 ```
 
 ## Key Architectural Decisions
@@ -42,7 +42,7 @@ components/
 
 ### 2. Configuration System
 - **Schema-driven**: Single field table drives NVS, web form, and serial console
-- **Resolution order**: Neutral values → board template → NVS overlay
+- **Resolution order**: Neutral values â†’ board template â†’ NVS overlay
 - **Live vs reboot**: Clear separation of fields that apply instantly vs require restart
 - **Validation**: Range clamping and hardware constraint checking
 
@@ -142,7 +142,9 @@ Native gate (Phase 0 exit #2 / section 5.4): host-native harness (`test/`, MinGW
 - [x] Config engine (9-field Phase-1 schema; NVS overlay; secret masking; board template)
 - [x] Serial console subset (dump/get/set/save/reset/load/wifi/reboot)
 - [x] Web routes (/info.json, /wifi/scan, /setup GET+POST, /config, /assets) + standalone webui (MockTransport)
-- [x] Testing infrastructure (native harness green 4/4)
+- [x] Testing infrastructure (native harness green 6/6, 76 total test cases)
+- [x] Net baseline test: portal activation matrix (spec 33), backoff formula (spec 14), WiFi state machine, config persistence
+- [x] LED math test: brightness scaling, clamping, pattern-to-color mapping (spec 36)
 - [ ] CI/CD pipeline (Phase 0 section 5.6 #13 - pending)
 
 Remaining Phase-1 follow-ups (parity register section 10): `wifi_ssid` CFG_LIVE -> CFG_REBOOT per spec 45: DONE; serial `help`/`factory` verbs (spec 43): DONE; config_engine board-template: already reconciled (hardware fields sourced from boards.c, section 5.2). webui `/wifi/scan` vs plan section 5.7 `/setup/scan` (accepted deviation). See Lessons_Learned.

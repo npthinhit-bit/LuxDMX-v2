@@ -1,4 +1,4 @@
-# Lessons Learned - LuxDMX-v2 ESP-IDF Migration
+﻿# Lessons Learned - LuxDMX-v2 ESP-IDF Migration
 
 ## Phase 0: Documentation and Planning
 
@@ -115,6 +115,10 @@
   - Error conditions must be explicitly tested
   - Edge cases require dedicated test scenarios
   - Recovery mechanisms need validation
+- **Lesson**: Native test harness parity and assertion correctness
+  - `test_net_baseline.c` (16 tests) and `test_led_math.c` (12 tests) cover WiFi portal activation matrix (spec 33 §2), exponential backoff formula (spec 14), STA/SoftAP connect, net state machine, config persistence round-trip, and LED brightness scaling/clamping/pattern-to-color mapping (spec 36). Native test count rose from 4 / 6 executables, 69 / 76 total test cases.
+  - The ASSERT macro decremented `tests_run` (in addition to `tests_passed`) on failure, silently hiding test failures from the pass/total counter. Removing that line revealed a latent bug: `logger_get_ring_buffer()` returned NULL for an empty ring buffer, surfacing as a crash in the dump-test secret-masking check. Fixed both.
+
 
 ### Phase 1 - Implementation Status and Decisions (2026-08-19, ESP-IDF 6.0.1)
 - **Env vs plan**: Framework is **ESP-IDF v6.0.1** (plan section 3.x says v5.2). No Phase-1 breakage; recorded per section 7.
