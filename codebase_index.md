@@ -102,18 +102,46 @@ typedef struct {
 
 ### Configuration Engine
 ```c
-// Configuration Field Descriptor
+// Config: 47 global fields + 4x DmxOutput (24 fields each)
+typedef struct {
+    char hostname[32];
+    char otapw[64];
+    int protocol;
+    int wifimode;
+    char wifissid[32];
+    char wifipsk[64];
+    int ledpin; int ledtype; int ledbr;
+    DmxOutput outputs[MAX_OUTPUTS];
+    /* ... 37 more global fields (see config_engine.h) */
+} Config;
+
+// CfgField: offsetof-based (no void* value_ptr)
 typedef struct {
     const char* key;
     const char* json_key;
     cfg_type_t type;
-    void* value_ptr;
-    int min;
-    int max;
+    size_t offset;            /* offsetof(Config, field) */
+    size_t max_len;           /* buffer size for strings */
+    int min; int max;
     const char* label;
     const char* group;
-    uint32_t flags;  // CFG_LIVE, CFG_REBOOT, CFG_SECRET, etc.
-} cfg_field_t;
+    uint32_t flags;
+    const char** enum_labels; /* NULL for non-enum */
+} CfgField;
+
+// CfgOutputField: per-output descriptor (24 fields x 4 outputs)
+typedef struct {
+    const char* key_suffix;
+    const char* json_key;
+    cfg_type_t type;
+    size_t offset;            /* offsetof(DmxOutput, field) */
+    size_t max_len;
+    int min; int max;
+    const char* label;
+    const char* group;
+    uint32_t flags;
+    const char** enum_labels;
+} CfgOutputField;
 ```
 
 ### WiFi Manager
@@ -139,10 +167,11 @@ Native gate (Phase 0 exit #2 / section 5.4): host-native harness (`test/`, MinGW
 - [x] WiFi STA connect-from-config + NET_STATE_* + exponential backoff, GPIO0 forced-portal, SoftAP(SSID=hostname)
 - [x] Setup portal: custom lwIP DNS sinkhole (UDP:53 -> 192.168.4.1), `POST /setup` -> NVS -> reboot
 - [x] LED: boot + net-state patterns + brightness clamp
-- [x] Config engine (9-field Phase-1 schema; NVS overlay; secret masking; board template)
-- [x] Serial console subset (dump/get/set/save/reset/load/wifi/reboot)
+- [x] Config engine (47-field schema + 24-field x 4-output descriptors; offsetof-based; NVS overlay + migrateNvsKeys migration; template text parser with extends= inheritance; secret masking; CFG_LIVE/REBOOT/SECRET flag categorization)
+- [x] Serial console full grammar (dump/get/set/save [reboot]/factory/list/help)
 - [x] Web routes (/info.json, /wifi/scan, /setup GET+POST, /config, /assets) + standalone webui (MockTransport)
-- [x] Testing infrastructure (native harness green 6/6, 76 total test cases)
+- [x] Testing infrastructure (native: 7 executables, 84 total test cases; 7 ctest green)
+- [x] Phase 2: full config schema (47 global + 24x4 output fields), NVS key migration (o0_*->a_*, o1_*->b_*, apfb->fbmode), template text parser with extends= inheritance, save [reboot] grammar, migration idempotency test, JSON export/import upgrade --- build gate green on esp32s3_psram/esp32dev/wt32eth01
 - [x] Net baseline test: portal activation matrix (spec 33), backoff formula (spec 14), WiFi state machine, config persistence
 - [x] LED math test: brightness scaling, clamping, pattern-to-color mapping (spec 36)
 - [ ] CI/CD pipeline (Phase 0 section 5.6 #13 - pending)

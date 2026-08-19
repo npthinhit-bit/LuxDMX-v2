@@ -131,6 +131,32 @@
 - **webui routes**: `/wifi/scan` + JSON `POST /setup` vs plan section 5.7 `/setup/scan` + 302; frontend matches device (accepted deviation).
 - **Test-harness restore**: native was red (0/4) after WiFi event-handler WIP. Fixes: shim `IP_EVENT_*` offset 100/101 (collision with WIFI_EVENT_*=0/1); added `ip_event_got_ip_t`/`IPSTR`/`IP2STR`, `ESP_ERROR_CHECK`, `wifi_event_cb_t` signature + `#include "wifi_events.h"`; relocated use-before-def statics and removed duplicate `test_shim_set_psram_enabled`; explicit `<stdbool.h>`/`<stdlib.h>` in lux_config sources + test_config_serial.c. Result: native 4/4; `pio run -e esp32s3_psram` still green (shim changes native-only; include additions safe on-device).
 
+## Phase 2: Config Engine (Full Schema)
+
+### Schema Refactoring
+- **Lesson**: offsetof-based descriptor tables eliminate the fragility of void* value_ptr
+   - The Phase 1 config_values_t used direct void* pointers into struct fields — fragile during struct growth
+   - The Phase 2 CfgField uses size_t offset (via offsetof) — descriptor table is the single source of truth, struct layout changes don't break field access
+
+### NVS Migration
+- **Lesson**: One-shot key migration must be idempotent
+   - Legacy keys o0_*->a_*, o1_*->b_*, apfb->fbmode are migrated once and erased
+   - Running migrateNvsKeys() twice is a no-op (idempotent)
+
+### Template Inheritance
+- **Lesson**: Template text parser with extends= enables recursive inheritance
+   - Board templates use extends=_base to inherit global defaults
+   - Inheritance capped at 8 levels per spec 45 §10
+
+### Serial Grammar
+- **Lesson**: save [reboot] provides a two-step persist+restart workflow
+   - Plain `save` persists to NVS without rebooting
+   - `save reboot` persists then sets the reboot flag for the main loop to act on
+
+- **Pitfall**: Field name reconciliation between templates and C schema
+   - Templates use compact keys (wifissid, wifipsk, ledpin) matching the spec
+   - Phase 1 used verbose keys (wifi_ssid, led_pin) — Phase 2 reconciled to template keys
+
 ## Build System
 
 ### ESP-IDF Integration
@@ -240,3 +266,4 @@
    - Measure task execution times
    - Verify core affinity strategy
    - Test under worst-case network conditions
+

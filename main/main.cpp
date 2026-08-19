@@ -15,6 +15,8 @@
 #include "captive_portal.h"
 #include "wifi_config.h"
 
+#include <stdlib.h>
+
 static const char* TAG = "main";
 
 // WiFi event handler
@@ -110,12 +112,13 @@ extern "C" void app_main(void) {
     if (enter_portal) {
         // Start SoftAP for provisioning (SSID = hostname from config)
         char hostname[32] = {0};
-        config_values_t* values = config_get_values();
-        if (values && strlen(values->hostname) > 0) {
-            strncpy(hostname, values->hostname, sizeof(hostname) - 1);
+        char* stored = config_get_value("hostname");
+        if (stored && strlen(stored) > 0) {
+            strncpy(hostname, stored, sizeof(hostname) - 1);
         } else {
             strncpy(hostname, "luxdmx", sizeof(hostname) - 1);
         }
+        free(stored);
 
         ESP_ERROR_CHECK(wifi_start_softap(hostname, NULL));
         LOG_INFO(TAG, "Setup portal active on SSID: %s", hostname);

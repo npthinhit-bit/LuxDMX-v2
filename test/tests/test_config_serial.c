@@ -14,6 +14,8 @@
 #include "logger.h"
 #include "boards.h"
 #include "hw.h"
+#include "nvs.h"
+#include "nvs_flash.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -105,7 +107,7 @@ TEST(set_command_invalid_value) {
     setup();
     char response[256];
     /* log_level is 0-4, so 99 is invalid */
-    esp_err_t err = config_serial_handle_command("set log_level=99", response, sizeof(response));
+    esp_err_t err = config_serial_handle_command("set protocol=99", response, sizeof(response));
     ASSERT(err == ESP_ERR_INVALID_ARG);
     ASSERT(strstr(response, "ERROR") != NULL);
     teardown();
@@ -117,12 +119,12 @@ TEST(dump_command_returns_all_fields) {
     esp_err_t err = config_serial_handle_command("dump", response, sizeof(response));
     ASSERT(err == ESP_OK);
     /* Should contain known field keys */
-    ASSERT(strstr(response, "wifi_ssid=") != NULL);
+    ASSERT(strstr(response, "wifissid=") != NULL);
     ASSERT(strstr(response, "hostname=") != NULL);
-    ASSERT(strstr(response, "led_brightness=") != NULL);
+    ASSERT(strstr(response, "ledbr=") != NULL);
     /* Secret field present; non-empty secrets masked as ******** */
-    ASSERT(strstr(response, "wifi_password=") != NULL);
-    char* pw_val = config_get_value("wifi_password");
+    ASSERT(strstr(response, "wifipsk=") != NULL);
+    char* pw_val = config_get_value("wifipsk");
     if (pw_val && strlen(pw_val) > 0) {
         ASSERT(strstr(response, pw_val) == NULL);
         ASSERT(strstr(response, "********") != NULL);
@@ -179,11 +181,11 @@ TEST(set_command_with_spaces_in_value) {
     setup();
     char response[256];
     /* SSID with spaces */
-    esp_err_t err = config_serial_handle_command("set wifi_ssid=My WiFi Network", response, sizeof(response));
+    esp_err_t err = config_serial_handle_command("set wifissid=My WiFi Network", response, sizeof(response));
     ASSERT(err == ESP_OK);
     ASSERT(strcmp(response, "OK") == 0);
 
-    char* value = config_get_value("wifi_ssid");
+    char* value = config_get_value("wifissid");
     ASSERT(value != NULL);
     ASSERT(strcmp(value, "My WiFi Network") == 0);
     free(value);
@@ -193,8 +195,8 @@ TEST(set_command_with_spaces_in_value) {
 TEST(board_template_uses_canonical_board_table) {
     setup();
     /* led_pin/led_type now sourced from boards.c board_get_table() (REFACTOR_PLAN §5.2) */
-    char* led_pin = config_get_value("led_pin");
-    char* led_type = config_get_value("led_type");
+    char* led_pin = config_get_value("ledpin");
+    char* led_type = config_get_value("ledtype");
     const board_def_t* tbl = board_get_table();
     board_type_t board = hw_get_board_type();
     ASSERT(led_pin != NULL);
@@ -248,7 +250,7 @@ TEST(factory_command_resets_and_erases_nvs) {
     config_load();
     value = config_get_value("hostname");
     ASSERT(value != NULL);
-    ASSERT(strcmp(value, "luxdmx-esp32") == 0);
+    ASSERT(strcmp(value, "dmx-gateway") == 0);
     free(value);
     teardown();
 }
@@ -258,9 +260,9 @@ TEST(list_command_lists_all_keys) {
     char response[1024];
     esp_err_t err = config_serial_handle_command("list", response, sizeof(response));
     ASSERT(err == ESP_OK);
-    ASSERT(strstr(response, "wifi_ssid") != NULL);
+    ASSERT(strstr(response, "wifissid") != NULL);
     ASSERT(strstr(response, "hostname") != NULL);
-    ASSERT(strstr(response, "led_brightness") != NULL);
+    ASSERT(strstr(response, "ledbr") != NULL);
     teardown();
 }
 
@@ -269,9 +271,9 @@ TEST(list_command_with_filter) {
     char response[1024];
     esp_err_t err = config_serial_handle_command("list wifi", response, sizeof(response));
     ASSERT(err == ESP_OK);
-    ASSERT(strstr(response, "wifi_ssid") != NULL);
-    ASSERT(strstr(response, "wifi_password") != NULL);
-    ASSERT(strstr(response, "wifi_mode") != NULL);
+    ASSERT(strstr(response, "wifissid") != NULL);
+    ASSERT(strstr(response, "wifipsk") != NULL);
+    ASSERT(strstr(response, "wifimode") != NULL);
     ASSERT(strstr(response, "hostname") == NULL);
     ASSERT(strstr(response, "led_brightness") == NULL);
     teardown();
@@ -286,6 +288,50 @@ TEST(unknown_command_mentions_help) {
     ASSERT(strstr(response, "try help") != NULL);
     teardown();
 }
+TEST(migration_idempotent) {
+    setup();
+    nvs_handle_t h;
+    esp_err_t err;
+    int32_t val;
+
+    err = nvs_open("dmxgw", NVS_READWRITE, &h);
+    ASSERT(err == ESP_OK);
+    ASSERT(nvs_set_i32(h, "o0_uni", 5) == ESP_OK);
+    ASSERT(nvs_set_i32(h, "o1_uni", 10) == ESP_OK);
+    ASSERT(nvs_set_i32(h, "apfb", 1) == ESP_OK);
+    ASSERT(nvs_commit(h) == ESP_OK);
+    nvs_close(h);
+
+    migrateNvsKeys();
+
+    err = nvs_open("dmxgw", NVS_READONLY, &h);
+    ASSERT(err == ESP_OK);
+    ASSERT(nvs_get_i32(h, "a_uni", &val) == ESP_OK);
+    ASSERT(val == 5);
+    ASSERT(nvs_get_i32(h, "b_uni", &val) == ESP_OK);
+    ASSERT(val == 10);
+    ASSERT(nvs_get_i32(h, "fbmode", &val) == ESP_OK);
+    ASSERT(val == 1);
+    ASSERT(nvs_get_i32(h, "o0_uni", &val) == ESP_ERR_NVS_NOT_FOUND);
+    ASSERT(nvs_get_i32(h, "o1_uni", &val) == ESP_ERR_NVS_NOT_FOUND);
+    ASSERT(nvs_get_i32(h, "apfb", &val) == ESP_ERR_NVS_NOT_FOUND);
+    nvs_close(h);
+
+    migrateNvsKeys();
+
+    err = nvs_open("dmxgw", NVS_READONLY, &h);
+    ASSERT(err == ESP_OK);
+    ASSERT(nvs_get_i32(h, "a_uni", &val) == ESP_OK);
+    ASSERT(val == 5);
+    ASSERT(nvs_get_i32(h, "b_uni", &val) == ESP_OK);
+    ASSERT(val == 10);
+    ASSERT(nvs_get_i32(h, "fbmode", &val) == ESP_OK);
+    ASSERT(val == 1);
+    nvs_close(h);
+
+    teardown();
+}
+
 int main(void) {
     printf("=== Config Serial Command Tests ===\n\n");
 
@@ -307,6 +353,7 @@ int main(void) {
     run_list_command_lists_all_keys();
     run_list_command_with_filter();
     run_unknown_command_mentions_help();
+    run_migration_idempotent();
 
     printf("\n=== Results: %d/%d passed ===\n", tests_passed, tests_run);
     return (tests_passed == tests_run) ? 0 : 1;

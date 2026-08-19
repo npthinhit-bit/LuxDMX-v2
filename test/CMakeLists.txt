@@ -1,4 +1,4 @@
-# Native test build for LuxDMX-v2 Phase 1
+﻿# Native test build for LuxDMX-v2 Phase 1
 # Uses PlatformIO native environment with ESP-IDF shims
 
 cmake_minimum_required(VERSION 3.16)
@@ -57,6 +57,9 @@ target_link_libraries(logger_test lux_log_test lux_common_test shim ${CMAKE_SOUR
 add_executable(config_serial_test ${CMAKE_SOURCE_DIR}/tests/test_config_serial.c)
 target_link_libraries(config_serial_test lux_config_test lux_log_test lux_common_test lux_wifi_test shim ${CMAKE_SOURCE_DIR}/../components/cjson/cJSON.c)
 
+add_executable(config_migration_test ${CMAKE_SOURCE_DIR}/tests/test_config_migration.c)
+target_link_libraries(config_migration_test lux_config_test lux_log_test lux_common_test lux_wifi_test shim ${CMAKE_SOURCE_DIR}/../components/cjson/cJSON.c)
+
 add_executable(portal_test ${CMAKE_SOURCE_DIR}/tests/test_portal.c)
 target_link_libraries(portal_test lux_wifi_test lux_config_test lux_log_test lux_common_test shim ${CMAKE_SOURCE_DIR}/../components/cjson/cJSON.c)
 
@@ -73,6 +76,7 @@ enable_testing()
 
 add_test(logger_test logger_test)
 add_test(config_serial_test config_serial_test)
+add_test(config_migration_test config_migration_test)
 add_test(portal_test portal_test)
 add_test(boards_test boards_test)
 add_test(net_baseline_test net_baseline_test)

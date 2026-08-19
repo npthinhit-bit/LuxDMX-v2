@@ -59,9 +59,22 @@ esp_err_t config_serial_handle_command(const char* command, char* response, size
     if (strcmp(trimmed, "dump") == 0) {
         return config_serial_dump(response, response_len);
     }
-    else if (strcmp(trimmed, "save") == 0) {
+    else if (strncmp(trimmed, "save", 4) == 0 && (trimmed[4] == '\0' || isspace((unsigned char)trimmed[4]))) {
         esp_err_t err = config_save();
-        snprintf(response, response_len, err == ESP_OK ? "OK" : "ERROR: %s", esp_err_to_name(err));
+        if (err != ESP_OK) {
+            snprintf(response, response_len, "ERROR: %s", esp_err_to_name(err));
+            return err;
+        }
+        char* arg = trimmed + 4;
+        while (isspace((unsigned char)*arg)) {
+            arg++;
+        }
+        if (strcmp(arg, "reboot") == 0) {
+            serial_reboot_requested = true;
+            snprintf(response, response_len, "OK rebooting");
+        } else {
+            snprintf(response, response_len, "OK");
+        }
         return err;
     }
     else if (strcmp(trimmed, "load") == 0) {
@@ -136,11 +149,11 @@ esp_err_t config_serial_handle_command(const char* command, char* response, size
             }
             if (*filter == '\0') filter = NULL;
         }
-        size_t field_count;
-        const cfg_field_t* fields = config_get_fields(&field_count);
+        int field_count;
+        const CfgField* fields = config_get_fields(&field_count);
         size_t pos = 0;
         for (size_t i = 0; i < field_count; i++) {
-            const cfg_field_t* field = &fields[i];
+            const CfgField* field = &fields[i];
             if (filter && strstr(field->key, filter) == NULL) {
                 continue;
             }
@@ -211,12 +224,12 @@ esp_err_t config_serial_dump(char* response, size_t response_len) {
         return ESP_ERR_INVALID_ARG;
     }
 
-    size_t field_count;
-    const cfg_field_t* fields = config_get_fields(&field_count);
+    int field_count;
+    const CfgField* fields = config_get_fields(&field_count);
 
     size_t pos = 0;
     for (size_t i = 0; i < field_count; i++) {
-        const cfg_field_t* field = &fields[i];
+        const CfgField* field = &fields[i];
 
         // Format: key=value (type) [flags]
         int written = snprintf(response + pos, response_len - pos,
@@ -230,23 +243,23 @@ esp_err_t config_serial_dump(char* response, size_t response_len) {
         switch (field->type) {
             case CFG_TYPE_INT:
                 written = snprintf(response + pos, response_len - pos,
-                                  "%d", *(int*)field->value_ptr);
+                                  "%d", *(int*)((char*)&cfg + field->offset));
                 break;
             case CFG_TYPE_BOOL:
                 written = snprintf(response + pos, response_len - pos,
-                                  "%s", *(bool*)field->value_ptr ? "true" : "false");
+                                  "%s", *(bool*)((char*)&cfg + field->offset) ? "true" : "false");
                 break;
             case CFG_TYPE_STRING:
-                if (field->flags & CFG_FLAG_SECRET && strlen((char*)field->value_ptr) > 0) {
+                if (field->flags & CFG_FLAG_SECRET && strlen((char*)&cfg + field->offset) > 0) {
                     written = snprintf(response + pos, response_len - pos, "********");
                 } else {
                     written = snprintf(response + pos, response_len - pos,
-                                      "%s", (char*)field->value_ptr);
+                                      "%s", (char*)&cfg + field->offset);
                 }
                 break;
             case CFG_TYPE_ENUM:
                 written = snprintf(response + pos, response_len - pos,
-                                  "%d", *(int*)field->value_ptr);
+                                  "%d", *(int*)((char*)&cfg + field->offset));
                 break;
         }
 
@@ -311,8 +324,8 @@ static esp_err_t factory_reset(void) {
         return err;
     }
 
-    size_t field_count;
-    const cfg_field_t* fields = config_get_fields(&field_count);
+    int field_count;
+    const CfgField* fields = config_get_fields(&field_count);
     for (size_t i = 0; i < field_count; i++) {
         nvs_erase_key(nvs_handle, fields[i].key);
     }

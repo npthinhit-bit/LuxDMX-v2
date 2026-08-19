@@ -366,5 +366,7 @@ HIL is never a blocking CI check (no bench in upstream); it is a manual workflow
 | `loopback` field (06) | spec'd/unconsumed | Phase 4 | implement-or-remove |
 | `otaPassword` / `autoUpdate` (29) | spec'd/gap | Phase 7 | implement or formally drop + spec note |
 | net/subnet live semantics (06) | OQ | Phase 2/4 | prefer reboot; validate with loopback |
-| Native runner script (46/47) | missing | Phase 0 | deliver as `tools/native_run.py` + `pio` alias |
-| Template/PROGMEM generators (46) | missing | Phase 0/2 | build hooks per 46 behavior |
+| Native runner script (46/47) | done | Phase 0 | tools/native_run.py delivered in earlier commit |
+| Template/PROGMEM generators (46) | in-progress | Phase 2 | template text embedded as constant strings in config_schema.c; build hook generator (46) deferred to Phase 8 |
+| Config schema delta (1.3-c, 45) | done | Phase 2 | 47 global + 24/output fields implemented with offsetof descriptors |
+| NVS key migration (02 §6.1, 45) | done | Phase 2 | migrateNvsKeys() implemented, idempotency test green |
