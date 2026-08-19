@@ -27,7 +27,6 @@ static int tests_passed = 0;
     if (!(cond)) { \
         printf("  [FAIL] %s:%d: %s\n", __FILE__, __LINE__, #cond); \
         tests_passed--; \
-        tests_run--; \
         return; \
     } \
 } while(0)

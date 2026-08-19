@@ -33,7 +33,6 @@ static int tests_passed = 0;
     if (!(cond)) { \
         printf("  [FAIL] %s:%d: %s\n", __FILE__, __LINE__, #cond); \
         tests_passed--; \
-        tests_run--; \
         return; \
     } \
 } while(0)
@@ -121,9 +120,14 @@ TEST(dump_command_returns_all_fields) {
     ASSERT(strstr(response, "wifi_ssid=") != NULL);
     ASSERT(strstr(response, "hostname=") != NULL);
     ASSERT(strstr(response, "led_brightness=") != NULL);
-    /* Secret should be masked */
-    ASSERT(strstr(response, "********") != NULL || strstr(response, "wifi_password=\n") != NULL);
-    teardown();
+    /* Secret field present; non-empty secrets masked as ******** */
+    ASSERT(strstr(response, "wifi_password=") != NULL);
+    char* pw_val = config_get_value("wifi_password");
+    if (pw_val && strlen(pw_val) > 0) {
+        ASSERT(strstr(response, pw_val) == NULL);
+        ASSERT(strstr(response, "********") != NULL);
+    }
+    if (pw_val) free(pw_val);
 }
 
 TEST(save_command_saves_to_nvs) {
@@ -204,6 +208,84 @@ TEST(board_template_uses_canonical_board_table) {
     teardown();
 }
 
+
+TEST(help_command_prints_help) {
+    setup();
+    char response[1024];
+    esp_err_t err = config_serial_handle_command("help", response, sizeof(response));
+    ASSERT(err == ESP_OK);
+    ASSERT(strstr(response, "Available commands") != NULL);
+    ASSERT(strstr(response, "dump") != NULL);
+    ASSERT(strstr(response, "factory") != NULL);
+    ASSERT(strstr(response, "list") != NULL);
+    teardown();
+}
+
+TEST(help_alias_question_mark) {
+    setup();
+    char response[1024];
+    esp_err_t err = config_serial_handle_command("?", response, sizeof(response));
+    ASSERT(err == ESP_OK);
+    ASSERT(strstr(response, "Available commands") != NULL);
+    teardown();
+}
+
+TEST(factory_command_resets_and_erases_nvs) {
+    setup();
+    config_set_value("hostname", "saved-device");
+    config_save();
+    config_load();
+    char* value = config_get_value("hostname");
+    ASSERT(value != NULL);
+    ASSERT(strcmp(value, "saved-device") == 0);
+    free(value);
+
+    char response[256];
+    esp_err_t err = config_serial_handle_command("factory", response, sizeof(response));
+    ASSERT(err == ESP_OK);
+    ASSERT(strcmp(response, "OK factory reset") == 0);
+
+    config_load();
+    value = config_get_value("hostname");
+    ASSERT(value != NULL);
+    ASSERT(strcmp(value, "luxdmx-esp32") == 0);
+    free(value);
+    teardown();
+}
+
+TEST(list_command_lists_all_keys) {
+    setup();
+    char response[1024];
+    esp_err_t err = config_serial_handle_command("list", response, sizeof(response));
+    ASSERT(err == ESP_OK);
+    ASSERT(strstr(response, "wifi_ssid") != NULL);
+    ASSERT(strstr(response, "hostname") != NULL);
+    ASSERT(strstr(response, "led_brightness") != NULL);
+    teardown();
+}
+
+TEST(list_command_with_filter) {
+    setup();
+    char response[1024];
+    esp_err_t err = config_serial_handle_command("list wifi", response, sizeof(response));
+    ASSERT(err == ESP_OK);
+    ASSERT(strstr(response, "wifi_ssid") != NULL);
+    ASSERT(strstr(response, "wifi_password") != NULL);
+    ASSERT(strstr(response, "wifi_mode") != NULL);
+    ASSERT(strstr(response, "hostname") == NULL);
+    ASSERT(strstr(response, "led_brightness") == NULL);
+    teardown();
+}
+
+TEST(unknown_command_mentions_help) {
+    setup();
+    char response[256];
+    esp_err_t err = config_serial_handle_command("unknown_cmd", response, sizeof(response));
+    ASSERT(err == ESP_ERR_NOT_FOUND);
+    ASSERT(strstr(response, "ERROR") != NULL);
+    ASSERT(strstr(response, "try help") != NULL);
+    teardown();
+}
 int main(void) {
     printf("=== Config Serial Command Tests ===\n\n");
 
@@ -219,6 +301,12 @@ int main(void) {
     run_wifi_command_returns_status();
     run_set_command_with_spaces_in_value();
     run_board_template_uses_canonical_board_table();
+    run_help_command_prints_help();
+    run_help_alias_question_mark();
+    run_factory_command_resets_and_erases_nvs();
+    run_list_command_lists_all_keys();
+    run_list_command_with_filter();
+    run_unknown_command_mentions_help();
 
     printf("\n=== Results: %d/%d passed ===\n", tests_passed, tests_run);
     return (tests_passed == tests_run) ? 0 : 1;

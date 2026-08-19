@@ -83,7 +83,7 @@ const log_entry_t* logger_get_ring_buffer(size_t* count) {
     }
     // Return pointer at the oldest entry (head - count)
     if (log_ring_count == 0) {
-        return NULL;
+        return log_ring;
     }
     size_t start = (log_ring_head + LOG_RING_CAPACITY - log_ring_count) % LOG_RING_CAPACITY;
     return &log_ring[start];

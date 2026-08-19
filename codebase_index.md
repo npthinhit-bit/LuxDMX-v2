@@ -145,7 +145,7 @@ Native gate (Phase 0 exit #2 / section 5.4): host-native harness (`test/`, MinGW
 - [x] Testing infrastructure (native harness green 4/4)
 - [ ] CI/CD pipeline (Phase 0 section 5.6 #13 - pending)
 
-Remaining Phase-1 follow-ups (parity register section 10): reconcile config_engine board-template to boards.c (section 5.2); `wifi_ssid` CFG_LIVE -> CFG_REBOOT per spec 45; serial `help`/`factory` verbs (spec 43); webui `/wifi/scan` vs plan section 5.7 `/setup/scan` (accepted deviation). See Lessons_Learned.
+Remaining Phase-1 follow-ups (parity register section 10): `wifi_ssid` CFG_LIVE -> CFG_REBOOT per spec 45: DONE; serial `help`/`factory` verbs (spec 43): DONE; config_engine board-template: already reconciled (hardware fields sourced from boards.c, section 5.2). webui `/wifi/scan` vs plan section 5.7 `/setup/scan` (accepted deviation). See Lessons_Learned.
 
 ## References
 

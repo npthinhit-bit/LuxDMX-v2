@@ -120,9 +120,10 @@
 - **Env vs plan**: Framework is **ESP-IDF v6.0.1** (plan section 3.x says v5.2). No Phase-1 breakage; recorded per section 7.
 - **NVS namespace split**: WiFi creds persist in namespace "wifi_config" (wifi_config.c); config schema fields persist in "dmxgw" (config_engine.c). Kept split for Phase-1 isolation; unify to `dmxgw`/`a_*` scheme at Phase-2 config growth (plan section 4).
 - **Captive DNS (section 1.3 gap-b)**: No stock ESP-IDF component -> custom lwIP UDP:53 DNS sinkhole in captive_portal.c (all A-queries -> AP IP 192.168.4.1).
-- **Serial grammar (spec 43)**: `dump/get/set/save/reset/load/wifi/reboot` done; `help`/`factory` deferred; `save` persists without auto-reboot.
-- **wifi_ssid flag**: `CFG_LIVE` now vs spec 45 `CFG_REBOOT`; resolve at Phase 2 net/subnet apply-semantics OQ.
-- **Board tables**: canonical boards.c exists, but config_engine still reads legacy `board_templates[]` in config_schema.c -> reconcile to boards.c (section 5.2), next follow-up.
+- **Serial grammar (spec 43)**: `dump/get/set/save/reset/load/wifi/reboot/help/factory/list` done; `save` persists without auto-reboot.
+- **wifi_ssid flag**: changed to `CFG_REBOOT` per spec 45 (was `CFG_LIVE`; deferred OQ now resolved).
+- **Board tables**: canonical boards.c exists; config_engine board-template reconciled (hardware fields sourced from boards.c, section 5.2).
+- **Test harness ASSERT macro bug**: The ASSERT macro decremented both `tests_passed` and `tests_run` on failure, silently hiding test failures from the pass/total counter. Fixed by removing the `tests_run--` line so failures are properly counted. Also fixed the `dump` command secret-masking test to properly verify field presence and masking of non-empty secrets.
 - **webui routes**: `/wifi/scan` + JSON `POST /setup` vs plan section 5.7 `/setup/scan` + 302; frontend matches device (accepted deviation).
 - **Test-harness restore**: native was red (0/4) after WiFi event-handler WIP. Fixes: shim `IP_EVENT_*` offset 100/101 (collision with WIFI_EVENT_*=0/1); added `ip_event_got_ip_t`/`IPSTR`/`IP2STR`, `ESP_ERROR_CHECK`, `wifi_event_cb_t` signature + `#include "wifi_events.h"`; relocated use-before-def statics and removed duplicate `test_shim_set_psram_enabled`; explicit `<stdbool.h>`/`<stdlib.h>` in lux_config sources + test_config_serial.c. Result: native 4/4; `pio run -e esp32s3_psram` still green (shim changes native-only; include additions safe on-device).
 

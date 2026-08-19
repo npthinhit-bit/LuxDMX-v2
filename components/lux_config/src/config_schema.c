@@ -15,12 +15,12 @@ static cfg_field_t config_fields[] = {
         .key = "wifi_ssid",
         .json_key = "wifiSsid",
         .type = CFG_TYPE_STRING,
-        .value_ptr = NULL, // Will be set in config_engine_init
+        .value_ptr = NULL, // Set in config_engine_init
         .min = 0,
         .max = 32,
         .label = "WiFi SSID",
         .group = "Network",
-        .flags = CFG_FLAG_LIVE
+        .flags = CFG_FLAG_REBOOT
     },
     {
         .key = "wifi_password",

@@ -8,11 +8,14 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include "esp_system.h"
+#include "nvs.h"
+#include "nvs_flash.h"
 
 static const char* TAG = "config_serial";
 
 // Forward declaration
 static esp_err_t config_serial_dump(char* response, size_t response_len);
+static esp_err_t factory_reset(void);
 
 // Flag to signal reboot requested via serial
 static volatile bool serial_reboot_requested = false;
@@ -101,6 +104,54 @@ esp_err_t config_serial_handle_command(const char* command, char* response, size
         snprintf(response, response_len, "OK rebooting");
         return ESP_OK;
     }
+    else if (strcmp(trimmed, "help") == 0 || strcmp(trimmed, "?") == 0) {
+        snprintf(response, response_len,
+            "Available commands:\n"
+            "  dump              Print all config fields as key=value\n"
+            "  get <key>         Print a single field as key=value\n"
+            "  set <key> <value> Set one field\n"
+            "  save [reboot]     Persist settings to NVS; reboot if \"reboot\" given\n"
+            "  reset             Reset config to board template defaults (in RAM)\n"
+            "  load              Reload config from NVS\n"
+            "  list [filter]     List all config field keys (optionally filter by substring)\n"
+            "  wifi              Show WiFi status (state, connected, ip, gw)\n"
+            "  reboot            Trigger system reboot\n"
+            "  factory           Factory reset: erase all NVS keys and reset to template\n"
+            "  help              Show this help text\n"
+            "  key=value         Set one or more fields inline (space/comma separated)\n");
+        return ESP_OK;
+    }
+    else if (strcmp(trimmed, "factory") == 0) {
+        esp_err_t err = factory_reset();
+        snprintf(response, response_len, err == ESP_OK ? "OK factory reset" : "ERROR: %s", esp_err_to_name(err));
+        return err;
+    }
+    else if (strcmp(trimmed, "list") == 0 || strncmp(trimmed, "list ", 5) == 0) {
+        char* filter = (trimmed[4] == '\0') ? NULL : trimmed + 5;
+        if (filter) {
+            while (isspace((unsigned char)*filter)) filter++;
+            size_t flen = strlen(filter);
+            while (flen > 0 && isspace((unsigned char)filter[flen - 1])) {
+                filter[--flen] = '\0';
+            }
+            if (*filter == '\0') filter = NULL;
+        }
+        size_t field_count;
+        const cfg_field_t* fields = config_get_fields(&field_count);
+        size_t pos = 0;
+        for (size_t i = 0; i < field_count; i++) {
+            const cfg_field_t* field = &fields[i];
+            if (filter && strstr(field->key, filter) == NULL) {
+                continue;
+            }
+            int written = snprintf(response + pos, response_len - pos, "%s\n", field->key);
+            if (written < 0 || (size_t)written >= response_len - pos) {
+                break;
+            }
+            pos += written;
+        }
+        return ESP_OK;
+    }
     else if (strncmp(trimmed, "get ", 4) == 0) {
         const char* key = trimmed + 4;
         char* value = config_get_value(key);
@@ -149,7 +200,7 @@ esp_err_t config_serial_handle_command(const char* command, char* response, size
         }
     }
     else {
-        snprintf(response, response_len, "ERROR: Unknown command");
+        snprintf(response, response_len, "ERROR: Unknown command (try help)");
         return ESP_ERR_NOT_FOUND;
     }
 }
@@ -245,5 +296,29 @@ esp_err_t config_serial_dump(char* response, size_t response_len) {
         pos += written;
     }
 
+    return ESP_OK;
+}
+// Factory reset: reset config to template and erase NVS namespace
+static esp_err_t factory_reset(void) {
+    esp_err_t err = config_reset_to_template();
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    nvs_handle_t nvs_handle;
+    err = nvs_open("dmxgw", NVS_READWRITE, &nvs_handle);
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    size_t field_count;
+    const cfg_field_t* fields = config_get_fields(&field_count);
+    for (size_t i = 0; i < field_count; i++) {
+        nvs_erase_key(nvs_handle, fields[i].key);
+    }
+
+    nvs_commit(nvs_handle);
+    nvs_close(nvs_handle);
+    LOG_INFO(TAG, "Factory reset: config restored and NVS cleared");
     return ESP_OK;
 }
