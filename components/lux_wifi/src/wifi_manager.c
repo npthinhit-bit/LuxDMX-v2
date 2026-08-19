@@ -26,7 +26,7 @@ typedef enum {
 // WiFi manager context
 typedef struct {
     wifi_state_t state;
-    wifi_event_cb_t event_callback;
+    lux_wifi_cb_t event_callback;
     SemaphoreHandle_t mutex;
     esp_netif_t* sta_netif;
     esp_netif_t* ap_netif;
@@ -50,9 +50,9 @@ static wifi_manager_ctx_t ctx = {
 #define MAX_RETRY_ATTEMPTS 10
 #define RETRY_DELAY_MS 5000
 
-// WiFi event handler
-static void wifi_event_handler(wifi_event_t event, void* data) {
-    switch (event) {
+// WiFi event handler (ESP-IDF level)
+static void wifi_event_handler(int32_t event_id, void* data) {
+    switch (event_id) {
         case WIFI_EVENT_STA_CONNECTED:
             ctx.state = WIFI_STATE_CONNECTED;
             ctx.retry_count = 0;
@@ -80,14 +80,14 @@ static void wifi_event_handler(wifi_event_t event, void* data) {
                 if (!ctx.softap_active) {
                     wifi_start_softap(DEFAULT_SOFTAP_SSID, DEFAULT_SOFTAP_PASSWORD);
                     if (ctx.event_callback) {
-                        ctx.event_callback(WIFI_EVENT_SOFTAP_FALLBACK, NULL);
+                        ctx.event_callback(LUX_WIFI_EVENT_SOFTAP_FALLBACK, NULL);
                     }
                 }
             }
             break;
         }
 
-        case WIFI_EVENT_STA_GOT_IP: {
+        case IP_EVENT_STA_GOT_IP: {
             ip_event_got_ip_t* event = (ip_event_got_ip_t*)data;
             char ip_str[16];
             snprintf(ip_str, sizeof(ip_str), IPSTR, IP2STR(&event->ip_info.ip));
@@ -95,7 +95,7 @@ static void wifi_event_handler(wifi_event_t event, void* data) {
             break;
         }
 
-        case WIFI_EVENT_AP_STARTED:
+        case WIFI_EVENT_AP_START:
             ctx.state = WIFI_STATE_AP_ACTIVE;
             ctx.softap_active = true;
             LOG_INFO(TAG, "SoftAP started");
@@ -118,7 +118,7 @@ static void wifi_event_handler(wifi_event_t event, void* data) {
 }
 
 // Initialize WiFi manager
-esp_err_t wifi_manager_init(wifi_event_cb_t cb) {
+esp_err_t wifi_manager_init(lux_wifi_cb_t cb) {
     // Create mutex
     ctx.mutex = xSemaphoreCreateMutex();
     if (ctx.mutex == NULL) {
@@ -152,7 +152,6 @@ esp_err_t wifi_manager_init(wifi_event_cb_t cb) {
 
     // Initialize WiFi events
     ESP_ERROR_CHECK(wifi_events_init(wifi_event_handler));
-
     // Set WiFi mode to station + AP
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
 

@@ -1,19 +1,17 @@
 #include "hw.h"
 #include "common.h"
+#include "logger.h"
 #include "esp_log.h"
+#include "esp_system.h"
+#include "esp_chip_info.h"
+#include "esp_psram.h"
+#include "esp_heap_caps.h"
 #include "driver/gpio.h"
 
 static const char* TAG = "hw";
 
 // Board configurations
 static const board_config_t board_configs[] = {
-    [BOARD_ESP32S3_N16R8] = {
-        .type = BOARD_ESP32S3_N16R8,
-        .name = "ESP32-S3-N16R8",
-        .led_type = LED_TYPE_WS2812,
-        .led_gpio = GPIO_NUM_48,
-        .net_if = NET_IF_WIFI
-    },
     [BOARD_WT32ETH01] = {
         .type = BOARD_WT32ETH01,
         .name = "WT32-ETH01",
@@ -27,7 +25,16 @@ static const board_config_t board_configs[] = {
         .led_type = LED_TYPE_SIMPLE_GPIO,
         .led_gpio = GPIO_NUM_2,
         .net_if = NET_IF_WIFI
-    }
+    },
+#if CONFIG_IDF_TARGET_ESP32S3
+    [BOARD_ESP32S3_N16R8] = {
+        .type = BOARD_ESP32S3_N16R8,
+        .name = "ESP32-S3-N16R8",
+        .led_type = LED_TYPE_WS2812,
+        .led_gpio = GPIO_NUM_48,
+        .net_if = NET_IF_WIFI
+    },
+#endif
 };
 
 static board_type_t current_board = BOARD_UNKNOWN;
@@ -41,9 +48,16 @@ static board_type_t detect_board(void) {
     // Check for ESP32-S3
     if (chip_info.model == CHIP_ESP32S3) {
         // Check if PSRAM is available (indicates N16R8 variant)
+#if CONFIG_SPIRAM
         if (esp_psram_is_initialized()) {
             return BOARD_ESP32S3_N16R8;
         }
+#else
+        // PSRAM not compiled in - check via heap caps availability
+        if (heap_caps_get_total_size(MALLOC_CAP_SPIRAM) > 0) {
+            return BOARD_ESP32S3_N16R8;
+        }
+#endif
     }
     // Check for WT32-ETH01 (ESP32 with specific GPIO configuration)
     else if (chip_info.model == CHIP_ESP32) {

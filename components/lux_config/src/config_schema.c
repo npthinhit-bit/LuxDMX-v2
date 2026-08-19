@@ -89,6 +89,30 @@ static cfg_field_t config_fields[] = {
         .label = "Log Level",
         .group = "System",
         .flags = CFG_FLAG_LIVE
+    },
+
+    // Hardware configuration (reboot required)
+    {
+        .key = "led_pin",
+        .json_key = "ledPin",
+        .type = CFG_TYPE_INT,
+        .value_ptr = NULL,
+        .min = 0,
+        .max = 48,
+        .label = "LED Pin",
+        .group = "Hardware",
+        .flags = CFG_FLAG_REBOOT
+    },
+    {
+        .key = "led_type",
+        .json_key = "ledType",
+        .type = CFG_TYPE_INT,
+        .value_ptr = NULL,
+        .min = 0,
+        .max = 3,
+        .label = "LED Type",
+        .group = "Hardware",
+        .flags = CFG_FLAG_REBOOT
     }
 };
 
@@ -101,6 +125,8 @@ typedef struct {
     int led_brightness;
     int led_pattern;
     int log_level;
+    int led_pin;
+    int led_type;
 } config_values_t;
 
 static config_values_t config_values;
@@ -114,7 +140,9 @@ static const config_values_t default_config = {
     .hostname = "luxdmx",
     .led_brightness = 100,
     .led_pattern = 0, // LED_PATTERN_BOOT
-    .log_level = LOG_LEVEL_INFO
+    .log_level = LOG_LEVEL_INFO,
+    .led_pin = 2,
+    .led_type = 1 // LED_TYPE_SIMPLE_GPIO
 };
 
 // Board-specific template configurations
@@ -126,7 +154,9 @@ static const config_values_t board_templates[] = {
         .hostname = "luxdmx-s3",
         .led_brightness = 100,
         .led_pattern = 0,
-        .log_level = LOG_LEVEL_INFO
+        .log_level = LOG_LEVEL_INFO,
+        .led_pin = 48,  // GPIO48 for WS2812 on ESP32-S3 DevKitC-1
+        .led_type = 2   // LED_TYPE_WS2812
     },
     [BOARD_WT32ETH01] = {
         .wifi_ssid = "",
@@ -135,7 +165,9 @@ static const config_values_t board_templates[] = {
         .hostname = "luxdmx-wt32",
         .led_brightness = 100,
         .led_pattern = 0,
-        .log_level = LOG_LEVEL_INFO
+        .log_level = LOG_LEVEL_INFO,
+        .led_pin = 2,
+        .led_type = 1   // LED_TYPE_SIMPLE_GPIO
     },
     [BOARD_ESP32DEV] = {
         .wifi_ssid = "",
@@ -144,7 +176,9 @@ static const config_values_t board_templates[] = {
         .hostname = "luxdmx-esp32",
         .led_brightness = 100,
         .led_pattern = 0,
-        .log_level = LOG_LEVEL_INFO
+        .log_level = LOG_LEVEL_INFO,
+        .led_pin = 2,
+        .led_type = 1   // LED_TYPE_SIMPLE_GPIO
     }
 };
 
@@ -160,6 +194,8 @@ esp_err_t config_schema_init(void) {
             case 4: config_fields[i].value_ptr = &config_values.led_brightness; break;
             case 5: config_fields[i].value_ptr = &config_values.led_pattern; break;
             case 6: config_fields[i].value_ptr = &config_values.log_level; break;
+            case 7: config_fields[i].value_ptr = &config_values.led_pin; break;
+            case 8: config_fields[i].value_ptr = &config_values.led_type; break;
         }
     }
 
@@ -177,6 +213,11 @@ const cfg_field_t* config_get_fields(size_t* count) {
 // Get configuration field count
 size_t config_get_field_count(void) {
     return config_field_count;
+}
+
+// Get pointer to config values struct
+config_values_t* config_get_values(void) {
+    return &config_values;
 }
 
 // Get default configuration

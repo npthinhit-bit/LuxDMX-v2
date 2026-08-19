@@ -7,6 +7,8 @@
 #include "web_frontend.h"
 #include "web_assets.h"
 #include "wifi_manager.h"
+#include "wifi_config.h"
+#include "captive_portal.h"
 #include "cJSON.h"
 #include "esp_http_server.h"
 #include "esp_wifi.h"
@@ -170,6 +172,100 @@ static esp_err_t wifi_scan_get_handler(httpd_req_t* req) {
     return err;
 }
 
+// Serve setup page
+static esp_err_t setup_get_handler(httpd_req_t* req) {
+    httpd_resp_set_type(req, "text/html");
+    const char* html = web_frontend_get_setup();
+    return httpd_resp_send(req, html, strlen(html));
+}
+
+// Handle setup POST (save WiFi credentials)
+static esp_err_t setup_post_handler(httpd_req_t* req) {
+    int total_len = req->content_len;
+    if (total_len <= 0 || total_len > 2048) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid content length");
+        return ESP_FAIL;
+    }
+
+    char* buf = malloc(total_len + 1);
+    if (!buf) {
+        return httpd_resp_send_500(req);
+    }
+
+    int received = httpd_req_recv(req, buf, total_len);
+    if (received <= 0) {
+        free(buf);
+        return httpd_resp_send_500(req);
+    }
+    buf[received] = '\0';
+
+    // Parse form data (ssid=xxx&psk=yyy)
+    char ssid[64] = {0};
+    char psk[64] = {0};
+
+    char* ssid_start = strstr(buf, "ssid=");
+    char* psk_start = strstr(buf, "psk=");
+
+    if (ssid_start) {
+        ssid_start += 5; // skip "ssid="
+        char* end = strchr(ssid_start, '&');
+        if (end) {
+            size_t len = end - ssid_start;
+            if (len < sizeof(ssid)) {
+                strncpy(ssid, ssid_start, len);
+                ssid[len] = '\0';
+            }
+        } else {
+            strncpy(ssid, ssid_start, sizeof(ssid) - 1);
+        }
+    }
+
+    if (psk_start) {
+        psk_start += 4; // skip "psk="
+        char* end = strchr(psk_start, '&');
+        if (end) {
+            size_t len = end - psk_start;
+            if (len < sizeof(psk)) {
+                strncpy(psk, psk_start, len);
+                psk[len] = '\0';
+            }
+        } else {
+            strncpy(psk, psk_start, sizeof(psk) - 1);
+        }
+    }
+
+    free(buf);
+
+    if (strlen(ssid) == 0) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "SSID required");
+        return ESP_FAIL;
+    }
+
+    // Save WiFi credentials to NVS
+    esp_err_t err = wifi_config_save(ssid, psk);
+    if (err != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to save WiFi config");
+        return ESP_FAIL;
+    }
+
+    // Also update config engine
+    config_set_value("wifi_ssid", ssid);
+    config_set_value("wifi_password", psk);
+    config_save();
+
+    // Stop captive portal
+    captive_portal_stop();
+
+    // Respond and reboot
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_send(req, "{\"status\":\"ok\",\"message\":\"WiFi saved, rebooting...\"}", 50);
+
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    esp_restart();
+
+    return ESP_OK;
+}
+
 // Serve static assets
 static esp_err_t assets_get_handler(httpd_req_t* req) {
     const char* uri = req->uri;
@@ -195,6 +291,20 @@ static esp_err_t assets_get_handler(httpd_req_t* req) {
 
 // Register all routes
 esp_err_t web_routes_register(httpd_handle_t server) {
+    static const httpd_uri_t setup_get_uri = {
+        .uri = "/setup",
+        .method = HTTP_GET,
+        .handler = setup_get_handler,
+        .user_ctx = NULL
+    };
+
+    static const httpd_uri_t setup_post_uri = {
+        .uri = "/setup",
+        .method = HTTP_POST,
+        .handler = setup_post_handler,
+        .user_ctx = NULL
+    };
+
     static const httpd_uri_t index_uri = {
         .uri = "/",
         .method = HTTP_GET,
@@ -237,6 +347,8 @@ esp_err_t web_routes_register(httpd_handle_t server) {
         .user_ctx = NULL
     };
 
+    ESP_ERROR_CHECK(httpd_register_uri_handler(server, &setup_get_uri));
+    ESP_ERROR_CHECK(httpd_register_uri_handler(server, &setup_post_uri));
     ESP_ERROR_CHECK(httpd_register_uri_handler(server, &index_uri));
     ESP_ERROR_CHECK(httpd_register_uri_handler(server, &config_get_uri));
     ESP_ERROR_CHECK(httpd_register_uri_handler(server, &config_post_uri));

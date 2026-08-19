@@ -8,7 +8,7 @@
 #include <string.h>
 
 static const char* TAG = "config_engine";
-static const char* NVS_NAMESPACE = "lux_config";
+static const char* NVS_NAMESPACE = "dmxgw";
 static bool config_initialized = false;
 
 // Initialize configuration engine
@@ -44,8 +44,8 @@ esp_err_t config_reset_to_template(void) {
     const config_values_t* template = config_get_board_template(board);
     const config_values_t* defaults = config_get_defaults();
 
-    // Apply template values
-    config_values_t* values = (config_values_t*)config_fields[0].value_ptr;
+    // Get pointer to config values
+    config_values_t* values = config_get_values();
 
     // Apply defaults first
     memcpy(values, defaults, sizeof(config_values_t));
@@ -66,6 +66,12 @@ esp_err_t config_reset_to_template(void) {
         }
         if (template->log_level >= 0) {
             values->log_level = template->log_level;
+        }
+        if (template->led_pin >= 0) {
+            values->led_pin = template->led_pin;
+        }
+        if (template->led_type >= 0) {
+            values->led_type = template->led_type;
         }
     }
 
@@ -101,11 +107,11 @@ esp_err_t config_load(void) {
 
         switch (field->type) {
             case CFG_TYPE_INT: {
-                int value;
+                int32_t value;
                 err = nvs_get_i32(nvs_handle, field->key, &value);
                 if (err == ESP_OK) {
                     if (value >= field->min && value <= field->max) {
-                        *(int*)field->value_ptr = value;
+                        *(int*)field->value_ptr = (int)value;
                     } else {
                         LOG_WARN(TAG, "Value for %s out of range, using default", field->key);
                     }
@@ -131,11 +137,11 @@ esp_err_t config_load(void) {
                 break;
             }
             case CFG_TYPE_ENUM: {
-                int value;
+                int32_t value;
                 err = nvs_get_i32(nvs_handle, field->key, &value);
                 if (err == ESP_OK) {
                     if (value >= field->min && value <= field->max) {
-                        *(int*)field->value_ptr = value;
+                        *(int*)field->value_ptr = (int)value;
                     }
                 }
                 break;

@@ -13,24 +13,24 @@
 static const char* TAG = "main";
 
 // WiFi event handler
-static void wifi_event_handler(wifi_event_t event, void* data) {
+static void wifi_event_handler(lux_wifi_event_t event, void* data) {
     switch (event) {
-        case WIFI_EVENT_STA_CONNECTED:
+        case LUX_WIFI_EVENT_STA_CONNECTED:
             LOG_INFO(TAG, "WiFi connected to AP");
             break;
-        case WIFI_EVENT_STA_DISCONNECTED:
+        case LUX_WIFI_EVENT_STA_DISCONNECTED:
             LOG_INFO(TAG, "WiFi disconnected from AP");
             break;
-        case WIFI_EVENT_STA_GOT_IP: {
+        case LUX_WIFI_EVENT_STA_GOT_IP: {
             char ip[16], netmask[16], gateway[16];
             wifi_get_ip_info(ip, netmask, gateway);
             LOG_INFO(TAG, "Got IP: %s", ip);
             break;
         }
-        case WIFI_EVENT_AP_STARTED:
+        case LUX_WIFI_EVENT_AP_STARTED:
             LOG_INFO(TAG, "SoftAP started");
             break;
-        case WIFI_EVENT_SOFTAP_FALLBACK:
+        case LUX_WIFI_EVENT_SOFTAP_FALLBACK:
             LOG_INFO(TAG, "Fallback to SoftAP mode");
             break;
         default:
@@ -58,8 +58,8 @@ extern "C" void app_main(void) {
 
     // Initialize LED driver
     led_driver_t* led_driver = led_driver_create();
-    ESP_ERROR_CHECK(led_driver->init());
-    ESP_ERROR_CHECK(led_driver->set_pattern(LED_PATTERN_BOOT));
+    ESP_ERROR_CHECK(led_driver->init(led_driver));
+    ESP_ERROR_CHECK(led_driver->set_pattern(led_driver, LED_PATTERN_BOOT));
 
     // Initialize configuration
     ESP_ERROR_CHECK(config_engine_init());
@@ -83,7 +83,7 @@ extern "C" void app_main(void) {
         vTaskDelay(pdMS_TO_TICKS(1000));
 
         // Update LED status
-        ESP_ERROR_CHECK(led_driver->update());
+        ESP_ERROR_CHECK(led_driver->update(led_driver));
 
         // Send WebSocket status updates
         web_websocket_send_status();

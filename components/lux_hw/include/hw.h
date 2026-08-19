@@ -2,7 +2,10 @@
 
 #include "esp_err.h"
 #include "driver/gpio.h"
-#include "driver/rmt.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 // Board types
 typedef enum {
@@ -40,3 +43,7 @@ typedef struct {
 esp_err_t hw_init(void);
 board_type_t hw_get_board_type(void);
 const board_config_t* hw_get_board_config(void);
+
+#ifdef __cplusplus
+}
+#endif

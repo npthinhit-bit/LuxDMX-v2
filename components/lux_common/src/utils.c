@@ -10,11 +10,11 @@ void lux_delay_ms(uint32_t ms) {
 // Hex dump utility
 void lux_hexdump(const void *mem, uint32_t len, uint8_t cols) {
     const uint8_t *src = (const uint8_t *)mem;
-    printf("\n[HEXDUMP] Address: 0x%08X len: 0x%X (%d)", (ptrdiff_t)src, len, len);
+    printf("\n[HEXDUMP] Address: 0x%08X len: 0x%X (%u)", (unsigned int)(ptrdiff_t)src, (unsigned int)len, (unsigned int)len);
 
     for (uint32_t i = 0; i < len; i++) {
         if (i % cols == 0) {
-            printf("\n[0x%08X] 0x%08X: ", (ptrdiff_t)src, i);
+            printf("\n[0x%08X] 0x%08X: ", (unsigned int)(ptrdiff_t)src, (unsigned int)i);
         }
         printf("%02X ", *src);
         src++;

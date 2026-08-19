@@ -7,6 +7,10 @@
 #include "freertos/queue.h"
 #include "freertos/semphr.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Common error codes
 typedef enum {
     LUX_OK = 0,               // Success
@@ -22,3 +26,7 @@ typedef enum {
 void lux_delay_ms(uint32_t ms);
 void lux_hexdump(const void *mem, uint32_t len, uint8_t cols);
 char* lux_strdup(const char* str);
+
+#ifdef __cplusplus
+}
+#endif

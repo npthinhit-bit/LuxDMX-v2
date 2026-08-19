@@ -6,6 +6,9 @@
 
 static const char* TAG = "config_serial";
 
+// Forward declaration
+static esp_err_t config_serial_dump(char* response, size_t response_len);
+
 // Serial console command handler
 esp_err_t config_serial_handle_command(const char* command, char* response, size_t response_len) {
     if (!command || !response || response_len == 0) {

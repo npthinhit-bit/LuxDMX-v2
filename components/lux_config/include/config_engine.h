@@ -3,6 +3,10 @@
 #include "esp_err.h"
 #include "cJSON.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Configuration field types
 typedef enum {
     CFG_TYPE_INT,
@@ -38,8 +42,13 @@ typedef struct {
 esp_err_t config_engine_init(void);
 esp_err_t config_load(void);
 esp_err_t config_save(void);
+esp_err_t config_reset_to_template(void);
 esp_err_t config_set_value(const char* key, const char* value);
 char* config_get_value(const char* key);
 esp_err_t config_export_json(cJSON** root);
 esp_err_t config_import_json(cJSON* root);
 const cfg_field_t* config_get_fields(size_t* count);
+
+#ifdef __cplusplus
+}
+#endif
