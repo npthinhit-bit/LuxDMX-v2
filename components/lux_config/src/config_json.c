@@ -3,6 +3,7 @@
 #include "logger.h"
 #include "cJSON.h"
 #include <string.h>
+#include <stdbool.h>
 
 static const char* TAG = "config_json";
 

@@ -2,7 +2,9 @@
 #include "common.h"
 #include "logger.h"
 #include "hw.h"
+#include "boards.h"
 #include <string.h>
+#include <stdlib.h>
 
 static const char* TAG = "config_schema";
 

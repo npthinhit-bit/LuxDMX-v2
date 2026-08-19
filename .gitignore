@@ -43,6 +43,7 @@ __pycache__/
 
 # native test build artifacts
 build/
+test/build/
 *.obj
 *.elf
 *.gcda

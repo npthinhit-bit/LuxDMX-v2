@@ -4,11 +4,16 @@
 #include "freertos/task.h"
 
 #include "hw.h"
+#include "boards.h"
 #include "wifi_manager.h"
 #include "led_driver.h"
 #include "config_engine.h"
+#include "config_schema.h"
+#include "config_serial.h"
 #include "web_server.h"
 #include "logger.h"
+#include "captive_portal.h"
+#include "wifi_config.h"
 
 static const char* TAG = "main";
 
@@ -52,26 +57,75 @@ extern "C" void app_main(void) {
     }
     ESP_ERROR_CHECK(ret);
 
-    // Initialize hardware
+    // Initialize hardware (board detection)
     ESP_ERROR_CHECK(hw_init());
-    LOG_INFO(TAG, "Hardware initialized");
+    LOG_INFO(TAG, "Hardware initialized - board: %s", hw_get_board_config()->name);
 
-    // Initialize LED driver
+    // Initialize LED driver with boot pattern
     led_driver_t* led_driver = led_driver_create();
-    ESP_ERROR_CHECK(led_driver->init(led_driver));
-    ESP_ERROR_CHECK(led_driver->set_pattern(led_driver, LED_PATTERN_BOOT));
+    if (led_driver) {
+        ESP_ERROR_CHECK(led_driver->init(led_driver));
+        ESP_ERROR_CHECK(led_driver->set_pattern(led_driver, LED_PATTERN_BOOT));
+        ESP_ERROR_CHECK(led_driver->set_brightness(led_driver, 80));
+    } else {
+        LOG_WARN(TAG, "Failed to create LED driver");
+    }
 
-    // Initialize configuration
+    // Initialize configuration engine
     ESP_ERROR_CHECK(config_engine_init());
-    ESP_ERROR_CHECK(config_load());
+    config_load();
     LOG_INFO(TAG, "Configuration loaded");
 
-    // Initialize WiFi
+    // Update LED pattern to connecting
+    if (led_driver) {
+        led_driver->set_pattern(led_driver, LED_PATTERN_WIFI_CONNECTING);
+        led_driver->update(led_driver);
+    }
+
+    // Initialize WiFi manager
     ESP_ERROR_CHECK(wifi_manager_init(wifi_event_handler));
 
-    // Start WiFi connection
-    // In a real implementation, this would use stored credentials
-    ESP_ERROR_CHECK(wifi_sta_connect("SSID", "PASSWORD"));
+    // Determine if we should enter provisioning portal
+    bool enter_portal = false;
+
+    if (wifi_config_exists()) {
+        // Try to connect with stored credentials
+        LOG_INFO(TAG, "Attempting WiFi connection with stored credentials");
+        ret = wifi_sta_connect_from_config();
+        if (ret != ESP_OK) {
+            LOG_WARN(TAG, "Failed to start WiFi connection: %s", esp_err_to_name(ret));
+            enter_portal = true;
+        }
+    } else {
+        // No credentials stored - enter provisioning portal
+        LOG_INFO(TAG, "No WiFi credentials found, entering setup portal");
+        enter_portal = true;
+    }
+
+    // Check for GPIO0 forced portal
+    if (wifi_should_enter_portal()) {
+        enter_portal = true;
+    }
+
+    if (enter_portal) {
+        // Start SoftAP for provisioning (SSID = hostname from config)
+        char hostname[32] = {0};
+        config_values_t* values = config_get_values();
+        if (values && strlen(values->hostname) > 0) {
+            strncpy(hostname, values->hostname, sizeof(hostname) - 1);
+        } else {
+            strncpy(hostname, "luxdmx", sizeof(hostname) - 1);
+        }
+
+        ESP_ERROR_CHECK(wifi_start_softap(hostname, NULL));
+        LOG_INFO(TAG, "Setup portal active on SSID: %s", hostname);
+
+        // Update LED to AP mode
+        if (led_driver) {
+            led_driver->set_pattern(led_driver, LED_PATTERN_AP_ACTIVE);
+            led_driver->update(led_driver);
+        }
+    }
 
     // Initialize web server
     ESP_ERROR_CHECK(web_server_init());
@@ -83,9 +137,37 @@ extern "C" void app_main(void) {
         vTaskDelay(pdMS_TO_TICKS(1000));
 
         // Update LED status
-        ESP_ERROR_CHECK(led_driver->update(led_driver));
+        if (led_driver) {
+            // Update LED pattern based on network state
+            net_state_t net_state = wifi_get_net_state();
+            switch (net_state) {
+                case NET_STATE_STATION:
+                    led_driver->set_pattern(led_driver, LED_PATTERN_WIFI_CONNECTED);
+                    break;
+                case NET_STATE_AP_AND_STA:
+                    // Both STA and AP active - show connected
+                    led_driver->set_pattern(led_driver, LED_PATTERN_WIFI_CONNECTED);
+                    break;
+                case NET_STATE_CONNECTING:
+                case NET_STATE_DISCONNECTED:
+                    led_driver->set_pattern(led_driver, LED_PATTERN_WIFI_CONNECTING);
+                    break;
+                case NET_STATE_AP_ONLY:
+                    led_driver->set_pattern(led_driver, LED_PATTERN_AP_ACTIVE);
+                    break;
+                default:
+                    break;
+            }
+            led_driver->update(led_driver);
+        }
 
         // Send WebSocket status updates
         web_websocket_send_status();
+
+        // Check for serial console reboot request
+        if (config_serial_check_reboot()) {
+            LOG_INFO(TAG, "Reboot requested via serial console");
+            esp_restart();
+        }
     }
 }

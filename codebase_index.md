@@ -81,7 +81,7 @@ components/
 
 ## Build System
 
-- **ESP-IDF version**: v5.2
+- **ESP-IDF version**: v6.0.1 (installed toolchain + framework; REFACTOR_PLAN.md section 3.x assumes v5.2 - see Lessons_Learned. No Phase-1 breakage.)
 - **PlatformIO environments**: esp32dev, wt32eth01, esp32s3_psram
 - **Build flags**: Core affinity, task priorities, stack sizes
 - **Template generation**: Configuration defaults, web assets
@@ -128,15 +128,24 @@ esp_err_t wifi_start_softap(const char* ssid, const char* password);
 
 ## Current Status
 
-**Phase 1 (WiFi + LED + Config) In Progress**
-- [x] Project structure setup
-- [x] Hardware abstraction layer
-- [x] WiFi implementation (station + SoftAP)
-- [x] LED driver implementation
-- [x] Configuration engine
-- [x] Web interface foundation
-- [ ] Testing infrastructure
-- [ ] CI/CD pipeline
+**Phase 1 (WiFi + LED + Config) - build-gate green
+
+Build gate (plan section Constraints / Phase 0 exit #1): `pio run -e {esp32s3_psram,esp32dev,wt32eth01}` all SUCCESS (clean rebuild; ~850 KB firmware.bin). ESP-IDF framework v6.0.1; toolchain cached under ~/.platformio.
+
+Native gate (Phase 0 exit #2 / section 5.4): host-native harness (`test/`, MinGW gcc) builds + `ctest` 4/4 PASS (logger_test, config_serial_test, portal_test, boards_test).
+
+- [x] Project structure + canonical board table (boards.c/boards.h; gap-a closed)
+- [x] Hardware abstraction layer (auto-detect + net_if)
+- [x] WiFi STA connect-from-config + NET_STATE_* + exponential backoff, GPIO0 forced-portal, SoftAP(SSID=hostname)
+- [x] Setup portal: custom lwIP DNS sinkhole (UDP:53 -> 192.168.4.1), `POST /setup` -> NVS -> reboot
+- [x] LED: boot + net-state patterns + brightness clamp
+- [x] Config engine (9-field Phase-1 schema; NVS overlay; secret masking; board template)
+- [x] Serial console subset (dump/get/set/save/reset/load/wifi/reboot)
+- [x] Web routes (/info.json, /wifi/scan, /setup GET+POST, /config, /assets) + standalone webui (MockTransport)
+- [x] Testing infrastructure (native harness green 4/4)
+- [ ] CI/CD pipeline (Phase 0 section 5.6 #13 - pending)
+
+Remaining Phase-1 follow-ups (parity register section 10): reconcile config_engine board-template to boards.c (section 5.2); `wifi_ssid` CFG_LIVE -> CFG_REBOOT per spec 45; serial `help`/`factory` verbs (spec 43); webui `/wifi/scan` vs plan section 5.7 `/setup/scan` (accepted deviation). See Lessons_Learned.
 
 ## References
 

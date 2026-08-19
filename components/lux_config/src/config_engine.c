@@ -6,6 +6,8 @@
 #include "nvs_flash.h"
 #include "nvs.h"
 #include <string.h>
+#include <stdbool.h>
+#include <stdlib.h>
 
 static const char* TAG = "config_engine";
 static const char* NVS_NAMESPACE = "dmxgw";
