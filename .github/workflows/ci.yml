@@ -1,0 +1,54 @@
+﻿name: CI
+
+on: [pull_request, push]
+
+env:
+  PYTHON_CACHE_DIR: .cache/pip
+
+jobs:
+  native-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install PlatformIO
+        run: pip install platformio
+      - name: Native unit tests
+        run: |
+          mkdir -p test/build
+          cd test/build
+          cmake .. -DCMAKE_BUILD_TYPE=Debug
+          cmake --build .
+          ctest --output-on-failure
+  firmware-build:
+    needs: native-unit
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        env: [esp32dev, wt32eth01, esp32s3_psram]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install PlatformIO
+        run: pip install platformio
+      - name: Cache PlatformIO packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-pkg-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+      - name: Build firmware
+        run: pio run -e ${{ matrix.env }}
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ matrix.env }}
+          path: .pio/build/${{ matrix.env }}/firmware.bin
+          retention-days: 7
