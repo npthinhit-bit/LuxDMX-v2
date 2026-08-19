@@ -52,7 +52,9 @@ esp_err_t config_reset_to_template(void) {
     // Apply defaults first
     memcpy(values, defaults, sizeof(config_values_t));
 
-    // Apply board template overrides
+    // Apply board template overrides (config-specific defaults only).
+    // Hardware fields (led_pin/led_type) are sourced from the canonical board
+    // table in boards.c — single source of truth (REFACTOR_PLAN.md §5.2).
     if (template) {
         if (strlen(template->hostname) > 0) {
             strncpy(values->hostname, template->hostname, sizeof(values->hostname) - 1);
@@ -69,12 +71,14 @@ esp_err_t config_reset_to_template(void) {
         if (template->log_level >= 0) {
             values->log_level = template->log_level;
         }
-        if (template->led_pin >= 0) {
-            values->led_pin = template->led_pin;
-        }
-        if (template->led_type >= 0) {
-            values->led_type = template->led_type;
-        }
+    }
+
+    // Hardware-derived LED fields from the canonical board table (boards.c)
+    const board_def_t* board_defs = board_get_table();
+    size_t board_count = board_get_count();
+    if (board_defs && board < board_count) {
+        values->led_pin = board_defs[board].led_pin;
+        values->led_type = (int)board_defs[board].led_type;
     }
 
     LOG_INFO(TAG, "Configuration reset to template");

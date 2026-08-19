@@ -147,7 +147,8 @@ static const config_values_t default_config = {
     .led_type = 1 // LED_TYPE_SIMPLE_GPIO
 };
 
-// Board-specific template configurations
+// Board-specific template configurations (hardware fields led_pin/led_type are
+// sourced from the canonical board table in boards.c — see config_reset_to_template).
 static const config_values_t board_templates[] = {
     [BOARD_ESP32S3_N16R8] = {
         .wifi_ssid = "",
@@ -156,9 +157,7 @@ static const config_values_t board_templates[] = {
         .hostname = "luxdmx-s3",
         .led_brightness = 100,
         .led_pattern = 0,
-        .log_level = LOG_LEVEL_INFO,
-        .led_pin = 48,  // GPIO48 for WS2812 on ESP32-S3 DevKitC-1
-        .led_type = 2   // LED_TYPE_WS2812
+        .log_level = LOG_LEVEL_INFO
     },
     [BOARD_WT32ETH01] = {
         .wifi_ssid = "",
@@ -167,9 +166,7 @@ static const config_values_t board_templates[] = {
         .hostname = "luxdmx-wt32",
         .led_brightness = 100,
         .led_pattern = 0,
-        .log_level = LOG_LEVEL_INFO,
-        .led_pin = 2,
-        .led_type = 1   // LED_TYPE_SIMPLE_GPIO
+        .log_level = LOG_LEVEL_INFO
     },
     [BOARD_ESP32DEV] = {
         .wifi_ssid = "",
@@ -178,9 +175,7 @@ static const config_values_t board_templates[] = {
         .hostname = "luxdmx-esp32",
         .led_brightness = 100,
         .led_pattern = 0,
-        .log_level = LOG_LEVEL_INFO,
-        .led_pin = 2,
-        .led_type = 1   // LED_TYPE_SIMPLE_GPIO
+        .log_level = LOG_LEVEL_INFO
     }
 };
 

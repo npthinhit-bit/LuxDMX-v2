@@ -12,6 +12,8 @@
 #include "config_serial.h"
 #include "config_schema.h"
 #include "logger.h"
+#include "boards.h"
+#include "hw.h"
 
 static int tests_run = 0;
 static int tests_passed = 0;
@@ -184,6 +186,24 @@ TEST(set_command_with_spaces_in_value) {
     teardown();
 }
 
+TEST(board_template_uses_canonical_board_table) {
+    setup();
+    /* led_pin/led_type now sourced from boards.c board_get_table() (REFACTOR_PLAN §5.2) */
+    char* led_pin = config_get_value("led_pin");
+    char* led_type = config_get_value("led_type");
+    const board_def_t* tbl = board_get_table();
+    board_type_t board = hw_get_board_type();
+    ASSERT(led_pin != NULL);
+    ASSERT(led_type != NULL);
+    ASSERT(tbl != NULL);
+    ASSERT((int)board >= 0 && (int)board < (int)board_get_count());
+    ASSERT(atoi(led_pin) == tbl[board].led_pin);
+    ASSERT(atoi(led_type) == (int)tbl[board].led_type);
+    free(led_pin);
+    free(led_type);
+    teardown();
+}
+
 int main(void) {
     printf("=== Config Serial Command Tests ===\n\n");
 
@@ -198,6 +218,7 @@ int main(void) {
     run_reboot_command_requests_reboot();
     run_wifi_command_returns_status();
     run_set_command_with_spaces_in_value();
+    run_board_template_uses_canonical_board_table();
 
     printf("\n=== Results: %d/%d passed ===\n", tests_passed, tests_run);
     return (tests_passed == tests_run) ? 0 : 1;
