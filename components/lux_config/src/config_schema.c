@@ -168,7 +168,7 @@ const CfgField CONFIG_FIELDS[] = {
 };
 const int CONFIG_FIELD_COUNT = sizeof(CONFIG_FIELDS) / sizeof(CONFIG_FIELDS[0]);
 
-/* ---- Per-output field descriptor table: 24 fields ---- */
+/* ---- Per-output field descriptor table: 25 fields ---- */
 const CfgOutputField OUTPUT_FIELDS[] = {
     { "en",          "enabled",     CFG_TYPE_INT,   offsetof(DmxOutput, en),          0, 0, 1, "Enabled",       "Output", CFG_FLAG_REBOOT, NULL },
     { "uni",         "universe",   CFG_TYPE_INT,   offsetof(DmxOutput, uni),         0, 0, 15, "Universe",      "Output", CFG_FLAG_LIVE, NULL },
@@ -194,6 +194,7 @@ const CfgOutputField OUTPUT_FIELDS[] = {
     { "splitmask",   "splitMask",  CFG_TYPE_INT,   offsetof(DmxOutput, splitmask),   0, 0, 255, "Split Mask",   "Output", CFG_FLAG_LIVE, NULL },
     { "loopback",    "loopback",   CFG_TYPE_BOOL,  offsetof(DmxOutput, loopback),    0, 0, 1, "Loopback",      "Output", CFG_FLAG_LIVE, NULL },
     { "priority",    "priority",   CFG_TYPE_INT,   offsetof(DmxOutput, priority),    0, 0, 255, "Priority",     "Output", CFG_FLAG_LIVE, NULL },
+    { "sacnsync",    "sacnSync",   CFG_TYPE_INT,   offsetof(DmxOutput, sacnsync),    0, 0, 63999, "sACN Sync",   "Output", CFG_FLAG_LIVE, NULL },
 };
 const int OUTPUT_FIELD_COUNT = sizeof(OUTPUT_FIELDS) / sizeof(OUTPUT_FIELDS[0]);
 

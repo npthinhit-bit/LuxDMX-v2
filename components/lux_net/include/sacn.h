@@ -31,6 +31,7 @@ typedef struct {
 
 esp_err_t sacn_init(void);
 void sacn_poll(void);
+void sacn_check_timeouts(void);
 bool sacn_dispatch_packet(const uint8_t* data, uint16_t len, uint32_t sourceIp);
 
 void sacn_pkt_queue_init(void);

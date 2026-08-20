@@ -13,8 +13,10 @@
 #include "sacn.h"
 #include "logger.h"
 #include "frame_router.h"
+#include "merge_engine.h"
 #include "dmx_buffer.h"
 #include "config_engine.h"
+#include "esp_timer.h"
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -31,6 +33,11 @@
 #define BE32(p) (((uint32_t)(p)[0] << 24) | ((uint32_t)(p)[1] << 16) | \
                  ((uint32_t)(p)[2] << 8)  | ((uint32_t)(p)[3]))
 #define LE16(p) ((uint16_t)(p)[0] | ((uint16_t)(p)[1] << 8))
+
+/* Monotonic system uptime in ms (spec 18; same facility as sender_tracker.c). */
+static uint32_t now_ms(void) {
+    return (uint32_t)(esp_timer_get_time() / 1000);
+}
 
 typedef struct {
     int sock;
@@ -143,6 +150,22 @@ void sacn_poll(void) {
             (void)sacn_pkt_queue_push(&pkt); /* drop on full (back-pressure) */
         }
     }
+
+    sacn_check_timeouts();
+}
+
+/* Commit any sACN Stream-Sync staged frames whose 500 ms grace period
+ * (spec 18) has elapsed since the last staging write. Runs once per poll
+ * after the socket drain, so a source that never sends Sync still commits. */
+void sacn_check_timeouts(void) {
+    uint32_t now = now_ms();
+    for (int i = 0; i < MAX_OUTPUTS; i++) {
+        if (!g_dmxBufState.sacnStagedValid[i]) continue;
+        if (g_dmxBufState.sacnSyncDeadlineMs[i] == 0) continue;
+        if ((int32_t)(now - g_dmxBufState.sacnSyncDeadlineMs[i]) >= 0) {
+            commitSacnStaged(i);
+        }
+    }
 }
 
 bool sacn_dispatch_packet(const uint8_t* data, uint16_t len, uint32_t sourceIp) {
@@ -163,16 +186,39 @@ bool sacn_dispatch_packet(const uint8_t* data, uint16_t len, uint32_t sourceIp) 
             payloadLen = 512; /* clamp to 512 slot bytes */
         }
 
-        if (startCode == 0x00) {
-            routeFrame(universe, payload, payloadLen, sourceIp, PROTO_SACN, priority);
-        } else {
-            routeFrameNzs(universe, payload, payloadLen, startCode, sourceIp, priority);
+        /* Stream-Sync staging (spec 18): per matching output, hold the frame
+         * in the staged buffer or dispatch it immediately as before. */
+        bool anyStaged = false;
+        for (int i = 0; i < MAX_OUTPUTS; i++) {
+            if (!cfg.outputs[i].en) continue;
+            if (portAddress(&cfg.outputs[i]) != (int)universe) continue;
+            if (cfg.outputs[i].sacnsync > 0) {
+                uint16_t n = payloadLen;
+                memcpy(g_dmxBufState.sacnStaged[i], payload, n);
+                g_dmxBufState.sacnStagedLen[i] = (int)n;
+                g_dmxBufState.sacnStagedValid[i] = true;
+                g_dmxBufState.sacnSyncDeadlineMs[i] = now_ms() + 500;
+                g_dmxBufState.sacnSyncAddr[i] = (uint16_t)cfg.outputs[i].sacnsync;
+                anyStaged = true;
+            }
+        }
+        if (!anyStaged) {
+            if (startCode == 0x00) {
+                routeFrame(universe, payload, payloadLen, sourceIp, PROTO_SACN, priority);
+            } else {
+                routeFrameNzs(universe, payload, payloadLen, startCode, sourceIp, priority);
+            }
         }
         return true;
     }
 
     case SACN_FRAME_VEC_SYNC: { /* 0x00000003: Stream Sync */
-        flushArtSyncStaged();
+        uint16_t syncUniverse = LE16(data + SACN_UNIVERSE_OFFSET); /* 1-based */
+        for (int i = 0; i < MAX_OUTPUTS; i++) {
+            if (!cfg.outputs[i].en) continue;
+            if (cfg.outputs[i].sacnsync != (int)syncUniverse) continue;
+            commitSacnStaged(i);
+        }
         return true;
     }
 

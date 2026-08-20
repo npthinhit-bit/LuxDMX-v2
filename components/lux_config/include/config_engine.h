@@ -54,6 +54,7 @@ typedef struct {
     int splitmask;       /* 0-255: split mask */
     int loopback;        /* 0-1: loopback */
     int priority;        /* 0-255: priority value */
+    int sacnsync;        /* 0=off, 1-63999: sACN Stream-Sync universe */
 } DmxOutput;
 
 #define MAX_OUTPUTS 4

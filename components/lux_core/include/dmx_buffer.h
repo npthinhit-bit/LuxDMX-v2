@@ -33,6 +33,7 @@ typedef struct {
     bool sacnStagedValid[MAX_OUTPUTS];
     int sacnStagedLen[MAX_OUTPUTS];
     uint16_t sacnSyncAddr[MAX_OUTPUTS];
+    uint32_t sacnSyncDeadlineMs[MAX_OUTPUTS];
     uint32_t tornSkips;
 } DmxBufferState;
 
@@ -53,6 +54,9 @@ bool dmxBufSnapshot(int idx, uint8_t* outFrame);
 
 /* Commit the staged ArtNet buffer for output idx into the live buffer. */
 void commitArtSyncStaged(int idx);
+
+/* Commit the staged sACN buffer for output outputIdx into the live buffer (spec 03 4.3 / spec 18 6). */
+void commitSacnStaged(int outputIdx);
 
 /* Commit all staged ArtNet buffers across all outputs. */
 void flushArtSyncStaged(void);

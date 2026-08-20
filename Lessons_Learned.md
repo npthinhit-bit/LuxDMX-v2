@@ -181,6 +181,17 @@
    - `dmxInitGuardBegin()` reads the `dmxcrash` counter (uint8) from the `dmxgw` NVS namespace; if >0, it disables outputs [0..counter-1] in RAM so only the healthy tail stays active - incremental recovery instead of a hard shutdown.
    - `dmxInitGuardEnd()` writes counter+1, enters a 3000 ms stability window (10 ms vTaskDelay steps), re-reads, and resets to 0 on a stable boot; on mismatch or NVS failure it leaves the counter elevated (conservative: outputs stay disabled until a verified clean boot).
 
+### sACN Stream-Sync
+- **Lesson**: Stream-Sync staging decouples DMX flush timing from packet receipt
+   - When `cfg.outputs[i].sacnsync > 0`, streaming data packets (frame vector 0x02) are staged into `g_dmxBufState.sacnStaged[i]` rather than routed immediately, with a 500 ms deadline (`sacnSyncDeadlineMs[i] = now_ms() + 500`) and sync universe address recorded in `sacnSyncAddr[i]`
+   - Stream Sync packets (frame vector 0x03) commit staged frames only for outputs whose `sacnsync` matches the sync universe — a bug originally routed these through `flushArtSyncStaged()` (ArtNet path) instead of the sACN-specific `commitSacnStaged(i)`
+   - `sacn_check_timeouts()` runs once per poll cycle after socket drain, committing frames whose 500 ms grace period has elapsed — this guarantees delivery even when the source never sends a Sync packet
+   - `commitSacnStaged()` writes through the seqlock bracket (write-begin, slot copy with start code cleared to 0, write-end), zero-padding to DMX_PACKET_SIZE (513 bytes per spec 45 §11)
+- **Pitfall**: Cross-protocol staging buffers must not share commit paths
+   - ArtNet’s `flushArtSyncStaged()` touches `sacnSyncDeadlineMs[i]`, coupling the two protocols’ commit lifecycle — sACN Stream-Sync now commits exclusively via `commitSacnStaged(i)`, isolating protocol state
+- **Pitfall**: Timeout comparison must use signed arithmetic to avoid wraparound
+   - `uint32_t now - uint32_t deadline` wraps for long-running devices; `(int32_t)(now - deadline) >= 0` handles the 49.7-day millis() wrap safely
+
 ## Build System
 
 ### ESP-IDF Integration

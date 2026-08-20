@@ -39,10 +39,27 @@ void commitArtSyncStaged(int idx) {
     g_dmxBufState.stagedValid[idx] = false;
 }
 
+void commitSacnStaged(int outputIdx) {
+    if (outputIdx < 0 || outputIdx >= MAX_OUTPUTS) return;
+    if (!g_dmxBufState.sacnStagedValid[outputIdx]) return;
+    uint16_t len = g_dmxBufState.sacnStagedLen[outputIdx];
+    dmxBufWriteBegin(outputIdx);
+    g_dmxBufState.buffers[outputIdx].data[0] = 0; /* start code */
+    memcpy(g_dmxBufState.buffers[outputIdx].data + 1,
+           g_dmxBufState.sacnStaged[outputIdx], len);
+    if (len < DMX_PACKET_SIZE - 1) {
+        memset(g_dmxBufState.buffers[outputIdx].data + 1 + len,
+               0, DMX_PACKET_SIZE - 1 - len);
+    }
+    dmxBufWriteEnd(outputIdx);
+    g_dmxBufState.sacnStagedValid[outputIdx] = false;
+}
+
 void flushArtSyncStaged(void) {
     for (int i = 0; i < MAX_OUTPUTS; i++) {
         if (g_dmxBufState.stagedValid[i]) {
             commitArtSyncStaged(i);
+            g_dmxBufState.sacnSyncDeadlineMs[i] = 0;
         }
     }
 }
