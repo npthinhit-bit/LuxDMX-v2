@@ -279,10 +279,18 @@ void test_shim_reset_nvs(void) {
 
 /* ---- ESP ROM ---- */
 
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <unistd.h>
+#endif
 
 void esp_rom_delay_us(unsigned int us) {
+#ifdef _WIN32
+    Sleep(us ? (us + 999) / 1000 : 0);
+#else
     usleep(us);
+#endif
 }
 
 /* ---- ESP HTTP Server ---- */
@@ -683,9 +691,16 @@ const board_config_t* hw_get_board_config(void) {
 /* ---- ESP Timer ---- */
 
 int64_t esp_timer_get_time(void) {
+#ifdef _WIN32
+    LARGE_INTEGER freq, count;
+    QueryPerformanceFrequency(&freq);
+    QueryPerformanceCounter(&count);
+    return (int64_t)count.QuadPart * 1000000LL / (int64_t)freq.QuadPart;
+#else
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (int64_t)ts.tv_sec * 1000000LL + ts.tv_nsec / 1000;
+#endif
 }
 
 uint32_t esp_timer_get_idle_loop_time_since(uint64_t last) {
@@ -704,3 +719,12 @@ void sceneRecall(int idx, uint16_t fadeMs, int outIdx) {
 void sceneRecallHome(int outIdx) {
     (void)outIdx;
 }
+
+/* ---- GCC __sync_synchronize built-in (MSVC does not provide it) ---- */
+
+#ifdef _WIN32
+#include <windows.h>
+void __sync_synchronize(void) {
+    MemoryBarrier();
+}
+#endif

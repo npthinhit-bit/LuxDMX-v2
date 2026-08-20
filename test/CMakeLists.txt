@@ -22,6 +22,10 @@ include_directories(
 # Include cJSON directly (not as a component, just the header)
 include_directories(${CMAKE_SOURCE_DIR}/../components/cjson)
 
+# cJSON as a static library (raw .c path in target_link_libraries works with
+# gcc linker driver but not MSVC link.exe, which expects object/libs)
+add_library(cjson_test STATIC ${CMAKE_SOURCE_DIR}/../components/cjson/cJSON.c)
+
 # Shim implementation
 add_library(shim STATIC
     ${CMAKE_SOURCE_DIR}/shim/shim.c
@@ -56,28 +60,28 @@ target_compile_definitions(lux_wifi_test PUBLIC UNIT_TEST)
 
 # Test executables
 add_executable(logger_test ${CMAKE_SOURCE_DIR}/tests/test_logger.c)
-target_link_libraries(logger_test lux_log_test lux_common_test shim ${CMAKE_SOURCE_DIR}/../components/cjson/cJSON.c)
+target_link_libraries(logger_test lux_log_test lux_common_test shim cjson_test)
 
 add_executable(config_serial_test ${CMAKE_SOURCE_DIR}/tests/test_config_serial.c)
-target_link_libraries(config_serial_test lux_config_test lux_log_test lux_common_test lux_wifi_test shim ${CMAKE_SOURCE_DIR}/../components/cjson/cJSON.c)
+target_link_libraries(config_serial_test lux_config_test lux_log_test lux_common_test lux_wifi_test shim cjson_test)
 
 add_executable(seqlock_test ${CMAKE_SOURCE_DIR}/tests/test_seqlock.c)
-target_link_libraries(seqlock_test lux_config_test shim ${CMAKE_SOURCE_DIR}/../components/cjson/cJSON.c)
+target_link_libraries(seqlock_test lux_config_test shim cjson_test)
 
 add_executable(merge_test ${CMAKE_SOURCE_DIR}/tests/test_merge.c)
-target_link_libraries(merge_test lux_config_test shim ${CMAKE_SOURCE_DIR}/../components/cjson/cJSON.c)
+target_link_libraries(merge_test lux_config_test shim cjson_test)
 
 add_executable(config_migration_test ${CMAKE_SOURCE_DIR}/tests/test_config_migration.c)
-target_link_libraries(config_migration_test lux_config_test lux_log_test lux_common_test lux_wifi_test shim ${CMAKE_SOURCE_DIR}/../components/cjson/cJSON.c)
+target_link_libraries(config_migration_test lux_config_test lux_log_test lux_common_test lux_wifi_test shim cjson_test)
 
 add_executable(portal_test ${CMAKE_SOURCE_DIR}/tests/test_portal.c)
-target_link_libraries(portal_test lux_wifi_test lux_config_test lux_log_test lux_common_test shim ${CMAKE_SOURCE_DIR}/../components/cjson/cJSON.c)
+target_link_libraries(portal_test lux_wifi_test lux_config_test lux_log_test lux_common_test shim cjson_test)
 
 add_executable(boards_test ${CMAKE_SOURCE_DIR}/tests/test_boards.c)
-target_link_libraries(boards_test lux_common_test lux_log_test shim ${CMAKE_SOURCE_DIR}/../components/cjson/cJSON.c)
+target_link_libraries(boards_test lux_common_test lux_log_test shim cjson_test)
 
 add_executable(net_baseline_test ${CMAKE_SOURCE_DIR}/tests/test_net_baseline.c)
-target_link_libraries(net_baseline_test lux_wifi_test lux_config_test lux_log_test lux_common_test shim ${CMAKE_SOURCE_DIR}/../components/cjson/cJSON.c)
+target_link_libraries(net_baseline_test lux_wifi_test lux_config_test lux_log_test lux_common_test shim cjson_test)
 
 add_executable(led_math_test ${CMAKE_SOURCE_DIR}/tests/test_led_math.c)
 target_link_libraries(led_math_test shim)
@@ -88,7 +92,7 @@ add_library(art_packet_queue_lib STATIC
 target_include_directories(art_packet_queue_lib PUBLIC ${CMAKE_SOURCE_DIR}/../components/lux_net/include)
 
 add_executable(art_packet_queue_test ${CMAKE_SOURCE_DIR}/tests/test_art_packet_queue.c)
-target_link_libraries(art_packet_queue_test art_packet_queue_lib shim ${CMAKE_SOURCE_DIR}/../components/cjson/cJSON.c)
+target_link_libraries(art_packet_queue_test art_packet_queue_lib shim cjson_test)
 
 enable_testing()
 

@@ -6,6 +6,7 @@
 #include "hw.h"
 #include "boards.h"
 #include "wifi_manager.h"
+#include "artnet.h"
 #include "led_driver.h"
 #include "config_engine.h"
 #include "config_schema.h"
@@ -96,6 +97,8 @@ extern "C" void app_main(void) {
         led_driver->update(led_driver);
     }
 
+    ESP_ERROR_CHECK(artnet_init());
+
     // Initialize WiFi manager
     ESP_ERROR_CHECK(wifi_manager_init(wifi_event_handler));
 
@@ -145,6 +148,7 @@ extern "C" void app_main(void) {
     // Initialize web server
     ESP_ERROR_CHECK(web_server_init());
     ESP_ERROR_CHECK(web_server_start());
+    net_rx_task_start();
     LOG_INFO(TAG, "Web server started");
 
     // Main application loop
