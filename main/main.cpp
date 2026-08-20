@@ -10,6 +10,8 @@
 #include "config_engine.h"
 #include "config_schema.h"
 #include "config_serial.h"
+#include "dmx_buffer.h"
+#include "dmx_rmt_tx.h"
 #include "web_server.h"
 #include "logger.h"
 #include "captive_portal.h"
@@ -77,6 +79,12 @@ extern "C" void app_main(void) {
     ESP_ERROR_CHECK(config_engine_init());
     config_load();
     LOG_INFO(TAG, "Configuration loaded");
+
+    // Initialize DMX outputs (spec 14 §6.1, 07)
+    sanitizeOutputs();
+    outputInitAll();
+    dmx_tx_task_start();
+    LOG_INFO(TAG, "DMX outputs initialized");
 
     // Update LED pattern to connecting
     if (led_driver) {

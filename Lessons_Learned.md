@@ -1,4 +1,4 @@
-ï»¿# Lessons Learned - LuxDMX-v2 ESP-IDF Migration
+# Lessons Learned - LuxDMX-v2 ESP-IDF Migration
 
 ## Phase 0: Documentation and Planning
 
@@ -116,7 +116,7 @@
   - Edge cases require dedicated test scenarios
   - Recovery mechanisms need validation
 - **Lesson**: Native test harness parity and assertion correctness
-  - `test_net_baseline.c` (16 tests) and `test_led_math.c` (12 tests) cover WiFi portal activation matrix (spec 33 Â§2), exponential backoff formula (spec 14), STA/SoftAP connect, net state machine, config persistence round-trip, and LED brightness scaling/clamping/pattern-to-color mapping (spec 36). Native test count rose from 4 / 6 executables, 69 / 76 total test cases.
+  - `test_net_baseline.c` (16 tests) and `test_led_math.c` (12 tests) cover WiFi portal activation matrix (spec 33 §2), exponential backoff formula (spec 14), STA/SoftAP connect, net state machine, config persistence round-trip, and LED brightness scaling/clamping/pattern-to-color mapping (spec 36). Native test count rose from 4 / 6 executables, 69 / 76 total test cases.
   - The ASSERT macro decremented `tests_run` (in addition to `tests_passed`) on failure, silently hiding test failures from the pass/total counter. Removing that line revealed a latent bug: `logger_get_ring_buffer()` returned NULL for an empty ring buffer, surfacing as a crash in the dump-test secret-masking check. Fixed both.
 
 
@@ -135,8 +135,8 @@
 
 ### Schema Refactoring
 - **Lesson**: offsetof-based descriptor tables eliminate the fragility of void* value_ptr
-   - The Phase 1 config_values_t used direct void* pointers into struct fields â€” fragile during struct growth
-   - The Phase 2 CfgField uses size_t offset (via offsetof) â€” descriptor table is the single source of truth, struct layout changes don't break field access
+   - The Phase 1 config_values_t used direct void* pointers into struct fields — fragile during struct growth
+   - The Phase 2 CfgField uses size_t offset (via offsetof) — descriptor table is the single source of truth, struct layout changes don't break field access
 
 ### NVS Migration
 - **Lesson**: One-shot key migration must be idempotent
@@ -146,7 +146,7 @@
 ### Template Inheritance
 - **Lesson**: Template text parser with extends= enables recursive inheritance
    - Board templates use extends=_base to inherit global defaults
-   - Inheritance capped at 8 levels per spec 45 Â§10
+   - Inheritance capped at 8 levels per spec 45 §10
 
 ### Serial Grammar
 - **Lesson**: save [reboot] provides a two-step persist+restart workflow
@@ -155,7 +155,26 @@
 
 - **Pitfall**: Field name reconciliation between templates and C schema
    - Templates use compact keys (wifissid, wifipsk, ledpin) matching the spec
-   - Phase 1 used verbose keys (wifi_ssid, led_pin) â€” Phase 2 reconciled to template keys
+   - Phase 1 used verbose keys (wifi_ssid, led_pin) — Phase 2 reconciled to template keys
+
+## Phase 3: DMX Output Core
+
+### Seqlock Primitive
+- **Lesson**: Sequence counter enables lock-free cross-core reads
+   - Writer increments seq before/after publishing a new DMX slot buffer
+   - Reader loops until seq is even and unchanged across the read — detects torn writes without mutexes
+   - Used for the producer/consumer swap between ArtNet/sACN core-0 task and DMX output core-1 task
+- **Pitfall**: Memory ordering must be enforced
+   - `__sync_synchronize()` (or volatile + DMB) required before seq increment to prevent reordering
+   - Compiler must not hoist reads out of the retry loop
+
+### RMT Hardware TX
+- **Lesson**: RMT channel provides precise DMX break + MAB timing
+   - 88 µs break + 8 µs MAB generated via RMT item duration encoding (spec 45 §8)
+   - Inter-slot gap (0 µs) and stop bit timing are exact — no bit-banging drift
+- **Pitfall**: RMT TX done callback must not block
+   - TX-end ISR queues the next slot for the next DMX packet; blocking stalls the stream
+   - Buffer ownership (double-buffer / ping-pong) prevents mid-transit reconfiguration
 
 ## Build System
 

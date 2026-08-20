@@ -1,4 +1,4 @@
-﻿# Native test build for LuxDMX-v2 Phase 1
+# Native test build for LuxDMX-v2 Phase 1
 # Uses PlatformIO native environment with ESP-IDF shims
 
 cmake_minimum_required(VERSION 3.16)
@@ -16,6 +16,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/../components/lux_config/include
     ${CMAKE_SOURCE_DIR}/../components/lux_wifi/include
     ${CMAKE_SOURCE_DIR}/../components/lux_led/include
+    ${CMAKE_SOURCE_DIR}/../components/lux_core/include
 )
 
 # Include cJSON directly (not as a component, just the header)
@@ -42,6 +43,7 @@ add_library(lux_config_test STATIC
     ${CMAKE_SOURCE_DIR}/../components/lux_config/src/config_engine.c
     ${CMAKE_SOURCE_DIR}/../components/lux_config/src/config_serial.c
     ${CMAKE_SOURCE_DIR}/../components/lux_config/src/config_json.c
+    ${CMAKE_SOURCE_DIR}/../components/lux_core/src/dmx_buffer.c
 )
 
 add_library(lux_wifi_test STATIC
@@ -56,6 +58,9 @@ target_link_libraries(logger_test lux_log_test lux_common_test shim ${CMAKE_SOUR
 
 add_executable(config_serial_test ${CMAKE_SOURCE_DIR}/tests/test_config_serial.c)
 target_link_libraries(config_serial_test lux_config_test lux_log_test lux_common_test lux_wifi_test shim ${CMAKE_SOURCE_DIR}/../components/cjson/cJSON.c)
+
+add_executable(seqlock_test ${CMAKE_SOURCE_DIR}/tests/test_seqlock.c)
+target_link_libraries(seqlock_test lux_config_test shim ${CMAKE_SOURCE_DIR}/../components/cjson/cJSON.c)
 
 add_executable(config_migration_test ${CMAKE_SOURCE_DIR}/tests/test_config_migration.c)
 target_link_libraries(config_migration_test lux_config_test lux_log_test lux_common_test lux_wifi_test shim ${CMAKE_SOURCE_DIR}/../components/cjson/cJSON.c)
@@ -76,6 +81,7 @@ enable_testing()
 
 add_test(logger_test logger_test)
 add_test(config_serial_test config_serial_test)
+add_test(seqlock_test seqlock_test)
 add_test(config_migration_test config_migration_test)
 add_test(portal_test portal_test)
 add_test(boards_test boards_test)
