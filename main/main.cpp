@@ -7,6 +7,7 @@
 #include "boards.h"
 #include "wifi_manager.h"
 #include "artnet.h"
+#include "sacn.h"
 #include "led_driver.h"
 #include "config_engine.h"
 #include "config_schema.h"
@@ -98,6 +99,7 @@ extern "C" void app_main(void) {
     }
 
     ESP_ERROR_CHECK(artnet_init());
+    sacn_init();
 
     // Initialize WiFi manager
     ESP_ERROR_CHECK(wifi_manager_init(wifi_event_handler));
