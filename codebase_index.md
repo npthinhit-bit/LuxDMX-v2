@@ -32,6 +32,7 @@ components/
 â”œâ”€â”€ lux_log/         # Structured logging
 â”œâ”€â”€ lux_drv/          # Device drivers (Phase 2+)
 â”œâ”€â”€ lux_core/         # DMX/RDM core logic (Phase 3+)
+├── lux_net/          # Network protocols (Phase 4+)
 â””â”€â”€ lux_test/        # Test utilities and shims
 ```
 
@@ -172,7 +173,7 @@ Native gate (Phase 0 exit #2 / section 5.4): host-native harness (`test/`, MinGW
 - [x] Config engine (47-field schema + 24-field x 4-output descriptors; offsetof-based; NVS overlay + migrateNvsKeys migration; template text parser with extends= inheritance; secret masking; CFG_LIVE/REBOOT/SECRET flag categorization)
 - [x] Serial console full grammar (dump/get/set/save [reboot]/factory/list/help)
 - [x] Web routes (/info.json, /wifi/scan, /setup GET+POST, /config, /assets) + standalone webui (MockTransport)
-- [x] Testing infrastructure (native: 8 executables, 89 total test cases; 8 ctest green)
+- [x] Testing infrastructure (native: 10 executables, 90 total test cases; 10 ctest green)
 - [x] Phase 2: full config schema (47 global + 24x4 output fields), NVS key migration (o0_*->a_*, o1_*->b_*, apfb->fbmode), template text parser with extends= inheritance, save [reboot] grammar, migration idempotency test, JSON export/import upgrade --- build gate green on esp32s3_psram/esp32dev/wt32eth01
 - [x] Net baseline test: portal activation matrix (spec 33), backoff formula (spec 14), WiFi state machine, config persistence
 - [x] LED math test: brightness scaling, clamping, pattern-to-color mapping (spec 36)
@@ -191,6 +192,16 @@ Native gate (Phase 0 exit #2 / section 5.4): host-native harness (`test/`, MinGW
 - [ ] 6 build environments in platformio.ini
 - [ ] Build-time PROGMEM/template generators
 - [ ] Kconfig configuration system
+
+**Phase 4 - build-gate green
+- [x] lux_net: art_packet_queue.h/.c (SPSC ring, 32 slots × 640B, __sync_synchronize barriers, drop-on-full back-pressure) + artnet.c stub
+- [x] lux_core: sender_tracker.h/.c (16 senders, 2500ms timeout, slot eviction by priority+age, FPS window)
+- [x] lux_core: merge_engine.h/.c (portAddress 15-bit, HTP/LTP/Priority merge, loss modes, seqlock-bracketed buffer writes)
+- [x] lux_core: frame_router.h/.c (routeFrame/routeFrameNzs, output matching via portAddress, merge dispatch, splitMask mirroring)
+- [x] lux_core: esp_timer added to CMakeLists REQUIRES (sender_tracker.c, frame_router.c consume esp_timer_get_time)
+- [x] Tests: test_art_packet_queue.c (3 tests), test_merge.c (2 tests), esp_timer.h + esp_timer_get_time() shim, sceneRecall/sceneRecallHome stubs
+- [x] Build gate: pio run -e {esp32s3_psram,esp32dev,wt32eth01} all SUCCESS
+- [x] Native gate: 10 executables, 90 total test cases; 10 ctest green
 
 Remaining Phase-1 follow-ups (parity register section 10): `wifi_ssid` CFG_LIVE -> CFG_REBOOT per spec 45: DONE; serial `help`/`factory` verbs (spec 43): DONE; config_engine board-template: already reconciled (hardware fields sourced from boards.c, section 5.2). webui `/wifi/scan` vs plan section 5.7 `/setup/scan` (accepted deviation). See Lessons_Learned.
 

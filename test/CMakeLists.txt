@@ -44,6 +44,8 @@ add_library(lux_config_test STATIC
     ${CMAKE_SOURCE_DIR}/../components/lux_config/src/config_serial.c
     ${CMAKE_SOURCE_DIR}/../components/lux_config/src/config_json.c
     ${CMAKE_SOURCE_DIR}/../components/lux_core/src/dmx_buffer.c
+    ${CMAKE_SOURCE_DIR}/../components/lux_core/src/sender_tracker.c
+    ${CMAKE_SOURCE_DIR}/../components/lux_core/src/merge_engine.c
 )
 
 add_library(lux_wifi_test STATIC
@@ -62,6 +64,9 @@ target_link_libraries(config_serial_test lux_config_test lux_log_test lux_common
 add_executable(seqlock_test ${CMAKE_SOURCE_DIR}/tests/test_seqlock.c)
 target_link_libraries(seqlock_test lux_config_test shim ${CMAKE_SOURCE_DIR}/../components/cjson/cJSON.c)
 
+add_executable(merge_test ${CMAKE_SOURCE_DIR}/tests/test_merge.c)
+target_link_libraries(merge_test lux_config_test shim ${CMAKE_SOURCE_DIR}/../components/cjson/cJSON.c)
+
 add_executable(config_migration_test ${CMAKE_SOURCE_DIR}/tests/test_config_migration.c)
 target_link_libraries(config_migration_test lux_config_test lux_log_test lux_common_test lux_wifi_test shim ${CMAKE_SOURCE_DIR}/../components/cjson/cJSON.c)
 
@@ -77,13 +82,23 @@ target_link_libraries(net_baseline_test lux_wifi_test lux_config_test lux_log_te
 add_executable(led_math_test ${CMAKE_SOURCE_DIR}/tests/test_led_math.c)
 target_link_libraries(led_math_test shim)
 
+add_library(art_packet_queue_lib STATIC
+    ${CMAKE_SOURCE_DIR}/../components/lux_net/src/art_packet_queue.c
+)
+target_include_directories(art_packet_queue_lib PUBLIC ${CMAKE_SOURCE_DIR}/../components/lux_net/include)
+
+add_executable(art_packet_queue_test ${CMAKE_SOURCE_DIR}/tests/test_art_packet_queue.c)
+target_link_libraries(art_packet_queue_test art_packet_queue_lib shim ${CMAKE_SOURCE_DIR}/../components/cjson/cJSON.c)
+
 enable_testing()
 
 add_test(logger_test logger_test)
 add_test(config_serial_test config_serial_test)
 add_test(seqlock_test seqlock_test)
+add_test(merge_test merge_test)
 add_test(config_migration_test config_migration_test)
 add_test(portal_test portal_test)
 add_test(boards_test boards_test)
 add_test(net_baseline_test net_baseline_test)
 add_test(led_math_test led_math_test)
+add_test(art_packet_queue_test art_packet_queue_test)

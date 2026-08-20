@@ -679,3 +679,28 @@ const board_config_t* hw_get_board_config(void) {
     };
     return &cfg;
 }
+
+/* ---- ESP Timer ---- */
+
+int64_t esp_timer_get_time(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (int64_t)ts.tv_sec * 1000000LL + ts.tv_nsec / 1000;
+}
+
+uint32_t esp_timer_get_idle_loop_time_since(uint64_t last) {
+    (void)last;
+    return 0;
+}
+
+/* ---- Scene Engine stubs (spec 08; not yet implemented, referenced by merge_engine) ---- */
+
+void sceneRecall(int idx, uint16_t fadeMs, int outIdx) {
+    (void)idx;
+    (void)fadeMs;
+    (void)outIdx;
+}
+
+void sceneRecallHome(int outIdx) {
+    (void)outIdx;
+}
