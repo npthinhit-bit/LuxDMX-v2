@@ -176,6 +176,11 @@
    - TX-end ISR queues the next slot for the next DMX packet; blocking stalls the stream
    - Buffer ownership (double-buffer / ping-pong) prevents mid-transit reconfiguration
 
+### Crash Guard
+- **Lesson**: Progressive output-disable heuristic with NVS-backed counter prevents boot-loop storms
+   - `dmxInitGuardBegin()` reads the `dmxcrash` counter (uint8) from the `dmxgw` NVS namespace; if >0, it disables outputs [0..counter-1] in RAM so only the healthy tail stays active - incremental recovery instead of a hard shutdown.
+   - `dmxInitGuardEnd()` writes counter+1, enters a 3000 ms stability window (10 ms vTaskDelay steps), re-reads, and resets to 0 on a stable boot; on mismatch or NVS failure it leaves the counter elevated (conservative: outputs stay disabled until a verified clean boot).
+
 ## Build System
 
 ### ESP-IDF Integration

@@ -15,6 +15,7 @@
 #include "web_server.h"
 #include "logger.h"
 #include "captive_portal.h"
+#include "tasks.h"
 #include "wifi_config.h"
 
 #include <stdlib.h>
@@ -81,8 +82,11 @@ extern "C" void app_main(void) {
     LOG_INFO(TAG, "Configuration loaded");
 
     // Initialize DMX outputs (spec 14 §6.1, 07)
+    // Crash guard (spec 35): disable outputs if recovering from a crash
+    uint8_t crashCount = dmxInitGuardBegin();
     sanitizeOutputs();
     outputInitAll();
+    dmxInitGuardEnd(crashCount);
     dmx_tx_task_start();
     LOG_INFO(TAG, "DMX outputs initialized");
 
