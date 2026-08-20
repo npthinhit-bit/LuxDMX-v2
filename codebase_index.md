@@ -159,7 +159,7 @@ esp_err_t wifi_start_softap(const char* ssid, const char* password);
 
 ## Current Status
 
-**Phase 1 + Phase 2 + Phase 3 - build-gate green
+**Phase 1 + Phase 2 + Phase 3 + Phase 4 - build-gate green
 
 Build gate (plan section Constraints / Phase 0 exit #1): `pio run -e {esp32s3_psram,esp32dev,wt32eth01}` all SUCCESS (clean rebuild; ~850 KB firmware.bin). ESP-IDF framework v6.0.1; toolchain cached under ~/.platformio.
 

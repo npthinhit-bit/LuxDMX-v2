@@ -14,6 +14,7 @@ extern "C" {
 #define ARTNET_MIN_PACKET 12
 #define ARTNET_MAX_PACKET 640
 #define MAX_PACKETS_PER_TICK 8
+#define ARTPOLLREPLY_SIZE 240
 
 typedef struct {
     int sock;

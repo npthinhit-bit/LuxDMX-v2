@@ -4,10 +4,12 @@
  * Inbound UDP reception on port 6454 (SO_REUSEADDR + SO_BROADCAST, non-blocking)
  * and opcode dispatch. ArtDMX is routed to the frame router with its priority
  * byte (byte 59, default 100) and DMX payload (byte 60+); ArtSync commits
- * staged DMX buffers; ArtPoll is stubbed pending bridge integration; ArtNzs
- * is routed via the non-zero-start-code router with the start code at byte 60.
+ * staged DMX buffers; ArtPoll, ArtAddress, and ArtRdm are forwarded to the
+ * bridge dispatcher for control-plane handling; ArtNzs is routed via the
+ * non-zero-start-code router with the start code at byte 60.
  */
 #include "artnet.h"
+#include "artnet_bridge.h"
 #include "logger.h"
 #include "frame_router.h"
 #include "dmx_buffer.h"
@@ -91,7 +93,7 @@ bool artnet_dispatch_packet(const uint8_t* data, uint16_t len, uint32_t sourceIp
     uint16_t opcode = (uint16_t)(data[8] | (data[9] << 8));
 
     switch (opcode) {
-    case 0x0050: {                                  /* ArtDMX */
+    case 0x5000: {                                  /* ArtDMX */
         if (len < 18) {
             return false;
         }
@@ -107,17 +109,17 @@ bool artnet_dispatch_packet(const uint8_t* data, uint16_t len, uint32_t sourceIp
         return true;
     }
 
-    case 0x0053: {                                  /* ArtSync */
+    case 0x5300: {                                  /* ArtSync */
         flushArtSyncStaged();
         return true;
     }
 
-    case 0x0200: {                                  /* ArtPoll (forward to bridge) */
-        LOG_DEBUG("artnet", "ArtPoll received (bridge not yet implemented)");
-        return false;
+    case 0x2000: {                                  /* ArtPoll (forward to bridge) */
+        bridgeDispatch(opcode, data, len, sourceIp);
+        return true;
     }
 
-    case 0x0058: {                                  /* ArtNzs */
+    case 0x5800: {                                  /* ArtNzs */
         if (len < 61) {
             return false;
         }
@@ -131,6 +133,16 @@ bool artnet_dispatch_packet(const uint8_t* data, uint16_t len, uint32_t sourceIp
         }
         const uint8_t* payload = (avail > 0) ? data + 61 : NULL;
         routeFrameNzs(universe, payload, length, startCode, sourceIp, priority);
+        return true;
+    }
+
+    case 0x6000: {                                  /* ArtAddress (forward to bridge) */
+        bridgeDispatch(opcode, data, len, sourceIp);
+        return true;
+    }
+
+    case 0x8300: {                                  /* ArtRdm (forward to bridge) */
+        bridgeDispatch(opcode, data, len, sourceIp);
         return true;
     }
 
