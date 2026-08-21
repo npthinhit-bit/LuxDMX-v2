@@ -370,3 +370,16 @@ HIL is never a blocking CI check (no bench in upstream); it is a manual workflow
 | Template/PROGMEM generators (46) | in-progress | Phase 2 | template text embedded as constant strings in config_schema.c; build hook generator (46) deferred to Phase 8 |
 | Config schema delta (1.3-c, 45) | done | Phase 2 | 47 global + 24/output fields implemented with offsetof descriptors (commit 4966809) |
 | NVS key migration (02 §6.1, 45) | done | Phase 2 | migrateNvsKeys() implemented, idempotency test green |
+
+
+## 11. Implementation Log — 2026-08-21
+
+The `idf-only` branch now has the following validated deliverables beyond the original Phase-4 baseline. A vendored cJSON component replaces the historical gitlink that had no `.gitmodules` entry. The native harness has a clean CMake/Ninja runner with 14 passing test executables, including RDM types, RDM request/response parsing, bounded discovery, and WebSocket frame byte-conformance.
+
+Phase-5 software contracts are implemented in `lux_common/rdm_types.h`, `lux_core/rdm_engine.*`, `lux_core/rdm_discovery.*`, and `lux_core/rdm_task.*`. The task queue is configured for 32 commands, core 1, priority 18, and an 8192-byte stack. The physical RMT/UART transaction implementation remains owned by the driver integration gate; the queue currently validates and builds requests without claiming the live DMX line.
+
+Phase-6 contract work is implemented in `lux_web/ws_frame.*` and the REST route layer. The serializer emits the exact 2095-byte big-endian frame, computes the changed-universe bitmap, and exposes the 12-client delta predicate. `/health`, `/dmx.json`, `/version.json`, `/setup/scan`, and `POST /reboot` are registered with no-store JSON responses. The ESP-IDF WebSocket path is conditional on `CONFIG_HTTPD_WS_SUPPORT`; the default PlatformIO configuration currently uses a safe HTTP 426 fallback until that Kconfig option is enabled in a release profile.
+
+Phase-7 software foundations include PSA PureEdDSA verification for a SHA-256 digest plus 64-byte signature tail (`OTA_SIGN_ENABLED` / `CONFIG_LUXDMX_OTA_SIGN_ENABLED`) and a static RFC 5424 UDP syslog client. OTA partition streaming, boot-retry rollback orchestration, Ethernet PHY bring-up, display/panel rendering, alert webhooks, and soak monitoring remain explicit release/HIL gates and are not represented as complete by host tests.
+
+The CI skeleton now runs the native harness, the `esp32dev`/`wt32eth01`/`esp32s3_psram` firmware matrix, artifact upload, and generated-file hygiene. The latest clean firmware builds pass on all three required environments under the installed ESP-IDF 6.0.1 framework; the plan's ESP-IDF 5.2 target remains a documented framework-version deviation.
