@@ -50,6 +50,7 @@ add_library(lux_config_test STATIC
     ${CMAKE_SOURCE_DIR}/../components/lux_core/src/dmx_buffer.c
     ${CMAKE_SOURCE_DIR}/../components/lux_core/src/sender_tracker.c
     ${CMAKE_SOURCE_DIR}/../components/lux_core/src/merge_engine.c
+    ${CMAKE_SOURCE_DIR}/../components/lux_core/src/rdm_engine.c
 )
 
 add_library(lux_wifi_test STATIC
@@ -97,6 +98,9 @@ target_link_libraries(art_packet_queue_test art_packet_queue_lib shim cjson_test
 add_executable(rdm_types_test ${CMAKE_SOURCE_DIR}/tests/test_rdm_types.c)
 target_link_libraries(rdm_types_test lux_common_test)
 
+add_executable(rdm_engine_test ${CMAKE_SOURCE_DIR}/tests/test_rdm_engine.c)
+target_link_libraries(rdm_engine_test lux_config_test lux_common_test shim)
+
 enable_testing()
 
 add_test(logger_test logger_test)
@@ -110,3 +114,4 @@ add_test(net_baseline_test net_baseline_test)
 add_test(led_math_test led_math_test)
 add_test(art_packet_queue_test art_packet_queue_test)
 add_test(rdm_types_test rdm_types_test)
+add_test(rdm_engine_test rdm_engine_test)
