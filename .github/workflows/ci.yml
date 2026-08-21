@@ -1,9 +1,10 @@
-﻿name: LuxDMX CI
+﻿name: LuxDMX CI/CD
 
 on:
   pull_request:
   push:
     branches: [idf-only, main]
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:
@@ -11,6 +12,7 @@ permissions:
 
 env:
   PYTHON_CACHE_DIR: .cache/pip
+  PIO_CACHE_DIR: .pio
 
 jobs:
   native-unit:
@@ -20,12 +22,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: '3.12'
           cache: pip
       - name: Install host tools
         run: sudo apt-get update && sudo apt-get install -y cmake ninja-build
-      - name: Install PlatformIO
-        run: pip install platformio
       - name: Native unit tests
         run: python3 tools/native_run.py --clean
 
@@ -41,7 +41,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: '3.12'
           cache: pip
       - name: Install PlatformIO
         run: pip install platformio
@@ -49,20 +49,22 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.platformio
-          key: pio-pkg-${{ runner.os }}-${{ matrix.env }}-${{ hashFiles('platformio.ini') }}
+          key: pio-${{ runner.os }}-${{ matrix.env }}-${{ hashFiles('platformio.ini', 'sdkconfig.defaults*', 'components/**/CMakeLists.txt') }}
           restore-keys: |
-            pio-pkg-${{ runner.os }}-${{ matrix.env }}-
-            pio-pkg-${{ runner.os }}-
+            pio-${{ runner.os }}-${{ matrix.env }}-
+            pio-${{ runner.os }}-
       - name: Build firmware
         run: pio run -e ${{ matrix.env }}
-      - name: Upload firmware
+      - name: Upload firmware artifacts
         uses: actions/upload-artifact@v4
         with:
           name: firmware-${{ matrix.env }}
+          if-no-files-found: error
           path: |
             .pio/build/${{ matrix.env }}/firmware.bin
             .pio/build/${{ matrix.env }}/partitions.bin
-          retention-days: 7
+            .pio/build/${{ matrix.env }}/bootloader.bin
+          retention-days: 14
 
   docs-hygiene:
     name: Documentation and generated-file hygiene
@@ -75,3 +77,76 @@ jobs:
           test ! -d test/build
       - name: Verify authoritative plan exists
         run: test -s docs/REFACTOR_PLAN.md
+      - name: Verify repository whitespace
+        run: git diff --check
+
+  package:
+    name: Package firmware release
+    if: github.event_name != 'pull_request'
+    needs: [firmware-build, docs-hygiene]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: firmware-*
+          path: dist/firmware
+      - name: Build release manifest and archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/firmware-release
+          cp -R dist/firmware/. dist/firmware-release/
+          find dist/firmware-release -type f -print0 | sort -z | xargs -0 sha256sum > dist/firmware-release/SHA256SUMS
+          python3 - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          root = Path('dist/firmware-release')
+          files = []
+          for path in sorted(root.rglob('*')):
+              if path.is_file() and path.name != 'manifest.json':
+                  files.append({
+                      'path': str(path.relative_to(root)),
+                      'bytes': path.stat().st_size,
+                      'sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
+                  })
+          manifest = {
+              'project': 'LuxDMX-v2',
+              'ref': '${{ github.ref }}',
+              'commit': '${{ github.sha }}',
+              'files': files,
+          }
+          (root / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+          PY
+          tar -C dist -czf dist/luxdmx-firmware-${GITHUB_SHA}.tar.gz firmware-release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware-release
+          if-no-files-found: error
+          path: |
+            dist/firmware-release
+            dist/luxdmx-firmware-${{ github.sha }}.tar.gz
+          retention-days: 30
+
+  release:
+    name: Publish GitHub release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: firmware-release
+          path: dist
+      - name: Publish release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "$GITHUB_REF_NAME" dist/luxdmx-firmware-*.tar.gz dist/firmware-release/SHA256SUMS dist/firmware-release/manifest.json \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "LuxDMX $GITHUB_REF_NAME" \
+            --generate-notes
