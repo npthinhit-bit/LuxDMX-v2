@@ -1,34 +1,40 @@
-﻿name: CI
+﻿name: LuxDMX CI
 
-on: [pull_request, push]
+on:
+  pull_request:
+  push:
+    branches: [idf-only, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 env:
   PYTHON_CACHE_DIR: .cache/pip
 
 jobs:
   native-unit:
+    name: Native unit tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
+      - name: Install host tools
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build
       - name: Install PlatformIO
         run: pip install platformio
       - name: Native unit tests
-        run: |
-          mkdir -p test/build
-          cd test/build
-          cmake .. -DCMAKE_BUILD_TYPE=Debug
-          cmake --build .
-          ctest --output-on-failure
+        run: python3 tools/native_run.py --clean
+
   firmware-build:
+    name: Firmware ${{ matrix.env }}
     needs: native-unit
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         env: [esp32dev, wt32eth01, esp32s3_psram]
     steps:
@@ -43,12 +49,29 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.platformio
-          key: pio-pkg-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+          key: pio-pkg-${{ runner.os }}-${{ matrix.env }}-${{ hashFiles('platformio.ini') }}
+          restore-keys: |
+            pio-pkg-${{ runner.os }}-${{ matrix.env }}-
+            pio-pkg-${{ runner.os }}-
       - name: Build firmware
         run: pio run -e ${{ matrix.env }}
       - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
           name: firmware-${{ matrix.env }}
-          path: .pio/build/${{ matrix.env }}/firmware.bin
+          path: |
+            .pio/build/${{ matrix.env }}/firmware.bin
+            .pio/build/${{ matrix.env }}/partitions.bin
           retention-days: 7
+
+  docs-hygiene:
+    name: Documentation and generated-file hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reject generated build output
+        run: |
+          test ! -d .pio
+          test ! -d test/build
+      - name: Verify authoritative plan exists
+        run: test -s docs/REFACTOR_PLAN.md
