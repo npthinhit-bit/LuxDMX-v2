@@ -3,7 +3,11 @@
 #include "psa/crypto.h"
 
 #ifndef OTA_SIGN_ENABLED
+#if defined(CONFIG_LUXDMX_OTA_SIGN_ENABLED) && CONFIG_LUXDMX_OTA_SIGN_ENABLED
+#define OTA_SIGN_ENABLED 1
+#else
 #define OTA_SIGN_ENABLED 0
+#endif
 #endif
 
 bool otaVerifySignature(const uint8_t hash[OTA_HASH_SIZE],
