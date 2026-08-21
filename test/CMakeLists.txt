@@ -101,6 +101,14 @@ target_link_libraries(rdm_types_test lux_common_test)
 add_executable(rdm_engine_test ${CMAKE_SOURCE_DIR}/tests/test_rdm_engine.c)
 target_link_libraries(rdm_engine_test lux_config_test lux_common_test shim)
 
+add_library(ws_frame_test STATIC
+    ${CMAKE_SOURCE_DIR}/../components/lux_web/src/ws_frame.c
+)
+target_include_directories(ws_frame_test PUBLIC ${CMAKE_SOURCE_DIR}/../components/lux_web/include)
+
+add_executable(ws_frame_test_runner ${CMAKE_SOURCE_DIR}/tests/test_ws_frame.c)
+target_link_libraries(ws_frame_test_runner ws_frame_test)
+
 enable_testing()
 
 add_test(logger_test logger_test)
@@ -115,3 +123,4 @@ add_test(led_math_test led_math_test)
 add_test(art_packet_queue_test art_packet_queue_test)
 add_test(rdm_types_test rdm_types_test)
 add_test(rdm_engine_test rdm_engine_test)
+add_test(ws_frame_test ws_frame_test_runner)
