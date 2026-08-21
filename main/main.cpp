@@ -19,6 +19,7 @@
 #include "logger.h"
 #include "captive_portal.h"
 #include "tasks.h"
+#include "rdm_task.h"
 #include "wifi_config.h"
 
 #include <stdlib.h>
@@ -92,6 +93,9 @@ extern "C" void app_main(void) {
     outputInitAll();
     dmxInitGuardEnd(crashCount);
     dmx_tx_task_start();
+    if (!rdmTaskInit()) {
+        LOG_WARN(TAG, "RDM task unavailable; continuing with DMX-only services");
+    }
     LOG_INFO(TAG, "DMX outputs initialized");
 
     // Update LED pattern to connecting

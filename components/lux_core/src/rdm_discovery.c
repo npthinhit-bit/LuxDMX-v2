@@ -47,7 +47,8 @@ size_t rdmDiscRange(uint64_t lower, uint64_t upper, size_t max_devices,
         rdm_uid_t single = {0};
         const rdm_disc_result_t result = probe(branch_lower, branch_upper, &single, context);
 
-        if (result == RDM_DISC_EMPTY || branch_lower == branch_upper && result != RDM_DISC_SINGLE) {
+        if (result == RDM_DISC_EMPTY ||
+            (branch_lower == branch_upper && result != RDM_DISC_SINGLE)) {
             continue;
         }
         if (result == RDM_DISC_SINGLE) {
