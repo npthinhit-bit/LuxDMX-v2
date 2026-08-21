@@ -19,10 +19,8 @@ CLAUDE.md
 /luxdmx*_sklib.py
 /luxdmx*.kicad_prl
 
-# pioarduino custom_sdkconfig from-source core build artifacts (generated from the
-# custom_sdkconfig option in platformio.ini — that file is the source of truth)
+# PlatformIO + ESP-IDF generated build artifacts (platformio.ini is the source of truth)
 /CMakeLists.txt
-/partitions.csv
 /sdkconfig.defaults
 /sdkconfig.*
 /dependencies.lock
@@ -35,6 +33,7 @@ CLAUDE.md
 # (UI simulator / video pipeline + promo plan; backed up privately in thinhh0321/LuxDMX-v2-ops.)
 /sim/
 PROMO_PLAN.local.md
+.em_skill.json
 
 # Private deploy secrets for luxdmx.org Strato hosting (SSH key + credentials/URLs)
 /.secrets/
@@ -43,6 +42,7 @@ __pycache__/
 
 # native test build artifacts
 build/
+test/build/
 *.obj
 *.elf
 *.gcda

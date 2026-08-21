@@ -1,0 +1,96 @@
+#include "web_assets.h"
+#include "web_frontend.h"
+#include <string.h>
+
+const char* web_assets_get(const char* uri) {
+    // This is a simple implementation that returns embedded assets
+    // In a real implementation, you would have a proper asset table
+
+    if (strcmp(uri, "/assets/style.css") == 0) {
+        return
+            "/* LuxDMX Styles */"
+            "* { box-sizing: border-box; margin: 0; padding: 0; }"
+            "body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; "
+            "background: #f5f5f5; color: #333; line-height: 1.6; }"
+            ".container { max-width: 800px; margin: 0 auto; padding: 20px; }"
+            ".setup-container { max-width: 400px; }"
+            "header { display: flex; justify-content: space-between; align-items: center; "
+            "padding: 20px 0; border-bottom: 1px solid #eee; margin-bottom: 20px; }"
+            "header h1 { font-size: 1.5rem; color: #2c3e50; }"
+            ".subtitle { color: #666; font-size: 0.9rem; margin-top: 4px; }"
+            ".status-indicator { display: flex; align-items: center; gap: 8px; }"
+            ".status-indicator .dot { width: 10px; height: 10px; border-radius: 50%; background: #ccc; }"
+            ".status-indicator .dot.connected { background: #27ae60; }"
+            ".status-indicator .dot.connecting { background: #f39c12; animation: pulse 1s infinite; }"
+            "@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }"
+            "main { display: flex; flex-direction: column; gap: 20px; }"
+            ".card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }"
+            ".card h2 { font-size: 1.1rem; margin-bottom: 16px; color: #2c3e50; }"
+            ".info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }"
+            ".info-item { display: flex; flex-direction: column; gap: 4px; }"
+            ".info-item label { font-size: 0.8rem; color: #666; text-transform: uppercase; }"
+            ".info-item span { font-weight: 500; }"
+            ".form-group { margin-bottom: 16px; }"
+            ".form-group label { display: block; margin-bottom: 6px; font-weight: 500; }"
+            ".input-group { display: flex; gap: 8px; }"
+            ".input-group select { flex: 1; }"
+            "input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; }"
+            "input:focus, select:focus { outline: none; border-color: #3498db; box-shadow: 0 0 0 2px rgba(52,152,219,0.2); }"
+            ".btn { padding: 12px 20px; border: none; border-radius: 4px; font-size: 1rem; cursor: pointer; transition: background 0.2s; }"
+            ".btn-primary { background: #3498db; color: white; }"
+            ".btn-primary:hover { background: #2980b9; }"
+            ".btn-secondary { background: #95a5a6; color: white; }"
+            ".btn-secondary:hover { background: #7f8c8d; }"
+            ".btn-danger { background: #e74c3c; color: white; }"
+            ".btn-danger:hover { background: #c0392b; }"
+            ".btn-block { width: 100%; }"
+            ".status-message { margin-top: 12px; padding: 10px; border-radius: 4px; font-size: 0.9rem; }"
+            ".status-message.success { background: #d5f5e3; color: #27ae60; border: 1px solid #27ae60; }"
+            ".status-message.error { background: #fadbd8; color: #c0392b; border: 1px solid #c0392b; }"
+            "footer { text-align: center; padding: 20px; color: #666; font-size: 0.8rem; }"
+            "a { color: #3498db; text-decoration: none; }"
+            "a:hover { text-decoration: underline; }";
+    }
+
+    if (strcmp(uri, "/assets/app.js") == 0) {
+        return
+            "// LuxDMX App JS"
+            "async function loadInfo() {"
+            "  try {"
+            "    const resp = await fetch('/info.json');"
+            "    const data = await resp.json();"
+            "    document.getElementById('info-device').textContent = data.device;"
+            "    document.getElementById('info-firmware').textContent = data.firmware;"
+            "    document.getElementById('info-board').textContent = data.board;"
+            "    document.getElementById('info-uptime').textContent = formatUptime(data.uptime || 0);"
+            "    document.getElementById('info-heap').textContent = formatBytes(data.heap_free || 0);"
+            "    document.getElementById('info-wifi-status').textContent = data.wifi_connected ? 'Connected' : 'Disconnected';"
+            "    document.getElementById('info-ssid').textContent = data.ssid || '-';"
+            "    document.getElementById('info-ip').textContent = data.ip || '-';"
+            "    document.getElementById('info-rssi').textContent = data.rssi ? data.rssi + ' dBm' : '-';"
+            "    const dot = document.querySelector('.status-indicator .dot');"
+            "    if (dot) {"
+            "      dot.className = 'dot ' + (data.wifi_connected ? 'connected' : 'connecting');"
+            "      dot.nextElementSibling.textContent = data.wifi_connected ? 'Connected' : 'Connecting...';"
+            "    }"
+            "  } catch (e) {"
+            "    console.error('Failed to load info:', e);"
+            "  }"
+            "}"
+            "function formatUptime(seconds) {"
+            "  const d = Math.floor(seconds / 86400);"
+            "  const h = Math.floor((seconds % 86400) / 3600);"
+            "  const m = Math.floor((seconds % 3600) / 60);"
+            "  return (d ? d + 'd ' : '') + (h ? h + 'h ' : '') + m + 'm';"
+            "}"
+            "function formatBytes(bytes) {"
+            "  if (bytes < 1024) return bytes + ' B';"
+            "  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';"
+            "  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';"
+            "}"
+            "setInterval(loadInfo, 5000);"
+            "loadInfo();";
+    }
+
+    return NULL;
+}

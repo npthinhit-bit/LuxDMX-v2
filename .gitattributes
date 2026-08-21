@@ -1,0 +1,24 @@
+# Source files: enforce LF for portability
+*.c text eol=lf
+*.h text eol=lf
+*.cpp text eol=lf
+*.hpp text eol=lf
+
+# CMake: enforce LF
+CMakeLists.txt text eol=lf
+*.cmake text eol=lf
+
+# Markdown: enforce LF
+*.md text eol=lf
+
+# Binary assets: no conversion
+*.bin binary
+*.bin32 binary
+*.wav binary
+*.gz binary
+*.html binary
+
+# Web assets in webui/
+webui/css/*.css text eol=lf
+webui/js/*.js text eol=lf
+webui/index.html text eol=lf

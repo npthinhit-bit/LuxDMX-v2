@@ -1,0 +1,39 @@
+﻿menu "LuxDMX Gateway"
+    config LUXDMX_MAX_OUTPUTS
+        int
+        default 1
+        range 1 4
+        help
+          Maximum DMX outputs. ESP32-S3 has 4 RMT TX channels (spec 45 §10).
+    config LUXDMX_MAX_SENDERS
+        int
+        default 16
+        help
+          Maximum concurrent Art-Net/sACN senders tracked (spec 13).
+    config LUXDMX_RDM_TOD_MAX
+        int
+        default 64
+        help
+          Maximum RDM TO-D responses per discovery cycle (spec 09).
+    config LUXDMX_LOG_BUF_CAP
+        int
+        default 32
+        help
+          Logger ring buffer capacity in entries (spec 13/23).
+    config LUXDMX_DEFAULT_TEMPLATE
+        string
+        default "esp32dev"
+        help
+          Default board template name, injected as -DLUXDMX_DEFAULT_TEMPLATE at build time.
+    config LUXDMX_OTA_SIGN_ENABLED
+        bool
+        default n
+        help
+          Enable Ed25519 signature verification for OTA images (spec 29/30).
+          Gated to release envs only.
+    config LUXDMX_SOAK_TEST
+        bool
+        default n
+        help
+          Enable extended soak-test mode (spec 38). Only for dedicated soak envs.
+endmenu

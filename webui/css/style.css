@@ -1,0 +1,345 @@
+/* LuxDMX Setup Portal Styles */
+:root {
+    --color-bg: #0a0a1a;
+    --color-surface: #151528;
+    --color-surface-alt: #1a1a32;
+    --color-primary: #00d4ff;
+    --color-primary-hover: #00b8e6;
+    --color-text: #e0e0e0;
+    --color-text-secondary: #a0a0b0;
+    --color-success: #00e676;
+    --color-error: #ff5252;
+    --border-radius: 12px;
+    --transition: all 0.3s ease;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--color-bg);
+    color: var(--color-text);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.app-container {
+    width: 100%;
+    max-width: 420px;
+    position: relative;
+}
+
+.screen {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px;
+    background: var(--color-surface);
+    border-radius: var(--border-radius);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    min-height: 500px;
+}
+
+.screen.active {
+    display: flex;
+}
+
+/* Loading screen */
+.loading-screen {
+    text-align: center;
+}
+
+.spinner {
+    width: 48px;
+    height: 48px;
+    border: 3px solid var(--color-surface-alt);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 24px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.spinner-inline {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid transparent;
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    vertical-align: middle;
+    margin-left: 8px;
+}
+
+/* Header */
+.header {
+    width: 100%;
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.header h1 {
+    font-size: 1.8rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.subtitle {
+    color: var(--color-text-secondary);
+    font-size: 0.95rem;
+    margin-top: 4px;
+}
+
+/* Status bar */
+.status-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--color-surface-alt);
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-size: 0.9rem;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    flex-shrink: 0;
+}
+
+.status-dot.disconnected {
+    background: var(--color-error);
+}
+
+.status-dot.connecting {
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Network list */
+.network-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.network-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    background: var(--color-surface-alt);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: var(--transition);
+    border: 1px solid transparent;
+}
+
+.network-item:hover {
+    border-color: var(--color-primary);
+    background: #202038;
+}
+
+.network-item .network-info {
+    flex: 1;
+    overflow: hidden;
+}
+
+.network-item .network-name {
+    font-weight: 500;
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.network-item .network-details {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+}
+
+.signal-bar {
+    display: inline-block;
+    width: 4px;
+    height: 16px;
+    background: var(--color-text-secondary);
+    border-radius: 2px;
+}
+
+.signal-bar.full::after {
+    content: '';
+    display: block;
+    width: 100%;
+    height: 14px;
+    background: var(--color-primary);
+    border-radius: 2px;
+}
+
+.signal-bar.medium {
+    height: 12px;
+}
+
+.signal-bar.weak {
+    height: 8px;
+}
+
+.lock-icon {
+    font-size: 1.2rem;
+    color: var(--color-text-secondary);
+}
+
+/* Password form */
+.password-form {
+    width: 100%;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    color: var(--color-text-secondary);
+}
+
+.form-group input {
+    width: 100%;
+    padding: 14px 16px;
+    background: var(--color-surface-alt);
+    border: 1px solid #2a2a42;
+    border-radius: 8px;
+    color: var(--color-text);
+    font-size: 1rem;
+    outline: none;
+    transition: var(--transition);
+}
+
+.form-group input:focus {
+    border-color: var(--color-primary);
+    background: #202038;
+}
+
+.form-group input::placeholder {
+    color: #555;
+}
+
+/* Buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+    width: 100%;
+}
+
+.btn-primary {
+    background: var(--color-primary);
+    color: #000;
+}
+
+.btn-primary:hover {
+    background: var(--color-primary-hover);
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: var(--color-surface-alt);
+    color: var(--color-text);
+    border: 1px solid #2a2a42;
+}
+
+.btn-secondary:hover {
+    background: #202038;
+}
+
+.btn-back {
+    background: none;
+    border: none;
+    color: var(--color-text-secondary);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    width: auto;
+    margin-right: 8px;
+}
+
+.btn-back:hover {
+    color: var(--color-text);
+}
+
+/* Success screen */
+.success-screen {
+    text-align: center;
+}
+
+.success-icon {
+    font-size: 4rem;
+    color: var(--color-success);
+    margin-bottom: 16px;
+}
+
+/* Error screen */
+.error-screen {
+    text-align: center;
+}
+
+.error-icon {
+    font-size: 3rem;
+    color: var(--color-error);
+    margin-bottom: 16px;
+}
+
+.error-message {
+    font-size: 1.1rem;
+    margin-bottom: 20px;
+    color: var(--color-text-secondary);
+}
+
+.small {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    margin-top: 12px;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .screen {
+        padding: 20px;
+        min-height: auto;
+    }
+
+    .header h1 {
+        font-size: 1.5rem;
+    }
+}

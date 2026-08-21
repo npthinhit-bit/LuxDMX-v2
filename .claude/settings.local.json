@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la C:\\\\Users\\\\MSI\\\\Documents\\\\GitHub\\\\LuxDMX-v2\\\\*.md)",
+      "Bash(cat C:\\\\Users\\\\MSI\\\\Documents\\\\GitHub\\\\LuxDMX-v2\\\\.gitignore)",
+      "Bash(pio run *)",
+      "Bash(python -m pip install -U platformio)"
+    ]
+  }
+}

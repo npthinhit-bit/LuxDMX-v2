@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LuxDMX Setup</title>
+    <link rel="stylesheet" href="css/style.css">
+    <meta name="theme-color" content="#1a1a2e">
+</head>
+<body>
+    <div class="app-container" id="app">
+        <!-- Loading screen -->
+        <div class="screen loading-screen" id="loadingScreen">
+            <div class="spinner"></div>
+            <h2>Connecting...</h2>
+            <p id="loadingStatus">Initializing setup</p>
+        </div>
+
+        <!-- Scan screen -->
+        <div class="screen scan-screen" id="scanScreen">
+            <div class="header">
+                <h1>LuxDMX Setup</h1>
+                <p class="subtitle">Select WiFi network</p>
+            </div>
+            <div class="status-bar" id="scanStatus">
+                <span class="status-dot"></span>
+                <span id="scanStatusText">Scanning...</span>
+            </div>
+            <div class="network-list" id="networkList">
+                <!-- Networks populated by JS -->
+            </div>
+            <button class="btn btn-primary" id="scanAgainBtn" style="display:none;">
+                Scan Again
+            </button>
+        </div>
+
+        <!-- Password screen -->
+        <div class="screen password-screen" id="passwordScreen">
+            <div class="header">
+                <button class="btn-back" id="backToScan">&larr;</button>
+                <h1 id="selectedSsid">Network Name</h1>
+            </div>
+            <form class="password-form" id="passwordForm">
+                <div class="form-group">
+                    <label for="password">WiFi Password</label>
+                    <input type="password" id="password" placeholder="Enter password" autocomplete="off">
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <span id="saveBtnText">Save & Connect</span>
+                    <span class="spinner-inline" id="savingSpinner" style="display:none;"></span>
+                </button>
+            </form>
+        </div>
+
+        <!-- Success screen -->
+        <div class="screen success-screen" id="successScreen">
+            <div class="success-icon">&#10003;</div>
+            <h2>Connected!</h2>
+            <p>LuxDMX is now connected to your WiFi network.</p>
+            <p class="small">You can now close this window.</p>
+        </div>
+
+        <!-- Error screen -->
+        <div class="screen error-screen" id="errorScreen">
+            <div class="error-icon">&#9888;</div>
+            <h2>Connection Failed</h2>
+            <p id="errorMessage">Unable to connect to the selected network.</p>
+            <button class="btn btn-secondary" id="retryBtn">Try Again</button>
+        </div>
+    </div>
+    <script src="js/transport.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        // Check if we're running in mock mode (for testing)
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('mock') === 'true') {
+            localStorage.setItem('luxdmx_mock', 'true');
+        }
+        // Initialize the app
+        LuxDMXApp.init();
+    </script>
+</body>
+</html>
