@@ -9,6 +9,7 @@
 #include "wifi_manager.h"
 #include "wifi_config.h"
 #include "captive_portal.h"
+#include "ota_manager.h"
 #include "../../lux_core/include/dmx_buffer.h"
 #include "cJSON.h"
 #include "esp_http_server.h"
@@ -257,6 +258,13 @@ static esp_err_t setup_get_handler(httpd_req_t* req) {
     return httpd_resp_send(req, html, strlen(html));
 }
 
+static esp_err_t firmware_get_handler(httpd_req_t *req) {
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_set_hdr(req, "Cache-Control", "no-store");
+    const char *html = web_frontend_get_firmware();
+    return httpd_resp_send(req, html, strlen(html));
+}
+
 // Handle setup POST (save WiFi credentials)
 static esp_err_t setup_post_handler(httpd_req_t* req) {
     int total_len = req->content_len;
@@ -390,6 +398,13 @@ esp_err_t web_routes_register(httpd_handle_t server) {
         .user_ctx = NULL
     };
 
+    static const httpd_uri_t firmware_uri = {
+        .uri = "/firmware",
+        .method = HTTP_GET,
+        .handler = firmware_get_handler,
+        .user_ctx = NULL
+    };
+
     static const httpd_uri_t config_get_uri = {
         .uri = "/config",
         .method = HTTP_GET,
@@ -463,6 +478,7 @@ esp_err_t web_routes_register(httpd_handle_t server) {
     ESP_ERROR_CHECK(httpd_register_uri_handler(server, &setup_get_uri));
     ESP_ERROR_CHECK(httpd_register_uri_handler(server, &setup_post_uri));
     ESP_ERROR_CHECK(httpd_register_uri_handler(server, &index_uri));
+    ESP_ERROR_CHECK(httpd_register_uri_handler(server, &firmware_uri));
     ESP_ERROR_CHECK(httpd_register_uri_handler(server, &config_get_uri));
     ESP_ERROR_CHECK(httpd_register_uri_handler(server, &config_post_uri));
     ESP_ERROR_CHECK(httpd_register_uri_handler(server, &info_uri));

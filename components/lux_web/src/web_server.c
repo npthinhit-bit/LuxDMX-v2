@@ -3,6 +3,7 @@
 #include "logger.h"
 #include "web_routes.h"
 #include "web_websocket.h"
+#include "ota_manager.h"
 #include "config_engine.h"
 #include "esp_http_server.h"
 #include "esp_netif.h"
@@ -23,7 +24,7 @@ esp_err_t web_server_init(void) {
     LOG_INFO(TAG, "Initializing web server");
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers = 16;
+    config.max_uri_handlers = 20;
     config.max_open_sockets = 7;
     config.recv_wait_timeout = 5;
     config.send_wait_timeout = 5;
@@ -35,10 +36,20 @@ esp_err_t web_server_init(void) {
         return err;
     }
 
+    otaManagerInit();
+
     // Register routes
     err = web_routes_register(server);
     if (err != ESP_OK) {
         LOG_ERROR(TAG, "Failed to register routes: %s", esp_err_to_name(err));
+        httpd_stop(server);
+        server = NULL;
+        return err;
+    }
+
+    err = otaManagerRegister(server);
+    if (err != ESP_OK) {
+        LOG_ERROR(TAG, "Failed to initialize OTA routes: %s", esp_err_to_name(err));
         httpd_stop(server);
         server = NULL;
         return err;
