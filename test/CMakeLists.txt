@@ -94,6 +94,9 @@ target_include_directories(art_packet_queue_lib PUBLIC ${CMAKE_SOURCE_DIR}/../co
 add_executable(art_packet_queue_test ${CMAKE_SOURCE_DIR}/tests/test_art_packet_queue.c)
 target_link_libraries(art_packet_queue_test art_packet_queue_lib shim cjson_test)
 
+add_executable(rdm_types_test ${CMAKE_SOURCE_DIR}/tests/test_rdm_types.c)
+target_link_libraries(rdm_types_test lux_common_test)
+
 enable_testing()
 
 add_test(logger_test logger_test)
@@ -106,3 +109,4 @@ add_test(boards_test boards_test)
 add_test(net_baseline_test net_baseline_test)
 add_test(led_math_test led_math_test)
 add_test(art_packet_queue_test art_packet_queue_test)
+add_test(rdm_types_test rdm_types_test)
