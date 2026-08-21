@@ -211,3 +211,14 @@ Remaining Phase-1 follow-ups (parity register section 10): `wifi_ssid` CFG_LIVE 
 - [PlatformIO ESP-IDF Integration](https://docs.platformio.org/en/latest/frameworks/espidf.html)
 - [LuxDMX-v2 Documentation](../docs/)
 - [Refactoring Plan](docs/REFACTOR_PLAN.md)
+
+
+## Phase 5–7 Implementation Notes (2026-08-21)
+
+The branch now includes the common E1.20 type contract (`rdm_types.h`), a bounded RDM request builder/response parser, a host-testable discovery binary search, and a core-1 RDM command queue scaffold. The RDM queue is initialized after DMX output initialization and before network services; physical RMT/UART transaction execution remains a driver-owned integration gate.
+
+The web layer now owns a byte-exact 2095-byte WebSocket frame serializer and native delta/subscription tests. REST additions include `/health`, `/dmx.json`, `/version.json`, `/setup/scan`, and `POST /reboot`, with JSON responses marked `Cache-Control: no-store`. The real ESP-IDF WebSocket implementation is compiled when `CONFIG_HTTPD_WS_SUPPORT` is enabled; the default PlatformIO sdkconfig currently disables that option, so the safe fallback returns HTTP 426 rather than exposing a false handshake.
+
+OTA signing is represented by `lux_net/ota_sign.c`, which uses PSA PureEdDSA over a SHA-256 image digest when `OTA_SIGN_ENABLED` or `CONFIG_LUXDMX_OTA_SIGN_ENABLED` is enabled and bypasses verification only for development builds. A static RFC 5424 syslog client is available in `lux_sys/syslog_client.c`. The GitHub Actions workflow runs the native harness and the three-board firmware matrix and uploads firmware plus partition artifacts.
+
+The native gate currently contains 14 test executables/cases groups and is green after a clean CMake configure. Full physical RDM transactions, Ethernet PHY drivers, OTA partition streaming/rollback, display/panel rendering, alert webhooks, soak monitoring, and production WebSocket Kconfig enablement remain hardware/release gates rather than being claimed as host-complete.

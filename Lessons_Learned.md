@@ -302,3 +302,24 @@
    - Verify core affinity strategy
    - Test under worst-case network conditions
 
+
+
+## Phase 5–7: RDM, Web Contract, OTA and System Services (2026-08-21)
+
+### RDM transport contracts
+- **Lesson**: E1.20 wire contracts should be isolated from hardware ownership. `rdm_types.h`, `rdm_engine.c`, and `rdm_discovery.c` are pure data/algorithm layers and can be validated on the host before RMT/UART integration.
+- **Lesson**: A bounded UID-stack search is safer than recursive discovery. The implementation caps the search at `8 * max_devices + 128` probes and 64 range entries, deduplicates results, and requires a successful mute callback before publishing a UID.
+- **Decision**: `rdm_task.c` owns a 32-entry core-1 queue with deep-copied request parameters. The current dispatcher builds and validates requests; physical RMT/UART transaction ownership remains with the driver integration phase.
+
+### Web and REST
+- **Lesson**: The fixed 2095-byte WebSocket frame is best implemented as a standalone serializer. `ws_frame.c` owns all big-endian offsets, the changed-universe bitmap, and the 12-client delta predicate, with native byte-conformance tests.
+- **Decision**: REST JSON responses set `Cache-Control: no-store`. `/health`, `/dmx.json`, `/version.json`, `/setup/scan`, and `POST /reboot` were added without changing the existing provisioning routes.
+- **Constraint**: ESP-IDF v6 currently generates `CONFIG_HTTPD_WS_SUPPORT=n` in the PlatformIO defaults. `web_websocket.c` therefore keeps a compile-time real-WS path and returns HTTP 426 from the safe fallback path rather than pretending that a manual HTTP upgrade is a WebSocket implementation. Enabling the Kconfig option is a release-build requirement.
+
+### Build and security
+- **Lesson**: The repository contained a cJSON gitlink without `.gitmodules`; cloning a fork therefore produced an unusable dependency. It was replaced with a vendored MIT-licensed cJSON component and an ESP-IDF CMake registration.
+- **Decision**: OTA verification uses PSA PureEdDSA when `OTA_SIGN_ENABLED` or `CONFIG_LUXDMX_OTA_SIGN_ENABLED` is enabled. Development builds intentionally bypass verification; production profiles must enable the flag and provide the corresponding public key/streaming integration.
+- **Lesson**: The native runner now has 14 green tests, while firmware builds must be cleanly reconfigured when component CMake source lists change; an incremental `pio run` can retain a stale component graph.
+
+### Remaining hardware-gated work
+- **Parity note**: RDM physical transaction orchestration, Ethernet PHY bring-up, OTA partition streaming/rollback, display/panel rendering, alert delivery, and soak telemetry require their respective hardware or platform integration. These are not silently represented as complete by the current host tests; the parity register and Phase 8 release gate must retain them as hardware-gated items.
