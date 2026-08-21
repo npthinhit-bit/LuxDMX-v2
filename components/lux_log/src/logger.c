@@ -70,7 +70,7 @@ void logger_log(log_level_t level, const char* tag, const char* format, ...) {
         case LOG_LEVEL_VERBOSE: level_str = "V"; break;
     }
     int prefix_len = snprintf(prefix, sizeof(prefix), "%s (%lu) %s: ",
-                              level_str, esp_log_timestamp(), tag);
+                              level_str, (unsigned long)esp_log_timestamp(), tag);
     fwrite(prefix, 1, prefix_len, stdout);
     vfprintf(stdout, format, args);
     fputc('\n', stdout);
