@@ -383,3 +383,12 @@ Phase-6 contract work is implemented in `lux_web/ws_frame.*` and the REST route 
 Phase-7 software foundations include PSA PureEdDSA verification for a SHA-256 digest plus 64-byte signature tail (`OTA_SIGN_ENABLED` / `CONFIG_LUXDMX_OTA_SIGN_ENABLED`) and a static RFC 5424 UDP syslog client. OTA partition streaming, boot-retry rollback orchestration, Ethernet PHY bring-up, display/panel rendering, alert webhooks, and soak monitoring remain explicit release/HIL gates and are not represented as complete by host tests.
 
 The CI skeleton now runs the native harness, the `esp32dev`/`wt32eth01`/`esp32s3_psram` firmware matrix, artifact upload, and generated-file hygiene. The latest clean firmware builds pass on all three required environments under the installed ESP-IDF 6.0.1 framework; the plan's ESP-IDF 5.2 target remains a documented framework-version deviation.
+
+
+## 12. CI/CD and Firmware Update UI — 2026-08-21
+
+The CI workflow now gates firmware builds on the native suite, builds `esp32dev`, `wt32eth01`, and `esp32s3_psram`, uploads bootloader/partition/firmware artifacts, creates SHA-256 and JSON manifests, and publishes a GitHub Release for `v*` tags. Pull requests run validation without publishing release assets; branch pushes package artifacts without creating a release.
+
+The embedded web UI now exposes `/firmware` from the dashboard. The page follows the existing LuxDMX card layout and provides a `.bin` file chooser, drag-and-drop input, explicit reboot warning, upload confirmation, progress polling, and reboot/recovery messaging. The firmware server exposes `POST /ota/upload` and `GET /ota/status`; uploads stream in 1 KiB chunks into the next OTA partition, apply a five-requests-per-minute token bucket with burst ten, set the boot partition only after a complete write, and reboot after a successful finalization.
+
+The new page and OTA manager were clean-built on all three firmware environments. Native tests remain green; physical power-loss/recovery and signed-production-image tests remain hardware/release validation gates.
