@@ -51,6 +51,7 @@ add_library(lux_config_test STATIC
     ${CMAKE_SOURCE_DIR}/../components/lux_core/src/sender_tracker.c
     ${CMAKE_SOURCE_DIR}/../components/lux_core/src/merge_engine.c
     ${CMAKE_SOURCE_DIR}/../components/lux_core/src/rdm_engine.c
+    ${CMAKE_SOURCE_DIR}/../components/lux_core/src/rdm_discovery.c
 )
 
 add_library(lux_wifi_test STATIC
@@ -109,6 +110,9 @@ target_include_directories(ws_frame_test PUBLIC ${CMAKE_SOURCE_DIR}/../component
 add_executable(ws_frame_test_runner ${CMAKE_SOURCE_DIR}/tests/test_ws_frame.c)
 target_link_libraries(ws_frame_test_runner ws_frame_test)
 
+add_executable(rdm_discovery_test ${CMAKE_SOURCE_DIR}/tests/test_rdm_discovery.c)
+target_link_libraries(rdm_discovery_test lux_config_test lux_common_test)
+
 enable_testing()
 
 add_test(logger_test logger_test)
@@ -124,3 +128,4 @@ add_test(art_packet_queue_test art_packet_queue_test)
 add_test(rdm_types_test rdm_types_test)
 add_test(rdm_engine_test rdm_engine_test)
 add_test(ws_frame_test ws_frame_test_runner)
+add_test(rdm_discovery_test rdm_discovery_test)
