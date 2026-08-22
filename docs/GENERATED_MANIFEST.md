@@ -63,6 +63,8 @@ A successful run emits one UTF-8 JSON file with a final newline. Keys and arrays
 | `status` | `pass` only after every input is copied and the manifest is written |
 | `errors` | Empty array for success; failed runs return non-zero and do not publish an output directory |
 
+The template generator uses the same schema identifier and adds a `templates` array. Each entry records the explicit root `source` and its resolved base-first `inheritance` chain. Generic materialization does not emit this optional array.
+
 The manifest intentionally does not contain commit SHA, host information, current time, absolute paths, process environment, secrets or toolchain discovery. Those belong to other bounded reports such as the firmware artifact report.
 
 ## 3. Safety and determinism rules

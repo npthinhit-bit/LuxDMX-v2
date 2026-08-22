@@ -439,3 +439,12 @@ The tracked `templates/` and `webui/` trees are therefore candidate inputs, not 
 The `luxdmx.generated-manifest.v1` schema deliberately records only stable generator identity, sorted input/output relative paths, byte counts, SHA-256 values, status and deterministic errors. It excludes commit, timestamp, host, absolute path, process environment and secrets. The generic layer copies bytes without imposing text semantics; UTF-8 and `extends=` validation remain template-generator responsibilities, while web asset encoding remains conditional on a verified runtime consumer.
 
 The order-independent double-run smoke test produced byte-identical output trees and manifests. An existing output directory is refused rather than merged, preventing stale generated files from being mistaken for current output. No PlatformIO/CMake hook or runtime consumer was changed in this package.
+
+
+## M0.4.4.3 — Deterministic template inheritance (2026-08-22)
+
+`tools/template_generator.py` now resolves explicit UTF-8 `.ini` roots and their transitive `extends=` parents. Resolution is base-first: parent values retain order, child overrides replace values in place, and new child keys append deterministically. Same-file duplicate keys and duplicate `extends` directives are rejected; child overrides of parent keys are intentional and tested.
+
+The resolver rejects missing parents, cycles, excessive depth, invalid UTF-8, malformed lines, empty keys, non-canonical paths, symlinks and unsafe input/output sizes. It emits normalized `key=value` outputs plus a `templates` inheritance record in the stable manifest. Five repository templates were resolved twice with different root ordering and produced byte-identical output trees.
+
+This package remains host-only. The current firmware still consumes inline template strings in `config_schema.c`; no PlatformIO/CMake hook or runtime source-of-truth migration was performed. That integration remains a separate gate and must not be inferred from the passing parser tests.
