@@ -355,3 +355,8 @@ A capability bit means that a board profile can provision the interface; it does
 ## Bước 3.1 — Deterministic native test execution (2026-08-22)
 
 Native CTest cases now carry the `native` label and a 10-second timeout. This makes a hung fixture or shim fail the CI job deterministically instead of consuming a worker indefinitely. The CTest property must reference the registered test name (`ws_frame_test`), not necessarily the executable target name (`ws_frame_test_runner`).
+
+
+## Bước 3.2 — Fixture contract baseline (2026-08-22)
+
+The native harness now has a small fixture contract that requires a non-empty fixture name, a bounded timeout from 1 ms through 10 minutes, and an artifact directory. A fixture can be marked `requires_hil` without making the native run claim hardware verification. This gives future protocol and HIL suites a common metadata shape while keeping the current native tests deterministic and hardware-independent.

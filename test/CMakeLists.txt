@@ -17,6 +17,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/../components/lux_wifi/include
     ${CMAKE_SOURCE_DIR}/../components/lux_led/include
     ${CMAKE_SOURCE_DIR}/../components/lux_core/include
+    ${CMAKE_SOURCE_DIR}/fixtures
 )
 
 # Include cJSON directly (not as a component, just the header)
@@ -88,6 +89,8 @@ target_link_libraries(net_baseline_test lux_wifi_test lux_config_test lux_log_te
 add_executable(led_math_test ${CMAKE_SOURCE_DIR}/tests/test_led_math.c)
 target_link_libraries(led_math_test shim)
 
+add_executable(fixture_contract_test ${CMAKE_SOURCE_DIR}/tests/test_fixture_contract.c)
+
 add_library(ota_recovery_policy_lib STATIC
     ${CMAKE_SOURCE_DIR}/../components/lux_net/src/ota_recovery_policy.c
 )
@@ -132,6 +135,7 @@ add_test(portal_test portal_test)
 add_test(boards_test boards_test)
 add_test(net_baseline_test net_baseline_test)
 add_test(led_math_test led_math_test)
+add_test(fixture_contract_test fixture_contract_test)
 add_test(ota_recovery_policy_test ota_recovery_policy_test)
 add_test(art_packet_queue_test art_packet_queue_test)
 add_test(rdm_types_test rdm_types_test)
@@ -143,7 +147,7 @@ add_test(rdm_discovery_test rdm_discovery_test)
 set_tests_properties(
     logger_test config_serial_test seqlock_test merge_test
     config_migration_test portal_test boards_test net_baseline_test
-    led_math_test ota_recovery_policy_test art_packet_queue_test
+    led_math_test fixture_contract_test ota_recovery_policy_test art_packet_queue_test
     rdm_types_test rdm_engine_test ws_frame_test rdm_discovery_test
     PROPERTIES
         TIMEOUT 10
