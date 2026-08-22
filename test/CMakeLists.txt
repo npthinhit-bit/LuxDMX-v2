@@ -138,3 +138,14 @@ add_test(rdm_types_test rdm_types_test)
 add_test(rdm_engine_test rdm_engine_test)
 add_test(ws_frame_test ws_frame_test_runner)
 add_test(rdm_discovery_test rdm_discovery_test)
+
+# Native tests must fail deterministically instead of hanging a CI worker.
+set_tests_properties(
+    logger_test config_serial_test seqlock_test merge_test
+    config_migration_test portal_test boards_test net_baseline_test
+    led_math_test ota_recovery_policy_test art_packet_queue_test
+    rdm_types_test rdm_engine_test ws_frame_test rdm_discovery_test
+    PROPERTIES
+        TIMEOUT 10
+        LABELS native
+)

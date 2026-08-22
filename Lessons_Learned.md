@@ -350,3 +350,8 @@ The board table is now the single source for board identity, network capability,
 A pin found only in a generic template is not sufficient evidence for a board-specific hardware claim. Pins that are undocumented or not yet HIL-verified are represented by `BOARD_PIN_UNASSIGNED` (`-1`), especially display, W5500 and multi-output DMX/RDM pins. The WT32-ETH01 RMII defaults are retained only where the existing board/spec contract already identifies MDC 23, MDIO 18 and power 16.
 
 A capability bit means that a board profile can provision the interface; it does not mean that the runtime driver or physical board has passed HIL. Future Ethernet, RDM, display and panel work must consume this contract and add hardware evidence before changing the capability status.
+
+
+## Bước 3.1 — Deterministic native test execution (2026-08-22)
+
+Native CTest cases now carry the `native` label and a 10-second timeout. This makes a hung fixture or shim fail the CI job deterministically instead of consuming a worker indefinitely. The CTest property must reference the registered test name (`ws_frame_test`), not necessarily the executable target name (`ws_frame_test_runner`).
