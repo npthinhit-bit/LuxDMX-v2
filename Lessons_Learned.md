@@ -423,3 +423,10 @@ The bounded firmware reporter was exercised after a successful `pio run -e <env>
 The report schema is nested under `artifacts`, so consumers must read `bytes` and `sha256` from each artifact record rather than expecting legacy top-level size fields. The report records the exact source commit and stable UTF-8 JSON, making it suitable for later packaging and hosted-flasher consumption.
 
 The ESP32-S3 PlatformIO invocation emitted a local flash-size mismatch warning even though the configured profile expects 8 MB and the build completed successfully. This is build-tool evidence only; it does not establish flash geometry correctness, PSRAM behavior, signing-key provisioning, OTA acceptance, PHY behavior or HIL readiness. Those claims remain explicitly outside M0.4.3.
+
+
+## M0.4.4.1 — Generated-assets inventory (2026-08-22)
+
+The repository specifications describe a template generator and PROGMEM asset generator, but the current checkout has no active PlatformIO `extra_scripts`, custom CMake generation command or generated include path. The config runtime currently consumes inline board-template strings in `components/lux_config/src/config_schema.c`, while the web runtime consumes inline HTML/CSS/JavaScript strings in `components/lux_web/src/web_frontend.c` and `components/lux_web/src/web_assets.c`.
+
+The tracked `templates/` and `webui/` trees are therefore candidate inputs, not proven build inputs. M0.4.4 must not generate unused headers or connect a hook based only on documentation claims. Inventory and source-of-truth reconciliation must precede generator implementation; any asset without a verified consumer remains `documented-but-missing` or `blocked`, not `done`.

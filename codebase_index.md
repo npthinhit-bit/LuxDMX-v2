@@ -183,6 +183,8 @@ Native gate (Phase 0 exit #2 / section 5.4): host-native harness (`test/`, gcc) 
 
 M0.4.3.4 validation snapshot: `pio run -e <env>` followed by `tools/firmware_artifact_report.py` passed sequentially for `esp32dev`, `wt32eth01`, `esp32s3_psram`, `esp32dev_release`, `wt32eth01_release`, and `esp32s3_psram_release`. The development matrix is the deployed PR/`main` CI gate; release profiles are locally exercised but remain governed by tag/release policy.
 
+- [x] M0.4.4.1 generated-assets inventory: confirmed no active general generator or PlatformIO/CMake generation hook; mapped template and web inputs to current inline runtime consumers; documented the source-of-truth decision and next-package boundaries in `docs/M0.4.4_GENERATED_ASSETS_INVENTORY.md`
+
 **Phase 2 - build-gate green
 - [x] lux_core: DMX512 frame scheduling, RMT peripheral transmit
 - [x] lux_drv: UART pattern detect (hardware-gated T01 per spec 45)
