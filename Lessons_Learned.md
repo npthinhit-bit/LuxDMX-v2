@@ -374,3 +374,8 @@ This fixture is intentionally host-side test data, not an implementation of `art
 The native harness now compiles the real Art-Net dispatcher with POSIX-backed lwIP header shims and test-owned route/bridge captures. The fixture verifies ArtDMX routing, received-length clamping, ArtNzs start-code routing, ArtSync dispatch, control-plane bridge forwarding, and null/short/unknown packet rejection.
 
 The test deliberately does not open a real UDP socket and does not claim WiFi/Ethernet interoperability. It is a dispatcher-level contract test; protocol exchange, routing over a live interface, and packet-capture evidence remain separate E2E/HIL gates.
+
+
+## Bước 3.5 — Fixture artifact and cleanup reporting (2026-08-22)
+
+The fixture harness now reports a linear lifecycle of created, setup, exercised, and cleaned. Invalid out-of-order transitions are rejected, cleanup is required for a complete report, and artifact counts are bounded at 1024. The report is metadata-only: it does not create or delete files, so CI wrappers and future HIL runners can own filesystem cleanup explicitly.

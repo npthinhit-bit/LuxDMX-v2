@@ -92,6 +92,13 @@ target_link_libraries(led_math_test shim)
 
 add_executable(fixture_contract_test ${CMAKE_SOURCE_DIR}/tests/test_fixture_contract.c)
 
+add_library(fixture_report STATIC
+    ${CMAKE_SOURCE_DIR}/fixtures/test_fixture_report.c
+)
+
+add_executable(fixture_report_test ${CMAKE_SOURCE_DIR}/tests/test_fixture_report.c)
+target_link_libraries(fixture_report_test fixture_report)
+
 add_library(artnet_fixture STATIC
     ${CMAKE_SOURCE_DIR}/fixtures/artnet_fixture.c
 )
@@ -152,6 +159,7 @@ add_test(boards_test boards_test)
 add_test(net_baseline_test net_baseline_test)
 add_test(led_math_test led_math_test)
 add_test(fixture_contract_test fixture_contract_test)
+add_test(fixture_report_test fixture_report_test)
 add_test(artnet_fixture_test artnet_fixture_test)
 add_test(artnet_dispatch_test artnet_dispatch_test_runner)
 add_test(ota_recovery_policy_test ota_recovery_policy_test)
@@ -165,7 +173,7 @@ add_test(rdm_discovery_test rdm_discovery_test)
 set_tests_properties(
     logger_test config_serial_test seqlock_test merge_test
     config_migration_test portal_test boards_test net_baseline_test
-    led_math_test fixture_contract_test artnet_fixture_test artnet_dispatch_test ota_recovery_policy_test art_packet_queue_test
+    led_math_test fixture_contract_test fixture_report_test artnet_fixture_test artnet_dispatch_test ota_recovery_policy_test art_packet_queue_test
     rdm_types_test rdm_engine_test ws_frame_test rdm_discovery_test
     PROPERTIES
         TIMEOUT 10
