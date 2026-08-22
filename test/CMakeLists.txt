@@ -88,6 +88,14 @@ target_link_libraries(net_baseline_test lux_wifi_test lux_config_test lux_log_te
 add_executable(led_math_test ${CMAKE_SOURCE_DIR}/tests/test_led_math.c)
 target_link_libraries(led_math_test shim)
 
+add_library(ota_recovery_policy_lib STATIC
+    ${CMAKE_SOURCE_DIR}/../components/lux_net/src/ota_recovery_policy.c
+)
+target_include_directories(ota_recovery_policy_lib PUBLIC ${CMAKE_SOURCE_DIR}/../components/lux_net/include)
+
+add_executable(ota_recovery_policy_test ${CMAKE_SOURCE_DIR}/tests/test_ota_recovery_policy.c)
+target_link_libraries(ota_recovery_policy_test ota_recovery_policy_lib)
+
 add_library(art_packet_queue_lib STATIC
     ${CMAKE_SOURCE_DIR}/../components/lux_net/src/art_packet_queue.c
 )
@@ -124,6 +132,7 @@ add_test(portal_test portal_test)
 add_test(boards_test boards_test)
 add_test(net_baseline_test net_baseline_test)
 add_test(led_math_test led_math_test)
+add_test(ota_recovery_policy_test ota_recovery_policy_test)
 add_test(art_packet_queue_test art_packet_queue_test)
 add_test(rdm_types_test rdm_types_test)
 add_test(rdm_engine_test rdm_engine_test)
