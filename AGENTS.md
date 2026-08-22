@@ -11,9 +11,11 @@ PlatformIO environments are defined in `platformio.ini`:
 - `pio run -e wt32eth01` — WT32-ETH01 Ethernet development target.
 - `pio run -e esp32s3_psram_release`, `pio run -e esp32dev_release`, and `pio run -e wt32eth01_release` — signing-enforced release profiles.
 - `python3 tools/native_run.py --clean` — clean native CTest suite.
+- `python3 tools/repository_hygiene.py` — tracked/workspace generated-file and secret hygiene check.
+- `python3 tools/test_repository_hygiene.py` — host violation tests for the hygiene checker.
 - `python3 tools/test_ota_sign.py` — host signed-image contract test.
 
-A normal change must preserve the native gate and the three development firmware builds. Changes to CMake source lists, Kconfig/defaults, partition layout, timing-critical drivers, OTA, or task topology require a clean build of the affected environments. Hardware behavior is not considered verified by a native shim alone.
+A normal change must preserve the repository-hygiene gate, native gate and the three development firmware builds. Changes to CMake source lists, Kconfig/defaults, partition layout, timing-critical drivers, OTA, or task topology require a clean build of the affected environments. Hardware behavior is not considered verified by a native shim alone.
 
 ## Architecture
 

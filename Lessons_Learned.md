@@ -379,3 +379,10 @@ The test deliberately does not open a real UDP socket and does not claim WiFi/Et
 ## Bước 3.5 — Fixture artifact and cleanup reporting (2026-08-22)
 
 The fixture harness now reports a linear lifecycle of created, setup, exercised, and cleaned. Invalid out-of-order transitions are rejected, cleanup is required for a complete report, and artifact counts are bounded at 1024. The report is metadata-only: it does not create or delete files, so CI wrappers and future HIL runners can own filesystem cleanup explicitly.
+
+
+## M0.4.1 — Repository hygiene gate (2026-08-22)
+
+The repository now has a dependency-free `tools/repository_hygiene.py` checker and `tools/test_repository_hygiene.py` violation suite. The checker distinguishes tracked source-of-truth from generated build output, generated sdkconfig files, firmware artifacts and private-key material; it also checks workspace outputs and `git diff --check` unless `--tracked-only` is selected.
+
+CI validators must validate YAML syntax and required shape without hard-coding historical job names that may legitimately change during a planned CI migration. A stale local validator can fail for the wrong reason, so the validator itself must be reviewed or replaced before treating its result as evidence.
