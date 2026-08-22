@@ -367,3 +367,10 @@ The native harness now has a small fixture contract that requires a non-empty fi
 The test harness now includes a deterministic ArtDMX fixture builder that reuses the fixture contract and produces bounded packets with the documented Art-Net ID, little-endian opcode/universe, big-endian protocol version/length, sequence, priority, and 512-slot limit. Its tests cover valid payloads, zero-length payloads, endian/layout fields, and invalid bounds.
 
 This fixture is intentionally host-side test data, not an implementation of `artnet_dispatch_packet()` and not proof of network interoperability. Packet exchange, routing, source tracking, and WiFi/Ethernet behavior remain later protocol E2E or HIL gates.
+
+
+## Bước 3.4 — Art-Net dispatcher integration fixture (2026-08-22)
+
+The native harness now compiles the real Art-Net dispatcher with POSIX-backed lwIP header shims and test-owned route/bridge captures. The fixture verifies ArtDMX routing, received-length clamping, ArtNzs start-code routing, ArtSync dispatch, control-plane bridge forwarding, and null/short/unknown packet rejection.
+
+The test deliberately does not open a real UDP socket and does not claim WiFi/Ethernet interoperability. It is a dispatcher-level contract test; protocol exchange, routing over a live interface, and packet-capture evidence remain separate E2E/HIL gates.

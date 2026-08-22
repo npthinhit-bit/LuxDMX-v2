@@ -99,6 +99,14 @@ add_library(artnet_fixture STATIC
 add_executable(artnet_fixture_test ${CMAKE_SOURCE_DIR}/tests/test_artnet_fixture.c)
 target_link_libraries(artnet_fixture_test artnet_fixture)
 
+add_library(artnet_dispatch_test STATIC
+    ${CMAKE_SOURCE_DIR}/../components/lux_net/src/artnet.c
+)
+target_compile_definitions(artnet_dispatch_test PRIVATE UNIT_TEST)
+
+add_executable(artnet_dispatch_test_runner ${CMAKE_SOURCE_DIR}/tests/test_artnet_dispatch.c)
+target_link_libraries(artnet_dispatch_test_runner artnet_dispatch_test artnet_fixture lux_log_test shim)
+
 add_library(ota_recovery_policy_lib STATIC
     ${CMAKE_SOURCE_DIR}/../components/lux_net/src/ota_recovery_policy.c
 )
@@ -145,6 +153,7 @@ add_test(net_baseline_test net_baseline_test)
 add_test(led_math_test led_math_test)
 add_test(fixture_contract_test fixture_contract_test)
 add_test(artnet_fixture_test artnet_fixture_test)
+add_test(artnet_dispatch_test artnet_dispatch_test_runner)
 add_test(ota_recovery_policy_test ota_recovery_policy_test)
 add_test(art_packet_queue_test art_packet_queue_test)
 add_test(rdm_types_test rdm_types_test)
@@ -156,7 +165,7 @@ add_test(rdm_discovery_test rdm_discovery_test)
 set_tests_properties(
     logger_test config_serial_test seqlock_test merge_test
     config_migration_test portal_test boards_test net_baseline_test
-    led_math_test fixture_contract_test artnet_fixture_test ota_recovery_policy_test art_packet_queue_test
+    led_math_test fixture_contract_test artnet_fixture_test artnet_dispatch_test ota_recovery_policy_test art_packet_queue_test
     rdm_types_test rdm_engine_test ws_frame_test rdm_discovery_test
     PROPERTIES
         TIMEOUT 10

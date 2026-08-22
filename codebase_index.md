@@ -173,7 +173,7 @@ Native gate (Phase 0 exit #2 / section 5.4): host-native harness (`test/`, gcc) 
 - [x] Config engine (47-field schema + 24-field x 4-output descriptors; offsetof-based; NVS overlay + migrateNvsKeys migration; template text parser with extends= inheritance; secret masking; CFG_LIVE/REBOOT/SECRET flag categorization)
 - [x] Serial console full grammar (dump/get/set/save [reboot]/factory/list/help)
 - [x] Web routes (/info.json, /wifi/scan, /setup GET+POST, /config, /assets) + standalone webui (MockTransport)
-- [x] Testing infrastructure (native: 17 ctest executables green; fixture contract plus ArtDMX fixture test added; all CTest cases labeled `native` with a 10-second timeout; host OTA signing contract test)
+- [x] Testing infrastructure (native: 18 ctest executables green; fixture contract, ArtDMX fixture and Art-Net dispatcher integration tests added; all CTest cases labeled `native` with a 10-second timeout; host OTA signing contract test)
 - [x] Phase 2: full config schema (47 global + 24x4 output fields), NVS key migration (o0_*->a_*, o1_*->b_*, apfb->fbmode), template text parser with extends= inheritance, save [reboot] grammar, migration idempotency test, JSON export/import upgrade --- build gate green on esp32s3_psram/esp32dev/wt32eth01
 - [x] Net baseline test: portal activation matrix (spec 33), backoff formula (spec 14), WiFi state machine, config persistence
 - [x] LED math test: brightness scaling, clamping, pattern-to-color mapping (spec 36)
