@@ -430,3 +430,12 @@ The ESP32-S3 PlatformIO invocation emitted a local flash-size mismatch warning e
 The repository specifications describe a template generator and PROGMEM asset generator, but the current checkout has no active PlatformIO `extra_scripts`, custom CMake generation command or generated include path. The config runtime currently consumes inline board-template strings in `components/lux_config/src/config_schema.c`, while the web runtime consumes inline HTML/CSS/JavaScript strings in `components/lux_web/src/web_frontend.c` and `components/lux_web/src/web_assets.c`.
 
 The tracked `templates/` and `webui/` trees are therefore candidate inputs, not proven build inputs. M0.4.4 must not generate unused headers or connect a hook based only on documentation claims. Inventory and source-of-truth reconciliation must precede generator implementation; any asset without a verified consumer remains `documented-but-missing` or `blocked`, not `done`.
+
+
+## M0.4.4.2 — Pure generator CLI and manifest schema (2026-08-22)
+
+`tools/generate_manifest.py` now provides a dependency-free host-side materializer for an explicit input set. It validates relative POSIX paths, rejects symlinks and non-canonical components, applies 64 MiB per-file and 256 MiB total bounds, copies/hashes in 1 MiB chunks, and publishes only after a complete staging directory and UTF-8 manifest are ready.
+
+The `luxdmx.generated-manifest.v1` schema deliberately records only stable generator identity, sorted input/output relative paths, byte counts, SHA-256 values, status and deterministic errors. It excludes commit, timestamp, host, absolute path, process environment and secrets. The generic layer copies bytes without imposing text semantics; UTF-8 and `extends=` validation remain template-generator responsibilities, while web asset encoding remains conditional on a verified runtime consumer.
+
+The order-independent double-run smoke test produced byte-identical output trees and manifests. An existing output directory is refused rather than merged, preventing stale generated files from being mistaken for current output. No PlatformIO/CMake hook or runtime consumer was changed in this package.
