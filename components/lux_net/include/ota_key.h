@@ -1,0 +1,20 @@
+#ifndef LUXDMX_OTA_KEY_H
+#define LUXDMX_OTA_KEY_H
+
+#include <stdint.h>
+
+/*
+ * Public Ed25519 key used by the signed-image contract.
+ *
+ * This is public material and is safe to ship in firmware. Replace these
+ * bytes with the production public key when provisioning a release signing
+ * key. Never commit the corresponding private key.
+ */
+static const uint8_t OTA_PUBLIC_KEY[32] = {
+    0x32, 0xf3, 0xba, 0x42, 0x23, 0x92, 0x02, 0xdb,
+    0x1f, 0xb2, 0xfc, 0x3f, 0x02, 0x16, 0x5c, 0xd7,
+    0x21, 0xb6, 0xd3, 0xdd, 0xa4, 0xf2, 0xb1, 0x75,
+    0xbb, 0x84, 0x0e, 0xf2, 0xaa, 0xb4, 0x76, 0x36,
+};
+
+#endif

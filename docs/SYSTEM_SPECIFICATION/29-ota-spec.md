@@ -47,7 +47,7 @@ that invoke the install paths).
 | `/ota/github` | POST | Initiate a firmware fetch from a GitHub release URL | Yes (OTA Rate Limiter) |
 | `/ota/url` | POST | Initiate a firmware fetch from an arbitrary URL | Yes (OTA Rate Limiter) |
 | `/ota/upload` | POST | Receive a firmware image via HTTP multipart chunked upload | Yes (OTA Rate Limiter) |
-| `/ota/status` | GET | Poll OTA progress: returns `{"pct": 0–100, "phase": 0–3}` | No |
+| `/ota/status` | GET | Poll OTA progress: returns `{"pct": 0–100, "phase": 0–4, "error": string, "bootRetry": 0–3}` | No |
 
 ### 2.2 Phase / Progress Reporting
 
@@ -56,22 +56,25 @@ handler:
 
 | Observable | Type | Domain | Description |
 |---|---|---|---|
-| `phase` | uint8 | 0–3 | 0 = Idle, 1 = Downloading + writing, 2 = Finalizing (commit, about to reboot), 3 = Error |
+| `phase` | uint8 | 0–4 | 0 = Idle, 1 = Writing, 2 = Verifying signature, 3 = Finalizing (boot target committed, about to reboot), 4 = Error |
 | `pct` | uint8 | 0–100 | Progress percentage across the streamed firmware image |
-| `target` | String | — | URL of the firmware being fetched (for diagnostics) |
+| `target` | String | — | URL or local-upload label for the firmware being fetched (for diagnostics) |
+| `error` | String | — | Stable diagnostic for the latest failed verification or OTA operation |
+| `bootRetry` | uint8 | 0–3 | Persisted pending-boot attempts from `dmxgw/boottry` |
 
 ### 2.3 Boot-Retry Constants
 
 | Constant | Value | Description |
 |---|---|---|
-| `OTA_BOOT_TRIES` | 3 | Maximum consecutive boot attempts before the retry counter is factory-reset |
+| `OTA_BOOT_RETRY_MAX` | 3 | Maximum pending boots allowed before ESP-IDF rollback is requested on the next boot |
 
 ### 2.4 Entry Points
 
 | Entry point | Caller | Purpose |
 |---|---|---|
-| `otaBootUpdate()` | System bring-up (setup) | Reads the NVS-backed boot-retry counter; logs recovery boots or clears the counter if the cap is exceeded |
-| `initOTA()` | System bring-up (setup) | No-op initialization stub (no resources to allocate) |
+| `otaRecoveryInit()` | System bring-up after NVS init | Reads `ESP_OTA_IMG_PENDING_VERIFY`, increments `dmxgw/boottry`, and requests ESP-IDF rollback once the cap is reached |
+| `otaRecoveryMarkHealthy()` | System bring-up after core services are live | Cancels pending rollback and clears `dmxgw/boottry` |
+| `otaRecoveryPending()` | Main lifecycle | Reports whether the current image still needs a healthy mark |
 | `handleOtaGithub()` | Web Server route handler | Parses the POST body for a version/URL, spawns the streaming worker |
 | `handleOtaUrl()` | Web Server route handler | Parses the POST body for a URL, spawns the streaming worker |
 | `handleOtaStatusJson()` | Web Server route handler | Returns the current `phase` and `pct` as JSON |
@@ -79,14 +82,15 @@ handler:
 
 ## 3. State Machine
 
-The subsystem operates a four-phase state machine driven by the `phase` observable:
+The subsystem operates a five-phase state machine driven by the `phase` observable:
 
 | Phase | Entry action | Exit condition | Next phase |
 |---|---|---|---|
 | 0 — Idle | Default at boot | Upload starts or fetch begins | 1 |
-| 1 — Downloading + writing | Update session begun; streaming `write` calls in progress | Stream complete (all bytes received) | 2 (verified) or 3 (error) |
-| 2 — Finalizing | Signature verification passed; `Update.end(true)` committed the partition | `ESP.restart()` fires | — (reboot) |
-| 3 — Error | Any failure (rate-limited, begin failed, short write, signature failed, end failed) | Handler returns 429/500 or worker function returns | 0 (after reboot) |
+| 1 — Writing | OTA session begun; streaming `esp_ota_write` calls in progress | Stream complete | 2 (verification) or 4 (error) |
+| 2 — Verifying signature | `esp_ota_end` succeeded; partition bytes are hashed in 1 KiB chunks | Ed25519 verification completes | 3 (valid) or 4 (error) |
+| 3 — Finalizing | Signature passed; caller commits the partition as boot target | HTTP response sent and `esp_restart()` fires | — (reboot) |
+| 4 — Error | Any rate-limit, I/O, crypto, or boot-target failure | Handler returns an error; running image remains selected | 0 on the next initialized session |
 
 A separate boot-retry state machine is persisted in NVS:
 
@@ -94,7 +98,7 @@ A separate boot-retry state machine is persisted in NVS:
 |---|---|---|
 | Fresh boot | Boot-retry counter is 0 | No-op |
 | Recovery boot | Counter is 1–2 | Increment counter, log "boot retry N/3" |
-| Bricked | Counter >= 3 | Clear counter to 0 (factory-reset of retry cap), proceed with normal boot |
+| Retry cap reached | Counter >= 3 while image is `ESP_OTA_IMG_PENDING_VERIFY` | Call `esp_ota_mark_app_invalid_rollback_and_reboot()`; do not enter the image again |
 
 ## 4. Data Flow
 
@@ -111,12 +115,15 @@ A separate boot-retry state machine is persisted in NVS:
    occurs, `phase` is set to Error.
 5. Progress is computed from `Update.progress() / Update.size()` and reported via
    `pct`.
-6. On the final chunk (`final == true`), if signature verification is enabled,
-   `otaVerifyAndCommit()` is invoked. On failure, `phase` is set to Error and
-   HTTP 500 is returned.
-7. `Update.end(true)` finalizes the flash write. On success, `phase` is set to
-   Finalizing (2), `pct` to 100, and a 100 ms delay precedes `ESP.restart()`.
-   On failure, `phase` is set to Error and HTTP 500 is returned.
+6. After all bytes are written, `esp_ota_end()` validates the ESP image and the
+   phase changes to Verifying (2). `otaVerifyPartition()` hashes the image
+   excluding its trailing 64-byte signature and verifies Ed25519 when signing is
+   enabled. On failure, the running partition is explicitly restored and phase
+   becomes Error (4); HTTP 403 is returned for signature rejection.
+7. Only after verification succeeds is `esp_ota_set_boot_partition()` called.
+   On success, phase is Finalizing (3), `pct` is 100, and a 100 ms delay precedes
+   `esp_restart()`. A boot-target failure restores the running partition and
+   returns HTTP 500.
 
 ### 4.2 Streaming Path (GitHub / URL Fetch)
 
@@ -129,27 +136,32 @@ A separate boot-retry state machine is persisted in NVS:
    `phase` is set to Error and the function returns.
 5. The response body is streamed in 1 KB chunks. Each chunk is written via
    `Update.write(buf, len)`. Progress is reported via `pct`.
-6. After the stream completes, if signature verification is enabled,
-   `otaVerifyAndCommit()` is invoked.
-7. `Update.end(true)` finalizes the partition. On success, `phase` is set to
-   Finalizing (2), `pct` to 100, a 100 ms delay, then `ESP.restart()`.
-   On failure, `phase` is set to Error.
+6. After the stream completes, `otaVerifyPartition()` is invoked before any
+   boot-target commit. Invalid or unreadable images are rejected and the running
+   partition remains selected.
+7. After verification, the worker commits the partition, sets phase to
+   Finalizing (3), waits 100 ms, and restarts. Any failure sets phase Error (4).
 
 ### 4.3 Boot-Retry Path
 
-1. During system bring-up, `otaBootUpdate()` reads the boot-retry counter from NVS
+1. After NVS initialization and before the service graph starts,
+   `otaRecoveryInit()` reads `ESP_OTA_IMG_PENDING_VERIFY` and the NVS counter
    (namespace `dmxgw`, key `boottry`).
-2. If the counter is 0, the boot is the first since a successful update — no action.
-3. If the counter is between 1 and `OTA_BOOT_TRIES - 1`, the counter is incremented
-   and the boot is logged as a recovery attempt.
-4. If the counter has reached the cap, the counter is cleared to 0 (preventing a
-   permanent brick) and normal boot proceeds.
+2. For a pending image, the counter is incremented and persisted before services
+   start. Values 1, 2, and 3 represent the three allowed pending boots.
+3. If a pending boot starts with `boottry >= 3`, the recovery guard calls
+   `esp_ota_mark_app_invalid_rollback_and_reboot()` instead of entering the image.
+4. Once networking, DMX, and web services are live, the main task observes a
+   bounded 5,000 ms stability window before calling `otaRecoveryMarkHealthy()`.
+   That call invokes `esp_ota_mark_app_valid_cancel_rollback()` and clears
+   `dmxgw/boottry`. If the service graph never becomes healthy, the next boot
+   remains recoverable.
 
 ### 4.4 Cross-Module Delegation
 
-- The streaming/upload workers call `otaVerifyAndCommit()` after writing all image
-  bytes. This delegates to the OTA Sign module, which performs Ed25519 verification
-  and, on failure, rolls back the boot partition to the running application.
+- The upload worker calls `otaVerifyPartition()` after writing all image bytes and
+  before `esp_ota_set_boot_partition()`. The OTA Sign module performs streaming
+  Ed25519 verification and restores the running partition on failure.
 - Both fetch endpoints are gated by the OTA Rate Limiter at the HTTP handler
   registration level.
 - The version-check background task (System layer) polls for firmware releases every
@@ -187,33 +199,35 @@ The signature verification gate is controlled by a compile-time build flag
    drives the upload callback chain.
 5. **Streaming:** `phase` is 1. Image bytes are written to the OTA update partition
    via the ESP-IDF Update framework. Progress is reported via `pct`.
-6. **Verification:** The OTA Sign module verifies the Ed25519 signature. On success,
-   `Update.end(true)` commits the partition and the device reboots. On failure,
-   the boot partition is rolled back.
-7. **Reboot:** A 100 ms delay precedes `ESP.restart()`. On the next boot,
-   `otaBootUpdate()` runs again to detect whether the new image stabilized.
+6. **Verification:** After `esp_ota_end()` succeeds, the OTA Sign module hashes
+   the partition in 1 KiB chunks and verifies the trailing Ed25519 signature. The
+   boot target is committed only after verification succeeds. On failure, the
+   running partition is restored.
+7. **Reboot:** A 100 ms delay precedes `esp_restart()`. On the next boot,
+   `otaRecoveryInit()` detects whether the new image stabilized and
+   `otaRecoveryMarkHealthy()` is called only after the core service graph is live.
 8. **No teardown:** The OTA worker completes via reboot or error return.
 
 ## 7. Error Handling
 
 | Failure | Behavior |
 |---|---|
-| Rate limit exceeded | `phase` set to Error (3); HTTP 429 with `Retry-After: 60` and `Cache-Control: no-store` |
+| Rate limit exceeded | `phase` set to Error (4); HTTP 429 with `Retry-After: 60` and `Cache-Control: no-store` |
 | Update session begin fails | `phase` set to Error; HTTP 500 "OTA begin failed" |
 | Short write during transfer | `phase` set to Error; error logged |
-| Signature verification fails | `phase` set to Error; HTTP 500 "Signature verification failed"; boot partition rolled back to running app |
+| Signature verification fails | `phase` set to Error (4); HTTP 403 "Firmware signature verification failed"; boot partition restored to running app |
 | Update session commit fails | `phase` set to Error; HTTP 500 "Update failed" |
 | HTTP GET fails on streaming path | `phase` set to Error; error string logged; function returns |
 | Zero-size response body | `phase` set to Error; function returns |
 | Stream read error mid-transfer | `phase` set to Error; loop breaks; error logged |
-| Boot retry cap exceeded | NVS retry counter cleared to 0; normal boot resumes (no brick) |
-| Boot retry in progress | NVS retry counter incremented; recovery boot logged; boot continues |
+| Boot retry cap exceeded | `esp_ota_mark_app_invalid_rollback_and_reboot()` requests ESP-IDF rollback; the new image is not entered again |
+| Boot retry in progress | NVS `dmxgw/boottry` counter incremented and persisted; recovery boot logged; boot continues |
 
 ## 8. Timing Constraints
 
 | Item | Value |
 |---|---|
-| Boot-retry cap | 3 consecutive boot attempts |
+| Boot-retry cap | 3 pending boots; rollback is requested on the next pending boot |
 | Post-success reboot delay | 100 ms |
 | Inter-chunk stream delay | 1 ms |
 | OTA worker task priority | 1 (idle priority) |
@@ -250,9 +264,10 @@ on the core-0 OTA task.
 - **Core isolation:** All OTA execution occurs on core 0, never preempting the
   core-1 DMX transmit task. A long-running firmware download or verification cannot
   corrupt DMX break/mark timing.
-- **Crash guard:** The boot-retry counter (persistent in NVS) detects a bricked
-  image that fails to stabilize post-reboot. After 3 failed boots, the counter is
-  reset, allowing the device to fall back to the last known-good partition.
+- **Crash guard:** The bootloader pending-verify state plus persistent
+  `dmxgw/boottry` counter detects an image that fails to stabilize post-reboot.
+  Three pending boots are allowed; on the next pending boot ESP-IDF rollback is
+  requested, returning to the last known-good partition.
 - **Rollback on signature failure:** The OTA Sign module rolls the boot partition
   back to the currently running application when verification fails, ensuring a
   tampered or corrupt image can never boot.
@@ -261,9 +276,9 @@ on the core-0 OTA task.
 - **No cancellation:** Once a streaming fetch begins, the worker task cannot be
   aborted. Power-cycling or a watchdog reset is the only way to interrupt an
   in-flight download.
-- **Non-blocking phase report:** The `phase` and `pct` observables are `volatile`
-  and readable by the web-handler task, allowing the browser to poll progress
-  without blocking.
+- **Non-blocking phase report:** The `phase`, `pct`, `error`, and `bootRetry`
+  observables are readable by the web-handler task, allowing the browser to poll
+  progress without blocking.
 
 ## 11. Cross-Module Dependencies
 
@@ -280,9 +295,10 @@ on the core-0 OTA task.
 
 ## 12. Testing Verification
 
-No host-native unit tests cover the OTA module. The `test/native/` suite
-(`config_test`, `seqlock_test`, `merge_test`, `rdm_types_test`) does not reference
-the OTA install paths.
+Host validation covers the pure retry policy in
+`ota_recovery_policy_test` and the host signing contract in
+`tools/test_ota_sign.py`. The ESP-IDF partition streaming, PSA verifier, and
+actual rollback path remain device-gated integration tests.
 
 Validation relies on:
 
@@ -294,12 +310,11 @@ Validation relies on:
 - The Ed25519 signature round-trip: sign with the host-side signing tool, flash,
   verify the device accepts (or rejects) the image and boots (or rolls back).
 
-**Untested paths:**
-- The boot-retry crash guard state machine (NVS counter read/write, factory-reset
-  on cap exceed).
-- Partition rollback on signature failure (requires a deliberately bad-signed image).
+**Remaining device-gated paths:**
+- NVS/ESP-IDF pending-verify integration and actual rollback on a deliberately
+  bad-signed or crashing image.
 - Streaming-fetch error paths (HTTP failure, zero-size body, mid-stream read error).
-- The 100 ms pre-reboot delay blocking window.
+- The 100 ms pre-reboot delay and 5,000 ms healthy-mark stability window on real hardware.
 
 ## 13. Open Questions
 
@@ -317,9 +332,11 @@ Validation relies on:
 
 ## 14. History
 
-- Boot-retry crash guard introduced: NVS-backed counter in the `dmxgw` namespace,
-  capped at 3 consecutive attempts. On cap exceed, the counter is factory-reset
-  to prevent permanent bricking.
+- Boot-retry recovery implemented with ESP-IDF pending-verify APIs and the
+  authoritative NVS counter `dmxgw/boottry`; three pending boots are allowed and
+  the next pending boot requests rollback.
+- OTA phase reporting expanded to five values: Idle, Writing, Verifying,
+  Finalizing, and Error, with a diagnostic `error` field in `/ota/status`.
 - Rate limiting added: IP-based token-bucket via the OTA Rate Limiter (5 req/min,
   burst 10) wrapping all three install paths.
 - Signature verification split into a dedicated sibling module (OTA Sign) for

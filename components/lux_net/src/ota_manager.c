@@ -1,5 +1,7 @@
 #include "ota_manager.h"
 #include "logger.h"
+#include "ota_sign.h"
+#include "ota_recovery.h"
 #include "esp_ota_ops.h"
 #include "esp_partition.h"
 #include "esp_timer.h"
@@ -15,6 +17,7 @@ static char s_target[96] = "local upload";
 static esp_ota_handle_t s_handle = 0;
 static const esp_partition_t *s_partition = NULL;
 static uint32_t s_written = 0;
+static char s_error[96] = "";
 
 /* Five requests/minute with a burst capacity of ten, shared by OTA endpoints. */
 static float s_tokens = 10.0f;
@@ -33,6 +36,14 @@ static bool ota_rate_allow(void)
     return true;
 }
 
+static void ota_restore_running_boot(void)
+{
+    const esp_partition_t *running = esp_ota_get_running_partition();
+    if (running != NULL) {
+        (void)esp_ota_set_boot_partition(running);
+    }
+}
+
 static void ota_fail(void)
 {
     if (s_handle != 0) {
@@ -42,6 +53,10 @@ static void ota_fail(void)
     s_partition = NULL;
     s_written = 0;
     s_progress = 0;
+    if (s_error[0] == '\0') {
+        strncpy(s_error, "OTA operation failed", sizeof(s_error) - 1u);
+        s_error[sizeof(s_error) - 1u] = '\0';
+    }
     s_phase = OTA_PHASE_ERROR;
 }
 
@@ -49,8 +64,9 @@ static esp_err_t ota_status_handler(httpd_req_t *req)
 {
     char json[192];
     int length = snprintf(json, sizeof(json),
-                          "{\"phase\":%u,\"pct\":%u,\"target\":\"%s\"}",
-                          (unsigned)s_phase, (unsigned)s_progress, s_target);
+                          "{\"phase\":%u,\"pct\":%u,\"target\":\"%s\",\"error\":\"%s\",\"bootRetry\":%u}",
+                          (unsigned)s_phase, (unsigned)s_progress, s_target, s_error,
+                          (unsigned)otaRecoveryAttempts());
     httpd_resp_set_type(req, "application/json");
     httpd_resp_set_hdr(req, "Cache-Control", "no-store");
     return httpd_resp_send(req, json, length);
@@ -73,6 +89,7 @@ static esp_err_t ota_upload_handler(httpd_req_t *req)
     s_phase = OTA_PHASE_WRITING;
     s_progress = 0;
     s_written = 0;
+    s_error[0] = '\0';
     strncpy(s_target, "local upload", sizeof(s_target) - 1u);
     s_target[sizeof(s_target) - 1u] = '\0';
     s_partition = esp_ota_get_next_update_partition(NULL);
@@ -103,12 +120,29 @@ static esp_err_t ota_upload_handler(httpd_req_t *req)
         s_progress = (uint8_t)(((uint64_t)s_written * 100u) / req->content_len);
     }
 
-    if (esp_ota_end(s_handle) != ESP_OK || esp_ota_set_boot_partition(s_partition) != ESP_OK) {
+    if (esp_ota_end(s_handle) != ESP_OK) {
         ota_fail();
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA finalize failed");
         return ESP_FAIL;
     }
     s_handle = 0;
+    s_phase = OTA_PHASE_VERIFYING;
+    if (!otaVerifyPartition(s_partition, s_written)) {
+        strncpy(s_error, otaVerifyLastError(), sizeof(s_error) - 1u);
+        s_error[sizeof(s_error) - 1u] = '\0';
+        ota_fail();
+        httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Firmware signature verification failed");
+        return ESP_FAIL;
+    }
+    if (esp_ota_set_boot_partition(s_partition) != ESP_OK) {
+        ota_restore_running_boot();
+        strncpy(s_error, "boot target failed", sizeof(s_error) - 1u);
+        s_error[sizeof(s_error) - 1u] = '\0';
+        ota_fail();
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA boot target failed");
+        return ESP_FAIL;
+    }
+    s_partition = NULL;
     s_phase = OTA_PHASE_FINALIZING;
     s_progress = 100;
     httpd_resp_set_type(req, "application/json");
@@ -128,6 +162,7 @@ void otaManagerInit(void)
     s_written = 0;
     s_handle = 0;
     s_partition = NULL;
+    s_error[0] = '\0';
     s_last_refill_us = esp_timer_get_time();
     s_tokens = 10.0f;
 }
@@ -157,3 +192,4 @@ esp_err_t otaManagerRegister(httpd_handle_t server)
 ota_phase_t otaManagerPhase(void) { return s_phase; }
 uint8_t otaManagerProgress(void) { return s_progress; }
 const char *otaManagerTarget(void) { return s_target; }
+const char *otaManagerError(void) { return s_error; }

@@ -163,7 +163,7 @@ esp_err_t wifi_start_softap(const char* ssid, const char* password);
 
 Build gate (plan section Constraints / Phase 0 exit #1): `pio run -e {esp32s3_psram,esp32dev,wt32eth01}` all SUCCESS (clean rebuild; ~850 KB firmware.bin). ESP-IDF framework v6.0.1; toolchain cached under ~/.platformio.
 
-Native gate (Phase 0 exit #2 / section 5.4): host-native harness (`test/`, MinGW gcc) builds + `ctest` 4/4 PASS (logger_test, config_serial_test, portal_test, boards_test).
+Native gate (Phase 0 exit #2 / section 5.4): host-native harness (`test/`, gcc) builds + `ctest` 15/15 PASS, including the OTA recovery policy test and existing protocol/config suites.
 
 - [x] Project structure + canonical board table (boards.c/boards.h; gap-a closed)
 - [x] Hardware abstraction layer (auto-detect + net_if)
@@ -173,11 +173,11 @@ Native gate (Phase 0 exit #2 / section 5.4): host-native harness (`test/`, MinGW
 - [x] Config engine (47-field schema + 24-field x 4-output descriptors; offsetof-based; NVS overlay + migrateNvsKeys migration; template text parser with extends= inheritance; secret masking; CFG_LIVE/REBOOT/SECRET flag categorization)
 - [x] Serial console full grammar (dump/get/set/save [reboot]/factory/list/help)
 - [x] Web routes (/info.json, /wifi/scan, /setup GET+POST, /config, /assets) + standalone webui (MockTransport)
-- [x] Testing infrastructure (native: 10 executables, 90 total test cases; 10 ctest green)
+- [x] Testing infrastructure (native: 15 ctest executables green; host OTA signing contract test)
 - [x] Phase 2: full config schema (47 global + 24x4 output fields), NVS key migration (o0_*->a_*, o1_*->b_*, apfb->fbmode), template text parser with extends= inheritance, save [reboot] grammar, migration idempotency test, JSON export/import upgrade --- build gate green on esp32s3_psram/esp32dev/wt32eth01
 - [x] Net baseline test: portal activation matrix (spec 33), backoff formula (spec 14), WiFi state machine, config persistence
 - [x] LED math test: brightness scaling, clamping, pattern-to-color mapping (spec 36)
-- [ ] CI/CD pipeline (Phase 0 section 5.6 #13 - pending)
+- [x] CI/CD pipeline with dev artifacts and tag-only signed release packaging; release tags fail closed without the protected signing secret
 
 **Phase 2 - build-gate green
 - [x] lux_core: DMX512 frame scheduling, RMT peripheral transmit
@@ -187,9 +187,9 @@ Native gate (Phase 0 exit #2 / section 5.4): host-native harness (`test/`, MinGW
 - [x] Merge engine: RDM-aware DMX merging with seqlock
 
 **Phase 3 - build-gate green
-- [ ] OTA update with Ed25519 signature verification
+- [~] OTA update with Ed25519 verification and boot-retry recovery implemented; production public key provisioning and HIL rollback remain open
 - [ ] Ethernet/W5500/RMII support (wt32eth01, esp32s3_n16r8_eth)
-- [ ] 6 build environments in platformio.ini
+- [x] 6 build environments in platformio.ini (three dev plus three signed-release profiles)
 - [ ] Build-time PROGMEM/template generators
 - [ ] Kconfig configuration system
 
@@ -200,8 +200,8 @@ Native gate (Phase 0 exit #2 / section 5.4): host-native harness (`test/`, MinGW
 - [x] lux_core: frame_router.h/.c (routeFrame/routeFrameNzs, output matching via portAddress, merge dispatch, splitMask mirroring)
 - [x] lux_core: esp_timer added to CMakeLists REQUIRES (sender_tracker.c, frame_router.c consume esp_timer_get_time)
 - [x] Tests: test_art_packet_queue.c (3 tests), test_merge.c (2 tests), esp_timer.h + esp_timer_get_time() shim, sceneRecall/sceneRecallHome stubs
-- [x] Build gate: pio run -e {esp32s3_psram,esp32dev,wt32eth01} all SUCCESS
-- [x] Native gate: 10 executables, 90 total test cases; 10 ctest green
+- [x] Build gate: dev and signed-release profiles build successfully for esp32dev, wt32eth01, and esp32s3_psram
+- [x] Native gate: 15 ctest executables green; host signing contract and retry-cap policy covered
 
 Remaining Phase-1 follow-ups (parity register section 10): `wifi_ssid` CFG_LIVE -> CFG_REBOOT per spec 45: DONE; serial `help`/`factory` verbs (spec 43): DONE; config_engine board-template: already reconciled (hardware fields sourced from boards.c, section 5.2). webui `/wifi/scan` vs plan section 5.7 `/setup/scan` (accepted deviation). See Lessons_Learned.
 
@@ -219,6 +219,6 @@ The branch now includes the common E1.20 type contract (`rdm_types.h`), a bounde
 
 The web layer now owns a byte-exact 2095-byte WebSocket frame serializer and native delta/subscription tests. REST additions include `/health`, `/dmx.json`, `/version.json`, `/setup/scan`, and `POST /reboot`, with JSON responses marked `Cache-Control: no-store`. The real ESP-IDF WebSocket implementation is compiled when `CONFIG_HTTPD_WS_SUPPORT` is enabled; the default PlatformIO sdkconfig currently disables that option, so the safe fallback returns HTTP 426 rather than exposing a false handshake.
 
-OTA signing is represented by `lux_net/ota_sign.c`, which uses PSA PureEdDSA over a SHA-256 image digest when `OTA_SIGN_ENABLED` or `CONFIG_LUXDMX_OTA_SIGN_ENABLED` is enabled and bypasses verification only for development builds. A static RFC 5424 syslog client is available in `lux_sys/syslog_client.c`. The GitHub Actions workflow runs the native harness and the three-board firmware matrix and uploads firmware plus partition artifacts.
+OTA security is implemented in `lux_net/ota_sign.c`: a staged partition is hashed in 1 KiB chunks, its trailing 64-byte Ed25519 signature is verified with PSA PureEdDSA, and the boot target is selected only after verification. `ota_recovery.c` integrates ESP-IDF pending-verify rollback with the authoritative `dmxgw/boottry` counter capped at three pending boots. Dev profiles bypass verification explicitly; `*_release` profiles enforce it. `tools/gen_ota_keys.py` and `tools/sign_ota_image.py` provide key/image tooling, while tag CI requires `LUXDMX_OTA_PRIVATE_KEY` and checks public-key parity. The checked-in public key remains a placeholder until provisioned by the maintainer.
 
-The native gate currently contains 14 test executables/cases groups and is green after a clean CMake configure. Full physical RDM transactions, Ethernet PHY drivers, OTA partition streaming/rollback, display/panel rendering, alert webhooks, soak monitoring, and production WebSocket Kconfig enablement remain hardware/release gates rather than being claimed as host-complete.
+The native gate currently contains 15 CTest executables and is green after a clean CMake configure; the host signer test also passes. Full physical RDM transactions, Ethernet PHY drivers, OTA partition streaming/rollback, signed-image acceptance with a real production key, display/panel rendering, alert webhooks, soak monitoring, and production WebSocket Kconfig enablement remain hardware/release gates rather than being claimed as host-complete.

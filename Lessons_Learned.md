@@ -323,3 +323,21 @@
 
 ### Remaining hardware-gated work
 - **Parity note**: RDM physical transaction orchestration, Ethernet PHY bring-up, OTA partition streaming/rollback, display/panel rendering, alert delivery, and soak telemetry require their respective hardware or platform integration. These are not silently represented as complete by the current host tests; the parity register and Phase 8 release gate must retain them as hardware-gated items.
+
+
+## Issue #1: Secure OTA signing and boot-retry recovery (2026-08-22)
+
+### Decisions
+- **Signature-first commitment:** The OTA upload path calls `esp_ota_end()`, hashes the staged partition in 1 KiB reads, and verifies `Ed25519(SHA256(image))` over the trailing 64-byte signature before calling `esp_ota_set_boot_partition()`. Verification failure explicitly restores the running partition.
+- **Bootloader-assisted recovery:** `otaRecoveryInit()` runs immediately after NVS initialization, reads `ESP_OTA_IMG_PENDING_VERIFY`, and persists the authoritative `dmxgw/boottry` counter. Three pending boots are allowed; a subsequent pending boot requests `esp_ota_mark_app_invalid_rollback_and_reboot()`. The app calls `otaRecoveryMarkHealthy()` only after the web, network, DMX, and RDM service graph has started.
+- **Profile separation:** Development profiles bypass signing intentionally. The three `*_release` profiles define `OTA_SIGN_ENABLED=1`; tag CI materializes the private key only in the runner, checks it against the embedded public header, signs the firmware, and fails closed if the `LUXDMX_OTA_PRIVATE_KEY` secret is absent.
+
+### Pitfalls
+- **Generated SDK configuration is not a release contract:** `sdkconfig.*` is ignored and may preserve stale local values. The rollback requirement is therefore tracked in `sdkconfig.defaults`, with a targeted `.gitignore` exception, so clean CI checkouts receive the same Kconfig input.
+- **CMake source lists can be stale:** After adding a component source, an incremental PlatformIO build may link an old component archive. A clean environment build is required when CMake source registration changes.
+- **Production signing is not complete merely because verification compiles:** The checked-in public key is a placeholder. Hardware rollback and signed-image acceptance remain open until the maintainer provisions a real key pair and performs HIL tests without committing the private key.
+
+### Validation
+- `python3 tools/native_run.py --clean`: 15/15 CTest executables passed.
+- `python3 tools/test_ota_sign.py`: host signed-image, tamper-rejection, and empty-image checks passed.
+- Development and release profiles built successfully for `esp32dev`, `wt32eth01`, and `esp32s3_psram` after clean reconfiguration where required.

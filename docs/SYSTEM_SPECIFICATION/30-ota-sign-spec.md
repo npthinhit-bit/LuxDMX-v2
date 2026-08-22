@@ -16,9 +16,9 @@ finalized. The verification process:
 1. Locates the next OTA update partition.
 2. Extracts the 64-byte Ed25519 signature from the tail of the image.
 3. Computes a SHA-256 hash over the firmware bytes (excluding the signature).
-4. Builds an ASN.1 SubjectPublicKeyInfo (SPKI) blob from the embedded 32-byte
-   Ed25519 public key.
-5. Verifies the signature against the hash using mbedTLS.
+4. Imports the embedded raw 32-byte Ed25519 public key into the ESP-IDF PSA
+   crypto service.
+5. Verifies the signature against the SHA-256 digest using PSA PureEdDSA.
 6. On failure, rolls the boot partition back to the currently running application
    so a tampered, corrupt, or bad-signed image can never boot.
 
@@ -26,12 +26,11 @@ The module is gated by a compile-time flag (`OTA_SIGN_ENABLED`): when disabled,
 verification is skipped and all images are accepted unconditionally. This allows
 development builds to bypass the signature check.
 
-**Owns:** Ed25519 signature verification, SPKI key construction, SHA-256 image
-hashing, partition rollback on verification failure.
-**Delegates to:** none — uses ESP-IDF partition APIs and mbedTLS for cryptographic
-primitives.
-**Consumed by:** OTA subsystem (calls `otaVerifyAndCommit` after streaming
-completes, before partition commit).
+**Owns:** Ed25519 signature verification, SHA-256 image hashing, and explicit
+running-partition restoration on verification failure.
+**Delegates to:** ESP-IDF partition APIs and PSA crypto primitives.
+**Consumed by:** OTA subsystem, which calls `otaVerifyPartition()` after
+`esp_ota_end()` and before selecting the new boot target.
 
 ## 2. External Interfaces
 
@@ -39,8 +38,8 @@ completes, before partition commit).
 
 | Entry point | Caller | Purpose |
 |---|---|---|
-| `otaVerifyAndCommit()` | OTA subsystem (upload final chunk, or after streaming completes) | Locates the update partition, extracts the signature, hashes the image, and verifies the signature. On failure, rolls back the boot partition and returns `false`. On success, returns `true`. |
-| `otaVerifySignature(hash, sig)` | `otaVerifyAndCommit` (internal) | Parses the SPKI public key via mbedTLS, then verifies the 64-byte Ed25519 signature against the 32-byte SHA-256 hash. Returns `true` on valid signature, `false` otherwise. |
+| `otaVerifyPartition()` | OTA subsystem after `esp_ota_end()` | Reads the staged partition, hashes the image excluding its trailing signature, and verifies the signature. On failure, restores the running boot partition and returns `false`; it never selects a new boot target. |
+| `otaVerifySignature(hash, sig, public_key)` | `otaVerifyPartition()` | Imports the raw public key with PSA and verifies the 64-byte Ed25519 signature against the 32-byte SHA-256 digest. |
 
 ### 2.2 Firmware Image Layout
 
@@ -60,8 +59,6 @@ signature.
 | Public key size | 32 bytes | Raw Ed25519 public key embedded at build time |
 | Signature size | 64 bytes | Ed25519 signature (R ? S), appended to the firmware image |
 | Hash size | 32 bytes | SHA-256 digest of the firmware image |
-| SPKI total size | 44 bytes | 12-byte ASN.1 prefix + 32-byte public key |
-| SPKI prefix | 12 bytes | ASN.1 SubjectPublicKeyInfo DER header wrapping the raw Ed25519 key |
 | Minimum image size for verification | 64 bytes | Images smaller than the signature size are rejected |
 | Hash chunk size | 1,024 bytes | Flash read granularity during SHA-256 computation |
 
@@ -69,21 +66,24 @@ signature.
 
 | Build Profile | `OTA_SIGN_ENABLED` | Behavior |
 |---|---|---|
-| Dev / single-board targets | 0 (disabled) | `otaVerifyAndCommit` returns `true` unconditionally — all images accepted |
-| Production / 4-universe Ethernet target | 1 (enabled, default) | Full Ed25519 verification enforced |
+| Dev targets (`esp32dev`, `wt32eth01`, `esp32s3_psram`) | 0 (disabled) | Verification is explicitly bypassed for development only |
+| Release targets (`*_release`) | 1 (enabled) | Full Ed25519 verification is enforced |
+| `CONFIG_LUXDMX_OTA_SIGN_ENABLED` | default `n` | Kconfig fallback remains development-safe; release profiles define `OTA_SIGN_ENABLED=1` |
 
-When the flag is absent from the build, it defaults to 1 (enabled).
+The source default is fail-closed (`1`) only when no Kconfig symbol is supplied. The
+checked-in development profiles provide the Kconfig symbol with its default `n`,
+while release profiles explicitly define `OTA_SIGN_ENABLED=1`.
 
 ## 3. State Machine
 
 No state machine — the module is synchronous: verify-or-reject, called-and-returned.
 
-`otaVerifyAndCommit()` produces one of two outcomes:
+`otaVerifyPartition()` produces one of two outcomes:
 
 | Return | Meaning |
 |---|---|
-| `true` | Signature valid; the update partition remains the boot target. The caller (OTA subsystem) proceeds to `Update.end(true)` and `ESP.restart()`. |
-| `false` | Signature invalid or any I/O/crypto error; the boot partition is rolled back to the running application. The caller sets the OTA phase to Error. |
+| `true` | Signature valid; the staged partition is still not selected. The caller then calls `esp_ota_set_boot_partition()` and restarts. |
+| `false` | Signature invalid or any I/O/crypto error; the running partition is restored as boot target. The caller sets OTA phase to Error. |
 
 ## 4. Data Flow
 
@@ -99,21 +99,16 @@ No state machine — the module is synchronous: verify-or-reject, called-and-retur
    image bytes (from offset 0 up to the signature offset) are read from flash in
    1,024-byte chunks and fed into the SHA-256 update function. The digest is
    finalized, producing a 32-byte hash.
-5. **Build SPKI:** The 12-byte ASN.1 SubjectPublicKeyInfo prefix is concatenated
-   with the 32-byte embedded public key, producing a 44-byte SPKI blob.
-6. **Parse public key:** `mbedtls_pk_parse_public_key` parses the 44-byte SPKI blob
-   into an mbedTLS public-key context. If parsing fails, verification returns
-   `false`.
-7. **Verify signature:** `mbedtls_pk_verify` is called with the mbedTLS key
-   context, `MBEDTLS_MD_NONE` (indicating the 32-byte SHA-256 hash is the raw
-   Ed25519 message), the 32-byte hash, and the 64-byte signature. Ed25519
-   internally applies SHA-512 to the pre-hash during verification.
-8. **Rollback on failure:** If verification returns non-zero, the module retrieves
+5. **Import public key:** PSA imports the raw 32-byte key as an
+   `ECC_FAMILY_TWISTED_EDWARDS` public key with `PSA_ALG_PURE_EDDSA` usage.
+6. **Verify signature:** `psa_verify_message` verifies the 64-byte signature over
+   the 32-byte SHA-256 digest. The temporary PSA key is destroyed after use.
+7. **Rollback on failure:** If verification returns non-zero, the module retrieves
    the currently running partition and sets it as the boot partition via the ESP-IDF
    OTA operations API, reversing the pending update. It then returns `false`.
-9. **Success:** The update partition is left as the pending boot target. The
-   function returns `true`, and the OTA subsystem finalizes the partition and
-   reboots.
+9. **Success:** The update partition remains staged but is not selected by the
+   verifier. The OTA subsystem calls `esp_ota_set_boot_partition()` only after
+   `true`, then sends the response and reboots.
 
 The host-side signing tool computes the same SHA-256 digest over the firmware bytes,
 signs the 32-byte digest with Ed25519, and appends the 64-byte signature to the
@@ -121,13 +116,14 @@ image — producing the layout this module verifies.
 
 ## 5. Configuration Integration
 
-The module reads no configuration-engine fields. The only build-time control is the
-`OTA_SIGN_ENABLED` compile-time flag, which is set per build profile:
+The module reads no configuration-engine fields. The build-time controls are
+`OTA_SIGN_ENABLED` (release override) and `CONFIG_LUXDMX_OTA_SIGN_ENABLED`:
 
-- **Dev targets** set the flag to 0 at compile time, disabling verification
-  entirely.
-- **Production targets** leave the flag at its default of 1, enforcing full
-  Ed25519 verification on every update.
+
+- **Dev targets** use the Kconfig default `n` and intentionally bypass verification.
+- **Release targets** set `OTA_SIGN_ENABLED=1`, enforcing verification on every
+  update. Release CI requires the `LUXDMX_OTA_PRIVATE_KEY` secret and checks that
+  it matches the embedded public key before publishing artifacts.
 
 The 32-byte public key is a static constant compiled into the firmware. It is
 generated by the host-side key-generation tooling and must be kept in sync with the
@@ -135,20 +131,19 @@ corresponding private key used by the host-side signing tool.
 
 ## 6. Lifecycle
 
-- **Init:** No initialization. The public key is a static constant array; mbedTLS
-  contexts are initialized and freed within each verification call.
-- **Verify:** Called after streaming completes — either on the final upload chunk
-  (local upload path) or after the streaming download finishes (GitHub/URL fetch
-  path).
-- **Commit/rollback:** The ESP-IDF partition API either leaves the update partition
-  as the boot target (success ? caller does `Update.end(true)` + reboot) or sets
-  the boot partition back to the running app (failure ? rollback).
+- **Init:** No persistent initialization. The public key is a static constant array;
+  PSA crypto is initialized and the temporary key is destroyed per verification.
+- **Verify:** Called after `esp_ota_end()` and after all bytes are present in the
+  staged partition.
+- **Commit/rollback:** Verification does not select a boot target. The OTA caller
+  selects the staged partition only after `true`; failures explicitly restore the
+  running partition.
 - **Shutdown:** No shutdown hook — the function is called-and-returned.
 
 ## 7. Error Handling
 
 All failures return `false`. The OTA subsystem caller sets the update phase to
-Error (3) on a `false` return.
+Error (4) on a `false` return.
 
 | Failure | Behavior |
 |---|---|
@@ -159,8 +154,8 @@ Error (3) on a `false` return.
 | Flash read during hashing fails | Free context; return `false` |
 | SHA-256 update fails | Free context; return `false` |
 | SHA-256 finalization fails | Free context; return `false` |
-| SPKI public-key parsing fails | Free context; return `false` |
-| Signature verification fails (non-zero return from `mbedtls_pk_verify`) | Free context; roll back boot partition to running app; return `false` |
+| PSA public-key import fails | Destroy temporary key/attributes; return `false` |
+| Signature verification fails (`psa_verify_message` not successful) | Destroy temporary key; restore boot partition to running app; return `false` |
 | `OTA_SIGN_ENABLED` is 0 | Both functions return `true` unconditionally — verification skipped |
 
 ## 8. Timing Constraints
@@ -171,7 +166,6 @@ Error (3) on a `false` return.
 | Signature size | 64 bytes |
 | Hash size (SHA-256) | 32 bytes |
 | Public key size | 32 bytes |
-| SPKI size | 44 bytes |
 | Minimum image size for verification | 64 bytes |
 
 The hashing loop reads 1 KB at a time from flash. Duration scales linearly with
@@ -187,14 +181,12 @@ All buffers are stack-allocated; no heap usage:
 
 | Buffer | Size | Lifetime |
 |---|---|---|
-| `spki` | 44 bytes | Per verification call (stack) |
 | `sig` | 64 bytes | Per verification call (stack) |
 | `hash` | 32 bytes | Per verification call (stack) |
 | `buf` | 1,024 bytes | Per verification call (stack) |
-| `shaCtx` (mbedTLS SHA-256 context) | internal | Per verification call (stack) |
-| `pk` (mbedTLS public-key context) | internal | Per verification call (stack) |
-| `OTA_PUBKEY` | 32 bytes | Static const (ROM/flash) |
-| `SPKI_PREFIX` | 12 bytes | Static const (ROM/flash) |
+| PSA hash operation | internal | Per verification call |
+| PSA key attributes/key id | internal | Per verification call |
+| `OTA_PUBLIC_KEY` | 32 bytes | Static const (ROM/flash) |
 
 No PSRAM usage. No heap allocation.
 
@@ -211,8 +203,8 @@ No PSRAM usage. No heap allocation.
   then crashes, the counter detects repeated failures and resets, allowing fallback
   to the last-good partition.
 - **Build-time disable for dev:** The `OTA_SIGN_ENABLED` flag allows development
-  builds to skip verification, but production builds must leave it enabled. The
-  default when the flag is absent is 1 (enabled).
+  builds to skip verification, but release builds define it as 1 and must use a
+  matching protected signing key.
 - **No partition erase on rollback:** The rollback path sets the boot partition to
   the running app but does not erase the failed update partition. Stale data may
   persist, but the ESP-IDF Update framework re-initializes the partition on the next
@@ -222,16 +214,18 @@ No PSRAM usage. No heap allocation.
 
 | Module | Direction | Purpose |
 |---|---|---|
-| net.ota | upstream consumer | Calls `otaVerifyAndCommit()` after streaming completes (upload final chunk, or after GitHub/URL streaming) |
+| net.ota | upstream consumer | Calls `otaVerifyPartition()` after streaming and `esp_ota_end()`, before boot-target selection |
 | net.rate-limiter | upstream guard | The OTA Rate Limiter gates the upload/streaming triggers before verification is ever reached |
 | sys.firmware-version | upstream peer | The version-check task sets `updateAvailable`, which may trigger an auto-fetch (currently not wired) |
-| platformio.ini | build-time | Sets `OTA_SIGN_ENABLED` per build profile (0 for dev, 1/default for production) |
-| ota-key-management documentation | external | Describes key generation, embedding, signing, and rotation procedures |
+| platformio.ini | build-time | Defines explicit dev and `*_release` profiles; release profiles set `OTA_SIGN_ENABLED=1` |
+| `tools/gen_ota_keys.py`, `tools/sign_ota_image.py` | host tooling | Generates public header, signs `SHA256(firmware.bin)`, and checks key/header match |
 
 ## 12. Testing Verification
 
-No unit tests or host-native tests cover the OTA Sign module. The `test/native/`
-suite does not reference the signature verification code.
+Host coverage is provided by `tools/test_ota_sign.py`, which checks the
+SHA-256-plus-Ed25519 append contract, tamper rejection, and empty-image rejection.
+The native C suite separately covers the pure boot-retry policy. ESP-IDF PSA and
+partition I/O remain device-gated.
 
 Verification is validated end-to-end (not unit-level) through:
 
@@ -241,25 +235,25 @@ Verification is validated end-to-end (not unit-level) through:
   logs for successful boot, and confirm the web interface is reachable.
 - Deliberately bad-signed images are used to validate the rollback path.
 
-**Untested paths:**
-- `otaVerifySignature` and `otaVerifyAndCommit` in isolation (no host test).
-- The SHA-256 chunked hashing loop under different image sizes.
-- The SPKI construction from prefix + public key.
-- The partition rollback path (requires a live device).
-- mbedTLS error handling paths (parse failure, verify non-zero return).
+**Remaining device-gated paths:**
+- `otaVerifyPartition()` against an ESP-IDF flash partition with a production key.
+- PSA/flash-read error handling and actual boot-partition restoration.
+- Bootloader pending-verify rollback after a deliberately crashing signed image.
+- Hardware acceptance of a signed artifact on each supported board.
 
 ## 13. Open Questions
 
-1. Whether the embedded 32-byte public key is a real production key or a synthetic
-   placeholder. Key rotation requires recompiling all firmware with a new key
-   array; no runtime key update mechanism exists.
+1. The checked-in public key is currently a non-production placeholder. Before
+   publishing a real release, generate a protected key with `tools/gen_ota_keys.py`,
+   replace `ota_key.h`, and store only the matching private PEM as the
+   `LUXDMX_OTA_PRIVATE_KEY` GitHub secret. Key rotation requires rebuilding
+   firmware with the new public key.
 2. Whether a future refactor plans to make `OTA_SIGN_ENABLED` a runtime-configurable
    flag rather than a compile-time constant, allowing operators to enable/disable
    verification without a rebuild.
-3. Whether the mbedTLS configuration (`MBEDTLS_PK_C`, `MBEDTLS_SHA256_C`,
-   `MBEDTLS_ED25519_C`) is correctly enabled at the ESP-IDF / arduino-esp32
-   component level — the source calls the APIs but their build-time enablement is
-   in Kconfig/sdkconfig.
+3. Whether PSA crypto support remains enabled in every future ESP-IDF target
+   configuration; the current three release builds compile successfully with
+   ESP-IDF 6.0.1, but hardware verification is still required.
 4. Whether the 1,024-byte hashing chunk size is optimal for flash read performance,
    or whether a larger buffer would reduce iteration count for large images.
 5. Whether the rollback path should also erase the failed update partition to
@@ -267,14 +261,16 @@ Verification is validated end-to-end (not unit-level) through:
 
 ## 14. History
 
-- Signature verification extracted from the original monolithic OTA handler into a
-  dedicated module. Functions `otaVerifySignature` and `otaVerifyAndCommit` form the
-  public API.
-- SPKI prefix added: the 12-byte ASN.1 SubjectPublicKeyInfo DER prefix was introduced
-  to convert the raw 32-byte public key into a format consumable by
-  `mbedtls_pk_parse_public_key`.
+- Signature verification extracted into a dedicated module. Functions
+  `otaVerifySignature` and `otaVerifyPartition` form the public API.
+- The implementation uses ESP-IDF PSA PureEdDSA over a SHA-256 digest and hashes
+  staged partitions in 1 KiB reads without retaining the image in RAM.
+- Host key generation/signing tooling and tag-only signed release jobs were added;
+  the release job fails closed when the protected private-key secret is absent or
+  mismatched.
 - `OTA_SIGN_ENABLED` compile-time gate added so development environments can disable
-  verification. Production build profile leaves it default-enabled.
+  verification; explicit `*_release` profiles enable it and CI signs artifacts only
+  when the protected key secret is present.
 - Rollback path added: `esp_ota_set_boot_partition` to the running partition on
   verification failure, preventing a bad signature from bricking the device.
 - SHA-256 chunked hashing loop (1 KB buffer) added to avoid loading the entire
