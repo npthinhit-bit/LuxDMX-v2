@@ -1,4 +1,4 @@
-﻿name: LuxDMX CI/CD
+name: LuxDMX CI/CD
 
 on:
   pull_request:
@@ -26,8 +26,23 @@ jobs:
           cache: pip
       - name: Install host tools
         run: sudo apt-get update && sudo apt-get install -y cmake ninja-build
+      - name: Prepare native diagnostics directory
+        run: mkdir -p ci-artifacts/native-unit
       - name: Native unit tests
-        run: python3 tools/native_run.py --clean
+        run: |
+          set -o pipefail
+          python3 tools/native_run.py --clean 2>&1 | tee ci-artifacts/native-unit/native-run.log
+      - name: Capture native failure context
+        if: always()
+        run: python3 tools/ci_capture_context.py --output-dir ci-artifacts/native-unit/context --label native-unit
+      - name: Upload native diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostics-native-unit
+          if-no-files-found: error
+          path: ci-artifacts/native-unit
+          retention-days: 14
 
   firmware-build:
     name: Firmware ${{ matrix.env }}
@@ -53,8 +68,23 @@ jobs:
           restore-keys: |
             pio-${{ runner.os }}-${{ matrix.env }}-
             pio-${{ runner.os }}-
+      - name: Prepare firmware diagnostics directory
+        run: mkdir -p ci-artifacts/firmware-${{ matrix.env }}
       - name: Build firmware
-        run: pio run -e ${{ matrix.env }}
+        run: |
+          set -o pipefail
+          pio run -e ${{ matrix.env }} 2>&1 | tee ci-artifacts/firmware-${{ matrix.env }}/platformio.log
+      - name: Capture firmware failure context
+        if: always()
+        run: python3 tools/ci_capture_context.py --output-dir ci-artifacts/firmware-${{ matrix.env }}/context --label firmware-${{ matrix.env }}
+      - name: Upload firmware diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostics-firmware-${{ matrix.env }}
+          if-no-files-found: error
+          path: ci-artifacts/firmware-${{ matrix.env }}
+          retention-days: 14
       - name: Upload firmware artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -71,14 +101,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Reject generated build output
+      - name: Prepare documentation diagnostics directory
+        run: mkdir -p ci-artifacts/docs-hygiene
+      - name: Documentation and repository checks
         run: |
-          test ! -d .pio
-          test ! -d test/build
-      - name: Verify authoritative plan exists
-        run: test -s docs/REFACTOR_PLAN.md
-      - name: Verify repository whitespace
-        run: git diff --check
+          set -o pipefail
+          {
+            python3 tools/repository_hygiene.py
+            python3 tools/test_repository_hygiene.py
+            test ! -d .pio
+            test ! -d test/build
+            test -s docs/REFACTOR_PLAN.md
+            git diff --check
+          } 2>&1 | tee ci-artifacts/docs-hygiene/hygiene.log
+      - name: Capture documentation failure context
+        if: always()
+        run: python3 tools/ci_capture_context.py --output-dir ci-artifacts/docs-hygiene/context --label docs-hygiene
+      - name: Upload documentation diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostics-docs-hygiene
+          if-no-files-found: error
+          path: ci-artifacts/docs-hygiene
+          retention-days: 14
 
   package:
     name: Package firmware release
@@ -86,6 +132,9 @@ jobs:
     needs: [firmware-build, docs-hygiene]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+      - name: Prepare package diagnostics directory
+        run: mkdir -p ci-artifacts/package
       - uses: actions/download-artifact@v4
         with:
           pattern: firmware-*
@@ -94,6 +143,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          exec > >(tee ci-artifacts/package/package.log) 2>&1
           mkdir -p dist/firmware-release
           cp -R dist/firmware/. dist/firmware-release/
           find dist/firmware-release -type f -print0 | sort -z | xargs -0 sha256sum > dist/firmware-release/SHA256SUMS
@@ -120,6 +170,17 @@ jobs:
           (root / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
           PY
           tar -C dist -czf dist/luxdmx-firmware-${GITHUB_SHA}.tar.gz firmware-release
+      - name: Capture package failure context
+        if: always()
+        run: python3 tools/ci_capture_context.py --output-dir ci-artifacts/package/context --label package
+      - name: Upload package diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostics-package
+          if-no-files-found: error
+          path: ci-artifacts/package
+          retention-days: 30
       - uses: actions/upload-artifact@v4
         with:
           name: firmware-release
@@ -137,6 +198,9 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+      - name: Prepare release diagnostics directory
+        run: mkdir -p ci-artifacts/release
       - uses: actions/download-artifact@v4
         with:
           name: firmware-release
@@ -146,7 +210,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          exec > >(tee ci-artifacts/release/release.log) 2>&1
           gh release create "$GITHUB_REF_NAME" dist/luxdmx-firmware-*.tar.gz dist/firmware-release/SHA256SUMS dist/firmware-release/manifest.json \
             --repo "$GITHUB_REPOSITORY" \
             --title "LuxDMX $GITHUB_REF_NAME" \
             --generate-notes
+      - name: Capture release failure context
+        if: always()
+        run: python3 tools/ci_capture_context.py --output-dir ci-artifacts/release/context --label release
+      - name: Upload release diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostics-release
+          if-no-files-found: error
+          path: ci-artifacts/release
+          retention-days: 30
