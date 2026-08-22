@@ -116,7 +116,7 @@
   - Edge cases require dedicated test scenarios
   - Recovery mechanisms need validation
 - **Lesson**: Native test harness parity and assertion correctness
-  - `test_net_baseline.c` (16 tests) and `test_led_math.c` (12 tests) cover WiFi portal activation matrix (spec 33 §2), exponential backoff formula (spec 14), STA/SoftAP connect, net state machine, config persistence round-trip, and LED brightness scaling/clamping/pattern-to-color mapping (spec 36). Native test count rose from 4 / 6 executables, 69 / 76 total test cases.
+  - `test_net_baseline.c` (16 tests) and `test_led_math.c` (12 tests) cover WiFi portal activation matrix (spec 33 Â§2), exponential backoff formula (spec 14), STA/SoftAP connect, net state machine, config persistence round-trip, and LED brightness scaling/clamping/pattern-to-color mapping (spec 36). Native test count rose from 4 / 6 executables, 69 / 76 total test cases.
   - The ASSERT macro decremented `tests_run` (in addition to `tests_passed`) on failure, silently hiding test failures from the pass/total counter. Removing that line revealed a latent bug: `logger_get_ring_buffer()` returned NULL for an empty ring buffer, surfacing as a crash in the dump-test secret-masking check. Fixed both.
 
 
@@ -135,8 +135,8 @@
 
 ### Schema Refactoring
 - **Lesson**: offsetof-based descriptor tables eliminate the fragility of void* value_ptr
-   - The Phase 1 config_values_t used direct void* pointers into struct fields — fragile during struct growth
-   - The Phase 2 CfgField uses size_t offset (via offsetof) — descriptor table is the single source of truth, struct layout changes don't break field access
+   - The Phase 1 config_values_t used direct void* pointers into struct fields â€” fragile during struct growth
+   - The Phase 2 CfgField uses size_t offset (via offsetof) â€” descriptor table is the single source of truth, struct layout changes don't break field access
 
 ### NVS Migration
 - **Lesson**: One-shot key migration must be idempotent
@@ -146,7 +146,7 @@
 ### Template Inheritance
 - **Lesson**: Template text parser with extends= enables recursive inheritance
    - Board templates use extends=_base to inherit global defaults
-   - Inheritance capped at 8 levels per spec 45 §10
+   - Inheritance capped at 8 levels per spec 45 Â§10
 
 ### Serial Grammar
 - **Lesson**: save [reboot] provides a two-step persist+restart workflow
@@ -155,14 +155,14 @@
 
 - **Pitfall**: Field name reconciliation between templates and C schema
    - Templates use compact keys (wifissid, wifipsk, ledpin) matching the spec
-   - Phase 1 used verbose keys (wifi_ssid, led_pin) — Phase 2 reconciled to template keys
+   - Phase 1 used verbose keys (wifi_ssid, led_pin) â€” Phase 2 reconciled to template keys
 
 ## Phase 3: DMX Output Core
 
 ### Seqlock Primitive
 - **Lesson**: Sequence counter enables lock-free cross-core reads
    - Writer increments seq before/after publishing a new DMX slot buffer
-   - Reader loops until seq is even and unchanged across the read — detects torn writes without mutexes
+   - Reader loops until seq is even and unchanged across the read â€” detects torn writes without mutexes
    - Used for the producer/consumer swap between ArtNet/sACN core-0 task and DMX output core-1 task
 - **Pitfall**: Memory ordering must be enforced
    - `__sync_synchronize()` (or volatile + DMB) required before seq increment to prevent reordering
@@ -170,8 +170,8 @@
 
 ### RMT Hardware TX
 - **Lesson**: RMT channel provides precise DMX break + MAB timing
-   - 88 µs break + 8 µs MAB generated via RMT item duration encoding (spec 45 §8)
-   - Inter-slot gap (0 µs) and stop bit timing are exact — no bit-banging drift
+   - 88 Âµs break + 8 Âµs MAB generated via RMT item duration encoding (spec 45 Â§8)
+   - Inter-slot gap (0 Âµs) and stop bit timing are exact â€” no bit-banging drift
 - **Pitfall**: RMT TX done callback must not block
    - TX-end ISR queues the next slot for the next DMX packet; blocking stalls the stream
    - Buffer ownership (double-buffer / ping-pong) prevents mid-transit reconfiguration
@@ -184,11 +184,11 @@
 ### sACN Stream-Sync
 - **Lesson**: Stream-Sync staging decouples DMX flush timing from packet receipt
    - When `cfg.outputs[i].sacnsync > 0`, streaming data packets (frame vector 0x02) are staged into `g_dmxBufState.sacnStaged[i]` rather than routed immediately, with a 500 ms deadline (`sacnSyncDeadlineMs[i] = now_ms() + 500`) and sync universe address recorded in `sacnSyncAddr[i]`
-   - Stream Sync packets (frame vector 0x03) commit staged frames only for outputs whose `sacnsync` matches the sync universe — a bug originally routed these through `flushArtSyncStaged()` (ArtNet path) instead of the sACN-specific `commitSacnStaged(i)`
-   - `sacn_check_timeouts()` runs once per poll cycle after socket drain, committing frames whose 500 ms grace period has elapsed — this guarantees delivery even when the source never sends a Sync packet
-   - `commitSacnStaged()` writes through the seqlock bracket (write-begin, slot copy with start code cleared to 0, write-end), zero-padding to DMX_PACKET_SIZE (513 bytes per spec 45 §11)
+   - Stream Sync packets (frame vector 0x03) commit staged frames only for outputs whose `sacnsync` matches the sync universe â€” a bug originally routed these through `flushArtSyncStaged()` (ArtNet path) instead of the sACN-specific `commitSacnStaged(i)`
+   - `sacn_check_timeouts()` runs once per poll cycle after socket drain, committing frames whose 500 ms grace period has elapsed â€” this guarantees delivery even when the source never sends a Sync packet
+   - `commitSacnStaged()` writes through the seqlock bracket (write-begin, slot copy with start code cleared to 0, write-end), zero-padding to DMX_PACKET_SIZE (513 bytes per spec 45 Â§11)
 - **Pitfall**: Cross-protocol staging buffers must not share commit paths
-   - ArtNet’s `flushArtSyncStaged()` touches `sacnSyncDeadlineMs[i]`, coupling the two protocols’ commit lifecycle — sACN Stream-Sync now commits exclusively via `commitSacnStaged(i)`, isolating protocol state
+   - ArtNetâ€™s `flushArtSyncStaged()` touches `sacnSyncDeadlineMs[i]`, coupling the two protocolsâ€™ commit lifecycle â€” sACN Stream-Sync now commits exclusively via `commitSacnStaged(i)`, isolating protocol state
 - **Pitfall**: Timeout comparison must use signed arithmetic to avoid wraparound
    - `uint32_t now - uint32_t deadline` wraps for long-running devices; `(int32_t)(now - deadline) >= 0` handles the 49.7-day millis() wrap safely
 
@@ -304,7 +304,7 @@
 
 
 
-## Phase 5–7: RDM, Web Contract, OTA and System Services (2026-08-21)
+## Phase 5â€“7: RDM, Web Contract, OTA and System Services (2026-08-21)
 
 ### RDM transport contracts
 - **Lesson**: E1.20 wire contracts should be isolated from hardware ownership. `rdm_types.h`, `rdm_engine.c`, and `rdm_discovery.c` are pure data/algorithm layers and can be validated on the host before RMT/UART integration.
@@ -341,3 +341,12 @@
 - `python3 tools/native_run.py --clean`: 15/15 CTest executables passed.
 - `python3 tools/test_ota_sign.py`: host signed-image, tamper-rejection, and empty-image checks passed.
 - Development and release profiles built successfully for `esp32dev`, `wt32eth01`, and `esp32s3_psram` after clean reconfiguration where required.
+
+
+## BÆ°á»›c 2 â€” Canonical board capability and pin contract (2026-08-22)
+
+The board table is now the single source for board identity, network capability, PSRAM/LED capability, and board-sensitive pin defaults. `board_config_t` exposes the same capability mask and pin map to runtime consumers while preserving the existing LED and network fields for compatibility.
+
+A pin found only in a generic template is not sufficient evidence for a board-specific hardware claim. Pins that are undocumented or not yet HIL-verified are represented by `BOARD_PIN_UNASSIGNED` (`-1`), especially display, W5500 and multi-output DMX/RDM pins. The WT32-ETH01 RMII defaults are retained only where the existing board/spec contract already identifies MDC 23, MDIO 18 and power 16.
+
+A capability bit means that a board profile can provision the interface; it does not mean that the runtime driver or physical board has passed HIL. Future Ethernet, RDM, display and panel work must consume this contract and add hardware evidence before changing the capability status.

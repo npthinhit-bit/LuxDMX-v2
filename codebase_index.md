@@ -165,7 +165,7 @@ Build gate (plan section Constraints / Phase 0 exit #1): `pio run -e {esp32s3_ps
 
 Native gate (Phase 0 exit #2 / section 5.4): host-native harness (`test/`, gcc) builds + `ctest` 15/15 PASS, including the OTA recovery policy test and existing protocol/config suites.
 
-- [x] Project structure + canonical board table (boards.c/boards.h; gap-a closed)
+- [x] Project structure + canonical board table (boards.c/boards.h; capability mask, board pin map and explicit unassigned sentinel; gap-a closed)
 - [x] Hardware abstraction layer (auto-detect + net_if)
 - [x] WiFi STA connect-from-config + NET_STATE_* + exponential backoff, GPIO0 forced-portal, SoftAP(SSID=hostname)
 - [x] Setup portal: custom lwIP DNS sinkhole (UDP:53 -> 192.168.4.1), `POST /setup` -> NVS -> reboot
@@ -203,7 +203,7 @@ Native gate (Phase 0 exit #2 / section 5.4): host-native harness (`test/`, gcc) 
 - [x] Build gate: dev and signed-release profiles build successfully for esp32dev, wt32eth01, and esp32s3_psram
 - [x] Native gate: 15 ctest executables green; host signing contract and retry-cap policy covered
 
-Remaining Phase-1 follow-ups (parity register section 10): `wifi_ssid` CFG_LIVE -> CFG_REBOOT per spec 45: DONE; serial `help`/`factory` verbs (spec 43): DONE; config_engine board-template: already reconciled (hardware fields sourced from boards.c, section 5.2). webui `/wifi/scan` vs plan section 5.7 `/setup/scan` (accepted deviation). See Lessons_Learned.
+Remaining Phase-1 follow-ups (parity register section 10): `wifi_ssid` CFG_LIVE -> CFG_REBOOT per spec 45: DONE; serial `help`/`factory` verbs (spec 43): DONE; config_engine board-template: hardware LED defaults sourced from boards.c; board capability/pin map is now the canonical contract, while undocumented DMX/display/W5500 pins remain explicitly unassigned until evidence is available. webui `/wifi/scan` vs plan section 5.7 `/setup/scan` (accepted deviation). See Lessons_Learned.
 
 ## References
 

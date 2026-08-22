@@ -74,6 +74,8 @@ esp_err_t hw_init(void) {
     current_config.led_type = def->led_type;
     current_config.led_gpio = (gpio_num_t)def->led_pin;
     current_config.net_if = def->net_if;
+    current_config.capabilities = def->capabilities;
+    current_config.pins = def->pins;
 
     // Configure LED GPIO as output for simple GPIO type
     if (current_config.led_type == LED_TYPE_SIMPLE_GPIO) {

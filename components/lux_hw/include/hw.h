@@ -15,6 +15,8 @@ typedef struct {
     led_type_t led_type;
     gpio_num_t led_gpio;       // GPIO number (cast from int in board_def_t)
     net_if_type_t net_if;
+    uint32_t capabilities;
+    board_pin_map_t pins;
 } board_config_t;
 
 // Hardware abstraction interface
