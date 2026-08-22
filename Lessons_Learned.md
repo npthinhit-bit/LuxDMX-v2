@@ -386,3 +386,10 @@ The fixture harness now reports a linear lifecycle of created, setup, exercised,
 The repository now has a dependency-free `tools/repository_hygiene.py` checker and `tools/test_repository_hygiene.py` violation suite. The checker distinguishes tracked source-of-truth from generated build output, generated sdkconfig files, firmware artifacts and private-key material; it also checks workspace outputs and `git diff --check` unless `--tracked-only` is selected.
 
 CI validators must validate YAML syntax and required shape without hard-coding historical job names that may legitimately change during a planned CI migration. A stale local validator can fail for the wrong reason, so the validator itself must be reviewed or replaced before treating its result as evidence.
+
+
+## M0.4.2 — CI log and failure artifacts (2026-08-22)
+
+CI diagnostics now have a dependency-free allowlist collector in `tools/ci_capture_context.py` and a two-case host test. The collector records only revision, short status, safe tool versions, runner platform, job label and an explicit no-environment-dump policy. It never serializes process environment variables, signing keys or tokens.
+
+Long-running CI commands must use `set -o pipefail` with `tee`, otherwise a successful tee can hide the real build/test exit code. Diagnostics should use separate `diagnostics-<job-or-environment>` namespaces and `if: always()` upload behavior, while the quality-gate command itself must remain fail-closed. The workflow changes for this step remain pending GitHub `workflows` permission; the collector and documentation are already validated locally.

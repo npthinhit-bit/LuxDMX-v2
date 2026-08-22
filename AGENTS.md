@@ -13,6 +13,7 @@ PlatformIO environments are defined in `platformio.ini`:
 - `python3 tools/native_run.py --clean` — clean native CTest suite.
 - `python3 tools/repository_hygiene.py` — tracked/workspace generated-file and secret hygiene check.
 - `python3 tools/test_repository_hygiene.py` — host violation tests for the hygiene checker.
+- `python3 tools/test_ci_capture_context.py` — safe CI diagnostics collector test.
 - `python3 tools/test_ota_sign.py` — host signed-image contract test.
 
 A normal change must preserve the repository-hygiene gate, native gate and the three development firmware builds. Changes to CMake source lists, Kconfig/defaults, partition layout, timing-critical drivers, OTA, or task topology require a clean build of the affected environments. Hardware behavior is not considered verified by a native shim alone.
@@ -37,4 +38,4 @@ Do not hand-edit `.pio/` output, managed components, `dependencies.lock`, root g
 
 Implement one logical work package at a time. Before coding, record its spec anchors, ownership, state/data model, timing, memory bound, error matrix, security impact and test plan. Add or update tests with the behavior, run the smallest relevant validation first, then the required build matrix. Use focused conventional commits; no WIP commits on `main`.
 
-Never commit secrets or private signing keys. Development OTA profiles may bypass signing only through an explicit flag; release profiles must fail closed and use protected key injection. Keep PCB schematic, layout, BOM, Gerber, fabrication and electrical-design work outside this firmware roadmap unless a separate user-approved issue changes the boundary.
+Never commit secrets or private signing keys. CI diagnostics must use an allowlist and must never serialize the process environment. Development OTA profiles may bypass signing only through an explicit flag; release profiles must fail closed and use protected key injection. Keep PCB schematic, layout, BOM, Gerber, fabrication and electrical-design work outside this firmware roadmap unless a separate user-approved issue changes the boundary.
