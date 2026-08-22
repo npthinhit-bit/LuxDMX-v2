@@ -38,28 +38,40 @@ Every matrix entry must emit a machine-readable report containing at least the e
 `tools/firmware_artifact_report.py` implements this contract for one environment at a time. It resolves `extends` in `platformio.ini`, hashes files in bounded 1 MiB chunks, enforces a 64 MiB per-file safety bound, and exits non-zero when a required artifact is missing or unsafe. Its JSON output uses stable insertion order and UTF-8 encoding.
 
 
-The size report for `<env>` must record:
+The report uses the following stable top-level fields:
 
 | Field | Meaning |
 |---|---|
+| `schema` | Versioned report identifier, currently `luxdmx.firmware-artifact.v1` |
+| `status` | `pass` or `fail`; required outputs are validated before `pass` |
 | `environment` | Exact PlatformIO environment name |
 | `board` | PlatformIO board identifier |
 | `profile` | `development` or `release` |
 | `commit` | Source commit used for the build |
-| `firmware_bytes` | Size of `firmware.bin` |
-| `partitions_bytes` | Size of `partitions.bin` |
-| `bootloader_bytes` | Size of `bootloader.bin` |
-| `elf_bytes` | Size of `firmware.elf`, when retained as diagnostic |
-| `firmware_sha256` | SHA-256 of `firmware.bin` |
-| `partition_sha256` | SHA-256 of `partitions.bin` |
-| `bootloader_sha256` | SHA-256 of `bootloader.bin` |
-| `framework` | ESP-IDF/framework version reported by the build |
-| `status` | `pass` or `fail`; never inferred from file existence alone |
+| `platform` | Platform identifier reported by PlatformIO metadata |
+| `framework` | ESP-IDF/framework identifier reported by PlatformIO metadata |
+| `platformio_version` | PlatformIO Core version used by the reporter |
+| `python_version` | Python runtime version used by the reporter |
+| `artifacts` | Map of required and diagnostic files to path/presence/bytes/SHA-256 records |
+| `errors` | Deterministic failure messages; empty for a passing report |
 
-The report must use stable key ordering and UTF-8 text/JSON so it can be diffed and consumed by later packaging and hosted-flasher work. It must not silently compare sizes across different partition layouts or board profiles.
+The `artifacts` map contains `firmware.bin`, `partitions.bin`, and `bootloader.bin` as required entries and `firmware.elf` as an optional diagnostic entry. Byte sizes and SHA-256 values are nested under each artifact record; this is the canonical schema rather than separate top-level `firmware_bytes` fields. The report uses stable key ordering and UTF-8 text/JSON so it can be diffed and consumed by later packaging and hosted-flasher work. It must not silently compare sizes across different partition layouts or board profiles.
 
-## 5. Current gap and next implementation boundary
+## 5. Current CI boundary and validation evidence
 
-The current workflow builds the three development environments in its firmware matrix and, after each build, runs `tools/firmware_artifact_report.py` and uploads `firmware-metadata-<env>`. The six-environment PlatformIO manifest already defines three release profiles, but release-profile matrix execution and per-environment release size/metadata reports are still the next M0.4.3 implementation work. This distinction must remain visible in `codebase_index.md` and release documentation.
+The current workflow builds the three development environments in its firmware matrix and, after each build, runs `tools/firmware_artifact_report.py` and uploads `firmware-metadata-<env>`. The six-environment PlatformIO manifest defines three development profiles and three signing-flag release profiles. On commit `a355d252ac9bd82a1211c44b565bfb7a54af2462`, all six profiles were also built sequentially in the local validation run and produced passing per-environment reports. Release profiles are therefore locally exercised, but they are not claimed as part of the current PR development matrix; tag/release CI policy remains a separate release gate.
 
 M0.4.3 does not prove flash-size correctness, PHY behavior, OTA acceptance, signing-key provisioning or HIL hardware behavior. A local PlatformIO warning or successful compile is evidence for that invocation only; it is not a hardware validation result.
+
+## 6. Validation snapshot
+
+The following snapshot records the M0.4.3.4 local validation at commit `a355d252ac9bd82a1211c44b565bfb7a54af2462`. Each row passed `pio run -e <env>` followed by the bounded reporter; sizes are bytes for `firmware.bin`.
+
+| Environment | Profile | Board | Status | firmware.bin bytes |
+|---|---|---|---|---:|
+| `esp32dev` | development | `esp32dev` | `pass` | 903216 |
+| `wt32eth01` | development | `wt32-eth01` | `pass` | 902688 |
+| `esp32s3_psram` | development | `esp32-s3-devkitc-1` | `pass` | 911200 |
+| `esp32dev_release` | release | `esp32dev` | `pass` | 903648 |
+| `wt32eth01_release` | release | `wt32-eth01` | `pass` | 903648 |
+| `esp32s3_psram_release` | release | `esp32-s3-devkitc-1` | `pass` | 911616 |

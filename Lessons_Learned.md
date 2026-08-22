@@ -414,3 +414,12 @@ A report with missing toolchain metadata may still be useful for a local invocat
 The development firmware matrix now runs `tools/firmware_artifact_report.py` after each successful build and uploads `firmware-metadata-<env>` separately from `firmware-<env>` binaries and `diagnostics-firmware-<env>` logs. The report step is fail-closed: a missing required binary or unsafe file prevents metadata upload and keeps the build job failed.
 
 The current CI matrix still contains the three development environments only. The three release profiles remain a separate release-matrix gap and must not be inferred as covered from development artifacts.
+
+
+## M0.4.3.4 — Matrix validation and closeout (2026-08-22)
+
+The bounded firmware reporter was exercised after a successful `pio run -e <env>` for all six PlatformIO profiles: `esp32dev`, `wt32eth01`, `esp32s3_psram`, `esp32dev_release`, `wt32eth01_release`, and `esp32s3_psram_release`. Every report returned `status: pass`; required `firmware.bin`, `partitions.bin`, and `bootloader.bin` were present and hashed. The development profiles remain the deployed PR/`main` CI matrix, while release profiles are validated locally here and remain governed by tag/release workflow policy.
+
+The report schema is nested under `artifacts`, so consumers must read `bytes` and `sha256` from each artifact record rather than expecting legacy top-level size fields. The report records the exact source commit and stable UTF-8 JSON, making it suitable for later packaging and hosted-flasher consumption.
+
+The ESP32-S3 PlatformIO invocation emitted a local flash-size mismatch warning even though the configured profile expects 8 MB and the build completed successfully. This is build-tool evidence only; it does not establish flash geometry correctness, PSRAM behavior, signing-key provisioning, OTA acceptance, PHY behavior or HIL readiness. Those claims remain explicitly outside M0.4.3.

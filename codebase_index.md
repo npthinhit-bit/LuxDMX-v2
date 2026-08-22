@@ -179,7 +179,9 @@ Native gate (Phase 0 exit #2 / section 5.4): host-native harness (`test/`, gcc) 
 - [x] LED math test: brightness scaling, clamping, pattern-to-color mapping (spec 36)
 - [x] CI/CD pipeline with dev artifacts and tag-only signed release packaging; release tags fail closed without the protected signing secret
 - [x] M0.4.2 CI diagnostics: safe context collector, host tests and workflow integration deployed; diagnostics artifacts are separated from firmware artifacts
-- [~] M0.4.3 firmware matrix: six-environment artifact contract documented; bounded reporter host-tested and integrated into development matrix; release matrix execution remains pending
+- [x] M0.4.3 firmware matrix: six-environment artifact contract documented; bounded reporter host-tested and integrated into the remote development matrix; all three development and three release profiles built and reported locally at commit `a355d252`; release-tag CI remains a separate gate and HIL behavior is not claimed
+
+M0.4.3.4 validation snapshot: `pio run -e <env>` followed by `tools/firmware_artifact_report.py` passed sequentially for `esp32dev`, `wt32eth01`, `esp32s3_psram`, `esp32dev_release`, `wt32eth01_release`, and `esp32s3_psram_release`. The development matrix is the deployed PR/`main` CI gate; release profiles are locally exercised but remain governed by tag/release policy.
 
 **Phase 2 - build-gate green
 - [x] lux_core: DMX512 frame scheduling, RMT peripheral transmit
