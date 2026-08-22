@@ -1,0 +1,2 @@
+# OTA boot-retry recovery requires ESP-IDF app rollback state tracking.
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y

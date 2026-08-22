@@ -23,6 +23,7 @@ CLAUDE.md
 /CMakeLists.txt
 /sdkconfig.defaults
 /sdkconfig.*
+!/sdkconfig.defaults
 /dependencies.lock
 /managed_components/
 /.dummy/

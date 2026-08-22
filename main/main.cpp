@@ -20,6 +20,7 @@
 #include "captive_portal.h"
 #include "tasks.h"
 #include "rdm_task.h"
+#include "ota_recovery.h"
 #include "wifi_config.h"
 
 #include <stdlib.h>
@@ -65,6 +66,12 @@ extern "C" void app_main(void) {
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
+
+    // Inspect bootloader pending-verify state before starting the service graph.
+    ret = otaRecoveryInit();
+    if (ret != ESP_OK && ret != ESP_ERR_NOT_SUPPORTED) {
+        LOG_WARN(TAG, "OTA recovery guard unavailable: %s", esp_err_to_name(ret));
+    }
 
     // Initialize hardware (board detection)
     ESP_ERROR_CHECK(hw_init());
@@ -158,6 +165,16 @@ extern "C" void app_main(void) {
     ESP_ERROR_CHECK(web_server_start());
     net_rx_task_start();
     LOG_INFO(TAG, "Web server started");
+
+    // Require a bounded stability window before accepting a pending image.
+    if (otaRecoveryPending()) {
+        LOG_INFO(TAG, "Pending OTA image: observing service stability for 5000 ms");
+        vTaskDelay(pdMS_TO_TICKS(5000));
+        ret = otaRecoveryMarkHealthy();
+        if (ret != ESP_OK) {
+            LOG_WARN(TAG, "Failed to mark OTA image healthy: %s", esp_err_to_name(ret));
+        }
+    }
 
     // Main application loop
     while (1) {

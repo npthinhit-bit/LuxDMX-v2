@@ -4,7 +4,7 @@ Domain: system.build
 
 ## 1. Module Overview
 
-The Build System is a PlatformIO-based build orchestration layer that compiles the firmware for five target boards and two test environments. It is managed through a single build manifest that defines compiler flags, board configurations, dependency libraries, partition layouts, and build-time code generation for embedded web assets and board configuration templates.
+The Build System is a PlatformIO-based build orchestration layer that compiles the firmware for three supported board targets, three explicit signed-release profiles, and one native test environment. It is managed through a single build manifest that defines compiler flags, board configurations, dependency libraries, partition layouts, and build-time code generation for embedded web assets and board configuration templates.
 
 The system owns the build manifest configuration (environments, flags, dependencies), the toolchain path resolution hook, the PROGMEM header generator (which gzips HTML pages and binary assets into embedded arrays), and the board template generator (which embeds per-board default configuration values as read-only strings). It delegates compilation to the ESP-IDF CMake builder and code generation to a Python script invoked as a build hook.
 
@@ -13,15 +13,16 @@ It is consumed by all firmware source files (via include paths), the config engi
 
 ### Build Environments
 
-The build manifest defines five firmware environments and one native test environment.
+The build manifest defines three development firmware environments, three signed-release variants, and one native test environment.
 
 | Environment | Target | MCU | Network | Outputs | Key Defines |
 |---|---|---|---|---|---|
-| esp32dev | ESP32 (WROOM-32/WROVER) | ESP32 | WiFi + optional W5500 SPI Ethernet | 2 | Wired Ethernet, SPI Ethernet, dev build (no signature verification) |
-| esp32s3dev | ESP32-S3 DevKitC-1 | ESP32-S3 | WiFi | 2 | WS2812 LED on GPIO48, brownout disabled |
-| wt32eth01 | WT32-ETH01 | ESP32 | RMII LAN8720 Ethernet | 2 | Wired Ethernet, RMII Ethernet, dev build |
-| esp32s3_psram | ESP32-S3 + 8MB PSRAM | ESP32-S3 | WiFi | 2 | PSRAM enabled, octal SPIRAM, dev build |
-| esp32s3_n16r8_eth | LuxDMX-4uni (4-universe) | ESP32-S3 | W5500 SPI Ethernet | 4 | 4-universe board, soak test, PSRAM, W5500 Ethernet |
+| esp32dev | ESP32 Dev Module | ESP32 | WiFi | 2 | Development profile; signature verification bypassed |
+| esp32dev_release | ESP32 Dev Module | ESP32 | WiFi | 2 | Release profile; `OTA_SIGN_ENABLED=1` |
+| wt32eth01 | WT32-ETH01 | ESP32 | RMII LAN8720 Ethernet | 2 | Development profile; signature verification bypassed |
+| wt32eth01_release | WT32-ETH01 | ESP32 | RMII LAN8720 Ethernet | 2 | Release profile; `OTA_SIGN_ENABLED=1` |
+| esp32s3_psram | ESP32-S3 DevKitC-1 + PSRAM | ESP32-S3 | WiFi | 2 | Development profile; octal PSRAM; signature bypassed |
+| esp32s3_psram_release | ESP32-S3 DevKitC-1 + PSRAM | ESP32-S3 | WiFi | 2 | Release profile; octal PSRAM; `OTA_SIGN_ENABLED=1` |
 | native | Host (GCC/MSVC) | x86 | None | None | Test-only environment with shims |
 
 ### Build Flags (shared)
@@ -89,7 +90,7 @@ Build-time configuration is controlled through the build manifest:
 | Wired Ethernet enable | Per-environment define | Compiles wired Ethernet code paths |
 | SPI Ethernet driver | Per-environment define | W5500 SPI Ethernet driver |
 | RMII Ethernet driver | Per-environment define (wt32eth01 only) | LAN8720 RMII Ethernet driver |
-| Signature verification | Per-environment define | Ed25519 signature verification (0=disabled for dev, 1=enabled for production) |
+| Signature verification | Per-environment define | Ed25519 verification (disabled only in named dev profiles; enabled in `*_release`) |
 | Soak test mode | 4-universe env define | 60-second heap watchdog and diagnostics endpoint |
 | 4-universe board | 4-universe env define | 4-DMX-output pin map with copper pour isolation |
 
