@@ -448,3 +448,12 @@ The order-independent double-run smoke test produced byte-identical output trees
 The resolver rejects missing parents, cycles, excessive depth, invalid UTF-8, malformed lines, empty keys, non-canonical paths, symlinks and unsafe input/output sizes. It emits normalized `key=value` outputs plus a `templates` inheritance record in the stable manifest. Five repository templates were resolved twice with different root ordering and produced byte-identical output trees.
 
 This package remains host-only. The current firmware still consumes inline template strings in `config_schema.c`; no PlatformIO/CMake hook or runtime source-of-truth migration was performed. That integration remains a separate gate and must not be inferred from the passing parser tests.
+
+
+## M0.4.4.4 — Web/static asset evidence review (2026-08-22)
+
+The tracked `webui/` tree is not currently proven to be the firmware asset source-of-truth. It contains a setup portal (`LuxDMXApp`) with `css/style.css`, `js/transport.js` and `js/app.js`, while the firmware serves dashboard/config/setup/firmware pages from inline C strings and exposes only `/assets/style.css` and `/assets/app.js` through `web_assets_get()`.
+
+A byte-level comparison found no exact match for the root page, CSS or JavaScript. The runtime root page is 4,827 bytes versus 3,232 bytes for `webui/index.html`; runtime CSS is 3,666 bytes versus 6,145 bytes; runtime JavaScript is 1,641 bytes versus 7,928 bytes. The runtime also has no tracked counterparts for config/setup/firmware pages, and no confirmed route for `transport.js`.
+
+M0.4.4.4 is therefore deliberately marked `Blocked / documented-only`. Generating or embedding `webui/` now would risk replacing dashboard behavior with setup behavior and would create output without a verified consumer contract. A future frontend/runtime reconciliation package must choose the canonical source, map every route, prove byte/content intent, add consumer tests and define encoding/compression policy before asset generation.

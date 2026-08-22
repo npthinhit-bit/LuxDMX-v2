@@ -186,6 +186,7 @@ M0.4.3.4 validation snapshot: `pio run -e <env>` followed by `tools/firmware_art
 - [x] M0.4.4.1 generated-assets inventory: confirmed no active general generator or PlatformIO/CMake generation hook; mapped template and web inputs to current inline runtime consumers; documented the source-of-truth decision and next-package boundaries in `docs/M0.4.4_GENERATED_ASSETS_INVENTORY.md`
 - [x] M0.4.4.2 pure generator CLI: `tools/generate_manifest.py` materializes explicit bounded inputs into an atomic output directory and emits stable `luxdmx.generated-manifest.v1` JSON; six host tests and two-run byte comparison pass; no runtime/build-hook integration yet
 - [x] M0.4.4.3 template generator: `tools/template_generator.py` resolves UTF-8 `.ini` inheritance with base-first ordering, bounded depth/cycle detection, duplicate/malformed/path validation and deterministic normalized outputs; six host tests and five-template double-run pass; runtime/build-hook integration remains pending
+- [~] M0.4.4.4 web/static asset generator: blocked/documented-only after byte/content and route comparison showed `webui/` is not the canonical source for current inline firmware pages/assets; source-of-truth reconciliation is required before generator or build-hook work
 
 **Phase 2 - build-gate green
 - [x] lux_core: DMX512 frame scheduling, RMT peripheral transmit
