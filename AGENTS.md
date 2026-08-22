@@ -1,30 +1,38 @@
 # AGENTS.md
 
-LuxDMX-v2 — Art-Net/sACN → DMX512 gateway firmware for ESP32 (ESP32, WT32-ETH01, ESP32-S3+PSRAM). Pure ESP-IDF v5.2 rewrite via PlatformIO; C implementation with a single C++ entrypoint. **Work on branch `idf-only`.**
+LuxDMX-v2 — Art-Net/sACN → DMX512 gateway firmware for ESP32, WT32-ETH01 and ESP32-S3 + PSRAM. The repository uses PlatformIO with ESP-IDF and a C implementation with a single C++ entrypoint in `main/main.cpp`. The current integration branch is `main`; feature work follows `docs/DEVELOPMENT_PLAN.md` and the issue dependency order in issue #16.
 
-## Build
+## Build and validation
 
-PlatformIO + ESP-IDF (`framework = espidf`); envs are in `platformio.ini`.
+PlatformIO environments are defined in `platformio.ini`:
 
-- `pio run -e esp32s3_psram` — canonical target (per `docs/SYSTEM_SPECIFICATION/INDEX.md` Build Gate)
-- `pio run -e esp32dev` / `pio run -e wt32eth01` — other firmware targets
-- upload/monitor: `pio run -e esp32dev -t upload` (esptool, COM3) / `pio device monitor` (115200)
-- `native` env is a host stub; no tests are wired to it (there are no test sources anywhere)
+- `pio run -e esp32s3_psram` — canonical WiFi/PSRAM target.
+- `pio run -e esp32dev` — ESP32 development target.
+- `pio run -e wt32eth01` — WT32-ETH01 Ethernet development target.
+- `pio run -e esp32s3_psram_release`, `pio run -e esp32dev_release`, and `pio run -e wt32eth01_release` — signing-enforced release profiles.
+- `python3 tools/native_run.py --clean` — clean native CTest suite.
+- `python3 tools/test_ota_sign.py` — host signed-image contract test.
 
-⚠️ **The tree does not currently build.** `components/lux_web/CMakeLists.txt` lists `src/web_websocket.c` and `src/web_assets.c`, and `web_server.c`/`wifi_manager.c` include headers (`web_websocket.h`, `wifi_events.h`, `wifi_config.h`, `captive_portal.h`) that don't exist on disk. `.pio/build/*` contains only failed-build state. Also, no platform/toolchain packages are installed under `~/.platformio`, so a first `pio run` downloads gigabytes.
+A normal change must preserve the native gate and the three development firmware builds. Changes to CMake source lists, Kconfig/defaults, partition layout, timing-critical drivers, OTA, or task topology require a clean build of the affected environments. Hardware behavior is not considered verified by a native shim alone.
 
-## Architecture (current reality)
+## Architecture
 
-- `main/main.cpp` (`app_main`) — the only C++ file, everything else is C. Boot order: logger → NVS → `hw_init` → LED → `config_engine_init`/`config_load` → `wifi_manager_init` → `web_server_init/start`. Note it hardcodes placeholder creds `wifi_sta_connect("SSID", "PASSWORD")`.
-- Components under `components/`: `lux_common`, `lux_hw`, `lux_led`, `lux_log`, `lux_config`, `lux_wifi`, `lux_web`, `lux_test` (empty scaffold). Only Phase-1 scope exists: WiFi + LED + schema-driven config + web server.
-- Config is schema-driven: the field table in `components/lux_config/src/config_schema.c` drives NVS, JSON, and serial console. Board defaults are the hardcoded `board_templates[]` table in that same file — **not** the `templates/*.ini` files.
+`main/main.cpp` is lifecycle wiring: logger → NVS → OTA recovery guard → hardware/LED → configuration → DMX/RDM tasks → protocol/network → web server. Runtime logic belongs in components. `lux_common` owns shared headers and board contracts; `lux_config` owns schema/NVS/migration; `lux_core` owns DMX buffers, routing, merge, scenes, sender tracking and RDM logic; `lux_drv` owns RMT/UART/GPIO/display/LED drivers; `lux_net` owns protocol, HTTP/WebSocket, Ethernet state and OTA; `lux_sys` owns task creation, crash guard, logging, alerts and soak monitoring; `lux_web` owns REST/UI/WebSocket presentation; `lux_test` and `test/` own host shims and tests.
 
-## Docs vs. code — read these first, trust these second
+Core-affinity and timing are contractual. Network/web work runs on core 0; DMX/RDM timing-critical work runs on core 1. The DMX buffer is seqlock-protected, the DMX frame is 513 bytes, queues and payloads are bounded, and timing constants must be traced to the relevant system specification before modification.
 
-`codebase_index.md` and `docs/SYSTEM_SPECIFICATION/` describe a *target* 5-layer architecture (RDM/DMX core, merge engine, seqlock, OTA + Ed25519, Ethernet/W5500/RMII, 6 build envs, build-time PROGMEM/template generators, Kconfig, tests, CI). None of that exists in the current code: `platformio.ini` has no build hooks/codegen, no Kconfig, no `tools/`, `test/`, or `.github/` on this branch, and components are only Phase 1. Treat the docs as the roadmap/spec; `platformio.ini` + code are ground truth. Do not write code that assumes documented subsystems already exist.
+## Documentation and implementation truth
 
-## Other gotchas
+`docs/SYSTEM_SPECIFICATION/` and `docs/REFACTOR_PLAN.md` define target behavior, protocol layouts, timing, configuration semantics and safety contracts. `platformio.ini`, source code and generated build output define what is actually present. `docs/DEVELOPMENT_PLAN.md` defines phase gates and Definition of Done. `codebase_index.md` and `Lessons_Learned.md` must be updated in the same logical commit as any behavior change.
 
-- `templates/*.ini` are orphaned data — their keys (`wifissid`, `a_tx`, …) don't match the live C schema keys (`wifi_ssid`, …) and no generator consumes them.
-- Root `CMakeLists.txt`, `sdkconfig*`, `dependencies.lock`, `managed_components/` are PlatformIO-generated and gitignored; don't hand-edit them. `partitions.csv` (dual-slot OTA) is tracked.
-- `origin/main` holds a different, legacy Arduino codebase (pioarduino + AsyncWebServer, ~295 files incl. CI/tests). Don't copy artifacts from it into `idf-only`.
+Do not implement from a header, config field, UI control or stub alone. A capability is complete only when it has a runtime consumer, negative/error tests, documentation and hardware evidence where it touches a peripheral, waveform, network link or reboot lifecycle.
+
+## Generated files and configuration
+
+Do not hand-edit `.pio/` output, managed components, `dependencies.lock`, root generated CMake state, or generated `sdkconfig.*` files. Use tracked `sdkconfig.defaults` and PlatformIO/Kconfig inputs for reproducible defaults. `partitions.csv` is a tracked dual-slot OTA contract and may be changed only with explicit partition-size, bootloader and OTA migration review.
+
+## Development rules
+
+Implement one logical work package at a time. Before coding, record its spec anchors, ownership, state/data model, timing, memory bound, error matrix, security impact and test plan. Add or update tests with the behavior, run the smallest relevant validation first, then the required build matrix. Use focused conventional commits; no WIP commits on `main`.
+
+Never commit secrets or private signing keys. Development OTA profiles may bypass signing only through an explicit flag; release profiles must fail closed and use protected key injection. Keep PCB schematic, layout, BOM, Gerber, fabrication and electrical-design work outside this firmware roadmap unless a separate user-approved issue changes the boundary.
