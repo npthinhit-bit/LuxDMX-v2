@@ -74,6 +74,19 @@ jobs:
         run: |
           set -o pipefail
           pio run -e ${{ matrix.env }} 2>&1 | tee ci-artifacts/firmware-${{ matrix.env }}/platformio.log
+      - name: Generate firmware size and metadata report
+        run: |
+          python3 tools/firmware_artifact_report.py \
+            --environment "${{ matrix.env }}" \
+            --build-dir ".pio/build/${{ matrix.env }}" \
+            --output "ci-artifacts/firmware-${{ matrix.env }}/firmware-artifact.json"
+      - name: Upload firmware metadata report
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-metadata-${{ matrix.env }}
+          if-no-files-found: error
+          path: ci-artifacts/firmware-${{ matrix.env }}/firmware-artifact.json
+          retention-days: 14
       - name: Capture firmware failure context
         if: always()
         run: python3 tools/ci_capture_context.py --output-dir ci-artifacts/firmware-${{ matrix.env }}/context --label firmware-${{ matrix.env }}
