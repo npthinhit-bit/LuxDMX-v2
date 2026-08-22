@@ -360,3 +360,10 @@ Native CTest cases now carry the `native` label and a 10-second timeout. This ma
 ## Bước 3.2 — Fixture contract baseline (2026-08-22)
 
 The native harness now has a small fixture contract that requires a non-empty fixture name, a bounded timeout from 1 ms through 10 minutes, and an artifact directory. A fixture can be marked `requires_hil` without making the native run claim hardware verification. This gives future protocol and HIL suites a common metadata shape while keeping the current native tests deterministic and hardware-independent.
+
+
+## Bước 3.3 — ArtDMX fixture baseline (2026-08-22)
+
+The test harness now includes a deterministic ArtDMX fixture builder that reuses the fixture contract and produces bounded packets with the documented Art-Net ID, little-endian opcode/universe, big-endian protocol version/length, sequence, priority, and 512-slot limit. Its tests cover valid payloads, zero-length payloads, endian/layout fields, and invalid bounds.
+
+This fixture is intentionally host-side test data, not an implementation of `artnet_dispatch_packet()` and not proof of network interoperability. Packet exchange, routing, source tracking, and WiFi/Ethernet behavior remain later protocol E2E or HIL gates.
