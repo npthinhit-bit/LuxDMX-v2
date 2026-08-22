@@ -400,3 +400,10 @@ Long-running CI commands must use `set -o pipefail` with `tee`, otherwise a succ
 The six PlatformIO firmware environments are now documented as three development gates and three signing-enforced release gates. Native remains a separate test environment. Firmware inputs are isolated as `firmware-<env>` artifacts, while ELF/map/size evidence belongs to diagnostics artifacts.
 
 Artifact names must use the exact PlatformIO environment name so development and release outputs cannot overwrite or be confused. The next sub-step must produce stable per-environment JSON metadata with byte sizes and SHA-256 values; a successful compile or local flash-size warning is not hardware validation.
+
+
+## M0.4.3.2 — Bounded firmware size/metadata report (2026-08-22)
+
+The repository now has `tools/firmware_artifact_report.py`, a dependency-light reporter for one PlatformIO environment at a time. It resolves `extends`, distinguishes development/release profile, records board/framework fields, computes byte sizes and SHA-256 values with bounded 1 MiB streaming reads, and rejects missing required artifacts or files over the 64 MiB safety bound.
+
+A report with missing toolchain metadata may still be useful for a local invocation, but it must not be interpreted as hardware validation. CI integration and all-environment matrix execution remain separate work. Required firmware inputs remain fail-closed: missing `firmware.bin`, `partitions.bin` or `bootloader.bin` makes the report fail.

@@ -179,7 +179,7 @@ Native gate (Phase 0 exit #2 / section 5.4): host-native harness (`test/`, gcc) 
 - [x] LED math test: brightness scaling, clamping, pattern-to-color mapping (spec 36)
 - [x] CI/CD pipeline with dev artifacts and tag-only signed release packaging; release tags fail closed without the protected signing secret
 - [x] M0.4.2 CI diagnostics: safe context collector, host tests and workflow integration deployed; diagnostics artifacts are separated from firmware artifacts
-- [~] M0.4.3 firmware matrix: six-environment artifact contract documented; release matrix execution and bounded size/metadata report remain pending
+- [~] M0.4.3 firmware matrix: six-environment artifact contract documented; bounded size/metadata reporter implemented and host-tested; release matrix execution and CI integration remain pending
 
 **Phase 2 - build-gate green
 - [x] lux_core: DMX512 frame scheduling, RMT peripheral transmit

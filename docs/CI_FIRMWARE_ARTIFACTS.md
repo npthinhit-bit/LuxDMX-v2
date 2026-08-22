@@ -31,11 +31,14 @@ For each firmware environment `<env>`, PlatformIO writes build output under `.pi
 
 Artifact names must include the complete PlatformIO environment name. Development and release artifacts must never share a name. Diagnostic artifacts use the separate `diagnostics-<job-or-environment>` namespace defined in `docs/CI_ARTIFACTS.md`.
 
-Every matrix entry must emit a machine-readable report containing at least the environment, board/profile, commit SHA, build result, output paths, byte sizes, SHA-256 values, and toolchain/framework identifiers. The report must not contain secrets or a full process environment dump.
+Every matrix entry must emit a machine-readable report containing at least the environment, board/profile, commit SHA, build result, output paths, byte sizes, SHA-256 values, and toolchain/framework identifiers. The report must not contain secrets or a full process environment dump. `tools/firmware_artifact_report.py` is the canonical dependency-free reporter for this contract.
 
 ## 4. Size report contract
 
-The future size report for `<env>` must record:
+`tools/firmware_artifact_report.py` implements this contract for one environment at a time. It resolves `extends` in `platformio.ini`, hashes files in bounded 1 MiB chunks, enforces a 64 MiB per-file safety bound, and exits non-zero when a required artifact is missing or unsafe. Its JSON output uses stable insertion order and UTF-8 encoding.
+
+
+The size report for `<env>` must record:
 
 | Field | Meaning |
 |---|---|
