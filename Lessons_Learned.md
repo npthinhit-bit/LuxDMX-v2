@@ -407,3 +407,10 @@ Artifact names must use the exact PlatformIO environment name so development and
 The repository now has `tools/firmware_artifact_report.py`, a dependency-light reporter for one PlatformIO environment at a time. It resolves `extends`, distinguishes development/release profile, records board/framework fields, computes byte sizes and SHA-256 values with bounded 1 MiB streaming reads, and rejects missing required artifacts or files over the 64 MiB safety bound.
 
 A report with missing toolchain metadata may still be useful for a local invocation, but it must not be interpreted as hardware validation. CI integration and all-environment matrix execution remain separate work. Required firmware inputs remain fail-closed: missing `firmware.bin`, `partitions.bin` or `bootloader.bin` makes the report fail.
+
+
+## M0.4.3.3 — Firmware matrix reporter integration (2026-08-22)
+
+The development firmware matrix now runs `tools/firmware_artifact_report.py` after each successful build and uploads `firmware-metadata-<env>` separately from `firmware-<env>` binaries and `diagnostics-firmware-<env>` logs. The report step is fail-closed: a missing required binary or unsafe file prevents metadata upload and keeps the build job failed.
+
+The current CI matrix still contains the three development environments only. The three release profiles remain a separate release-matrix gap and must not be inferred as covered from development artifacts.

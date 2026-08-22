@@ -60,6 +60,6 @@ The report must use stable key ordering and UTF-8 text/JSON so it can be diffed 
 
 ## 5. Current gap and next implementation boundary
 
-The current workflow builds only the three development environments in its firmware matrix. The six-environment PlatformIO manifest already defines three release profiles, but release-profile matrix execution and per-environment size/metadata reports are still the next M0.4.3 implementation work. This distinction must remain visible in `codebase_index.md` and release documentation.
+The current workflow builds the three development environments in its firmware matrix and, after each build, runs `tools/firmware_artifact_report.py` and uploads `firmware-metadata-<env>`. The six-environment PlatformIO manifest already defines three release profiles, but release-profile matrix execution and per-environment release size/metadata reports are still the next M0.4.3 implementation work. This distinction must remain visible in `codebase_index.md` and release documentation.
 
 M0.4.3 does not prove flash-size correctness, PHY behavior, OTA acceptance, signing-key provisioning or HIL hardware behavior. A local PlatformIO warning or successful compile is evidence for that invocation only; it is not a hardware validation result.
