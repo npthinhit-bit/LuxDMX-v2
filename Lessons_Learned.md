@@ -457,3 +457,10 @@ The tracked `webui/` tree is not currently proven to be the firmware asset sourc
 A byte-level comparison found no exact match for the root page, CSS or JavaScript. The runtime root page is 4,827 bytes versus 3,232 bytes for `webui/index.html`; runtime CSS is 3,666 bytes versus 6,145 bytes; runtime JavaScript is 1,641 bytes versus 7,928 bytes. The runtime also has no tracked counterparts for config/setup/firmware pages, and no confirmed route for `transport.js`.
 
 M0.4.4.4 is therefore deliberately marked `Blocked / documented-only`. Generating or embedding `webui/` now would risk replacing dashboard behavior with setup behavior and would create output without a verified consumer contract. A future frontend/runtime reconciliation package must choose the canonical source, map every route, prove byte/content intent, add consumer tests and define encoding/compression policy before asset generation.
+
+
+## M0.4.5.1 — Web boundary freeze (2026-08-24)
+
+The web baseline is broader than the HTML/CSS/JavaScript files under `webui/`. The active HTTP server registers 14 route entries from `web_routes.c`, including HTML, JSON, POST and wildcard asset routes; `otaManagerRegister()` adds `/ota/status` and `/ota/upload`; `web_websocket_init()` adds `/ws`. The live static allowlist still contains only `/assets/style.css` and `/assets/app.js`, even though the route handler has MIME branches for `.ico` and `.png`.
+
+The freeze records route methods, handler functions, response types, request limits, API fields, cache/reboot behavior, inline frontend consumers, tracked webui candidates, source fingerprints and build registration. It intentionally makes no canonical-source decision. The next safe step is a route/page/API/asset parity matrix before any frontend rewrite or asset-generator hook.
